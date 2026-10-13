@@ -2,41 +2,41 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-11"
+    "at": "2026-10-13"
   },
   "stats": {
-    "nodes": 978,
-    "edges": 4133,
+    "nodes": 989,
+    "edges": 4150,
     "byKind": {
-      "doc": 195,
+      "doc": 197,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 34,
-      "file": 212,
-      "syndicate": 34,
-      "agent": 92,
-      "mcp-server": 4,
+      "file": 217,
+      "syndicate": 35,
+      "agent": 93,
+      "mcp-server": 5,
       "table": 18,
       "module": 198,
-      "script": 50,
+      "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 972,
+      "links_to": 976,
       "requires_env": 191,
       "routes_to": 10,
-      "defined_in": 79,
-      "documents": 58,
-      "contains": 92,
-      "uses_model": 92,
+      "defined_in": 80,
+      "documents": 59,
+      "contains": 93,
+      "uses_model": 93,
       "uses_tool": 62,
-      "connects_mcp": 5,
+      "connects_mcp": 6,
       "delegates_to": 1,
       "imports": 876,
       "reads_table": 28,
-      "runs": 72,
-      "derives_from": 1112,
+      "runs": 74,
+      "derives_from": 1118,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3650,
+      "extracted": 3667,
       "inferred": 483
     },
     "isolated": 4
@@ -205,6 +205,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 285
+      }
+    },
+    {
+      "id": "/agents/event_assistant.md",
+      "kind": "doc",
+      "label": "Event Assistant",
+      "source": "/agents/event_assistant.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 229
       }
     },
     {
@@ -1936,6 +1948,18 @@
       }
     },
     {
+      "id": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "kind": "doc",
+      "label": "ADR 0129: The capstone starter is a repository example in front of the stock A2A server, with its one tool on an MCP endpoint the starter serves",
+      "source": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 905
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2268,7 +2292,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2795
+        "words": 2929
       }
     },
     {
@@ -2292,7 +2316,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1708
+        "words": 1761
       }
     },
     {
@@ -2718,6 +2742,17 @@
         "role": "subagent",
         "syndicate": "draft_review",
         "description": "Checks a draft against the brief and the policy, rule by rule."
+      }
+    },
+    {
+      "id": "agent:event_assistant/EventAssistant",
+      "kind": "agent",
+      "label": "EventAssistant",
+      "source": "config/agents/examples/event_assistant.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "event_assistant",
+        "description": "Answers visitors' questions about one community event from the published event information and the current updates, and says when neither holds the answer."
       }
     },
     {
@@ -4269,6 +4304,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/event_assistant.yaml",
+      "kind": "file",
+      "label": "event_assistant.yaml",
+      "source": "config/agents/examples/event_assistant.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/examples/harness.yaml",
       "kind": "file",
       "label": "harness.yaml",
@@ -4588,6 +4630,24 @@
       "attrs": {}
     },
     {
+      "id": "file:examples/capstone/agent.ts",
+      "kind": "file",
+      "label": "agent.ts",
+      "source": "examples/capstone/agent.ts"
+    },
+    {
+      "id": "file:examples/capstone/eval/run.ts",
+      "kind": "file",
+      "label": "run.ts",
+      "source": "examples/capstone/eval/run.ts"
+    },
+    {
+      "id": "file:examples/capstone/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "source": "examples/capstone/server.ts"
+    },
+    {
       "id": "file:lib/adkPeer.ts",
       "kind": "file",
       "label": "adkPeer.ts",
@@ -4807,6 +4867,12 @@
       "label": "capabilityMatrix.test.ts",
       "source": "tests/capabilityMatrix.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/capstoneStarter.test.ts",
+      "kind": "file",
+      "label": "capstoneStarter.test.ts",
+      "source": "tests/capstoneStarter.test.ts"
     },
     {
       "id": "file:tests/chatCompletionsAdapter.test.ts",
@@ -5571,6 +5637,12 @@
       "attrs": {}
     },
     {
+      "id": "mcp-server:http://127.0.0.1:4100/mcp",
+      "kind": "mcp-server",
+      "label": "http://127.0.0.1:4100/mcp",
+      "source": "config/agents/examples/event_assistant.yaml"
+    },
+    {
       "id": "mcp-server:http://localhost:8931/sse",
       "kind": "mcp-server",
       "label": "http://localhost:8931/sse",
@@ -5648,7 +5720,7 @@
       "id": "model:ollama/qwen3.5:9b",
       "kind": "model",
       "label": "ollama/qwen3.5:9b",
-      "source": "config/agents/examples/model_zoo.yaml"
+      "source": "config/agents/examples/event_assistant.yaml"
     },
     {
       "id": "module:lib/a2a/app.ts",
@@ -7739,6 +7811,15 @@
       }
     },
     {
+      "id": "script:syndicate:event",
+      "kind": "script",
+      "label": "npm run syndicate:event",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate event_assistant"
+      }
+    },
+    {
       "id": "script:syndicate:harness",
       "kind": "script",
       "label": "npm run syndicate:harness",
@@ -8058,6 +8139,17 @@
       "attrs": {
         "memory": "internal-only",
         "agents": 3,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:event_assistant",
+      "kind": "syndicate",
+      "label": "Event Assistant",
+      "source": "config/agents/examples/event_assistant.yaml",
+      "attrs": {
+        "memory": "session-only",
+        "agents": 1,
         "mode": "delegate"
       }
     },
@@ -8968,6 +9060,27 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/draft_review.md:21"
+    },
+    {
+      "from": "/agents/event_assistant.md",
+      "to": "file:config/agents/examples/event_assistant.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/event_assistant.md frontmatter"
+    },
+    {
+      "from": "/agents/event_assistant.md",
+      "to": "syndicate:event_assistant",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/event_assistant.md"
+    },
+    {
+      "from": "/agents/event_assistant.md",
+      "to": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/event_assistant.md:17"
     },
     {
       "from": "/agents/harness.md",
@@ -17937,6 +18050,41 @@
       "evidence": "/decisions/0128-oauth-consent-inside-workflow-nodes.md:50"
     },
     {
+      "from": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "to": "file:config/agents/examples/event_assistant.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
+    },
+    {
+      "from": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "to": "file:examples/capstone/agent.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
+    },
+    {
+      "from": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "to": "file:examples/capstone/eval/run.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
+    },
+    {
+      "from": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "to": "file:examples/capstone/server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
+    },
+    {
+      "from": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "to": "file:tests/capstoneStarter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -22194,6 +22342,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/agents/event_assistant.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:90"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22204,7 +22359,7 @@
       "to": "/decisions/0018-files-are-the-source-of-truth.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:90"
+      "evidence": "/protocols/a2a.md:94"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22232,7 +22387,7 @@
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:102"
+      "evidence": "/protocols/a2a.md:106"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22253,7 +22408,7 @@
       "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:98"
+      "evidence": "/protocols/a2a.md:102"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22288,7 +22443,7 @@
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:96"
+      "evidence": "/protocols/a2a.md:100"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22334,6 +22489,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0129-capstone-starter-in-the-repository.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:90"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/models/chatgpt-signin.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22344,7 +22506,7 @@
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:112"
+      "evidence": "/protocols/a2a.md:116"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22358,7 +22520,7 @@
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:96"
+      "evidence": "/protocols/a2a.md:100"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22551,6 +22713,13 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/agents/event_assistant.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:62"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22603,7 +22772,7 @@
       "to": "/protocols/mcp-server.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:64"
+      "evidence": "/protocols/mcp.md:66"
     },
     {
       "from": "/protocols/mcp.md",
@@ -24132,6 +24301,20 @@
       "evidence": "config/agents/templates/draft_review.yaml"
     },
     {
+      "from": "agent:event_assistant/EventAssistant",
+      "to": "mcp-server:http://127.0.0.1:4100/mcp",
+      "rel": "connects_mcp",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/event_assistant.yaml"
+    },
+    {
+      "from": "agent:event_assistant/EventAssistant",
+      "to": "model:ollama/qwen3.5:9b",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/event_assistant.yaml"
+    },
+    {
       "from": "agent:harness/Checker",
       "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
@@ -24913,7 +25096,7 @@
       "to": "provider:ollama",
       "rel": "routes_to",
       "tier": "extracted",
-      "evidence": "config/agents/examples/model_zoo.yaml"
+      "evidence": "config/agents/examples/event_assistant.yaml"
     },
     {
       "from": "module:lib/a2a/app.ts",
@@ -32861,6 +33044,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:event",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:event",
+      "to": "syndicate:event_assistant",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:syndicate:harness",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -33391,6 +33588,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
+    },
+    {
+      "from": "syndicate:event_assistant",
+      "to": "agent:event_assistant/EventAssistant",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/event_assistant.yaml"
+    },
+    {
+      "from": "syndicate:event_assistant",
+      "to": "file:config/agents/examples/event_assistant.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/event_assistant.yaml"
     },
     {
       "from": "syndicate:harness",

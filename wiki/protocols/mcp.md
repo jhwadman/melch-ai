@@ -59,6 +59,8 @@ The contract servers are express + SSE, bound to 127.0.0.1, unauthenticated by d
 - `npm run mcp:wiki` — this knowledge bundle (`:8933`, `MCP_WIKI_PORT`), every tool derived from the [wiki tool contracts](/tools/wiki-tools.md); includes gated writes.
 - `npm run mcp:science` — the read-only [evidence tools](/tools/evidence-tools.md) (`:8934`, `MCP_SCIENCE_PORT`), derived from their contracts.
 
+The capstone starter (`examples/capstone/server.ts`, repository only) serves one more, outside this scaffold: `POST /mcp` on its backend (`:4100`), a hand-written Streamable HTTP server with JSON responses, no session and one read-only tool, `get_event_updates`, which [Event Assistant](/agents/event_assistant.md) reaches through `mcp_server_url` with `ALLOW_PRIVATE_MCP=true`. `CAPSTONE_TOOL_DOWN=true` makes each call return an error result, for the failure exercise.
+
 The contract servers share one scaffold, `serveContracts` in `lib/tools/mcpServe.ts`. Its `contracts` list is the deliberate act: a contract not listed there does not exist to MCP clients. A server of your own is the same call with your own list.
 
 Syndicates themselves are served to MCP clients by a different server, `melchizedek-mcp`: one tool per syndicate over stdio or authenticated Streamable HTTP, each call a task through the A2A executor. See [MCP server](/protocols/mcp-server.md).

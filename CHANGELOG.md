@@ -8,6 +8,16 @@ the starter pack and the templates), not the repo's full history.
 
 ### Added
 
+- **`examples/event_assistant.yaml`, the course capstone's agent (ADR 0129).**
+  A keyless starter-pack syndicate on `ollama/qwen3.5:9b` that answers
+  questions about one event from the information its caller puts in the
+  message and one read-only MCP tool, and says when neither holds the
+  answer. It is served to the capstone starter application, which lives in
+  the repository at `examples/capstone/` (not in the package): a page, a
+  dependency-free backend that sends `X-User-Id` from its own session, the
+  tool's MCP endpoint, failure states and a seven-case evaluation pack.
+  Nothing in the exports map, the barrel or the schema changes.
+
 - **OAuth consent pauses inside workflow nodes reach the turn and resume
   (ADR 0128).** A workflow node whose tool needs the person's
   `authorization_code` grant now pauses the walk instead of failing: an agent

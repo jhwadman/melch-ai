@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Assistant — capstone starter</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Elmbrook Makers Fair — ask the event assistant</h1>
+    <p class="note">A course exercise. The event, the people and the accounts are fictional.</p>
+
+    <section id="signin" aria-labelledby="signin-title">
+      <h2 id="signin-title">Sign in with a test account</h2>
+      <p>This picker stands in for your application's real login. The backend keeps the account in a session; the browser holds only a session cookie.</p>
+      <form id="signin-form">
+        <label for="user">Test account</label>
+        <select id="user" name="user" required></select>
+        <button type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="chat" aria-labelledby="chat-title" hidden>
+      <h2 id="chat-title">Ask about the fair</h2>
+      <p>Signed in as <strong id="who"></strong> · mode <code id="mode"></code>
+        · <button type="button" id="new-conversation" class="link">New conversation</button>
+        · <button type="button" id="signout" class="link">Sign out</button></p>
+      <form id="ask-form">
+        <label for="question">Your question</label>
+        <textarea id="question" name="question" rows="3" maxlength="1000" required autocomplete="off"></textarea>
+        <button type="submit" id="ask">Ask</button>
+      </form>
+      <p id="busy" role="status" aria-live="polite"></p>
+      <div id="error" role="alert" hidden></div>
+      <div id="notice" role="status" hidden></div>
+      <div id="answer" aria-live="polite"></div>
+      <details id="trace-box" hidden>
+        <summary>Trace: what the backend sent and what came back</summary>
+        <pre id="trace"></pre>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

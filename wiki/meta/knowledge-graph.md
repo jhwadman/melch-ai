@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-11
+  at: 2026-10-13
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,19 +28,19 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 212 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 217 | a repo file that is not a source module (DDL, config, prose) |
 | `module` | `module:<name>` | 198 | one source module |
-| `doc` | `/dir/doc.md` | 195 | a concept document in the bundle — identity is its bundle path |
+| `doc` | `/dir/doc.md` | 197 | a concept document in the bundle — identity is its bundle path |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
-| `agent` | `agent:<name>` | 92 | one orchestrator or subagent inside a syndicate |
-| `script` | `script:<name>` | 50 | an npm script entrypoint |
-| `syndicate` | `syndicate:<name>` | 34 | one agent-team definition (a YAML) |
+| `agent` | `agent:<name>` | 93 | one orchestrator or subagent inside a syndicate |
+| `script` | `script:<name>` | 51 | an npm script entrypoint |
+| `syndicate` | `syndicate:<name>` | 35 | one agent-team definition (a YAML) |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
 | `table` | `table:<name>` | 18 | a database table |
 | `external` | `external:<name>` | 13 | a resource outside the repo, named by URL |
 | `model` | `model:<name>` | 10 | a model id exactly as written in configuration |
 | `provider` | `provider:<name>` | 6 | a provider adapter the model registry routes to |
-| `mcp-server` | `mcp-server:<name>` | 4 | a remote MCP endpoint an agent dials at runtime |
+| `mcp-server` | `mcp-server:<name>` | 5 | a remote MCP endpoint an agent dials at runtime |
 
 A document keeps its OKF identity — the bundle path — so the two namespaces cannot collide.
 <!-- /wiki:generated -->
@@ -50,19 +50,19 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1112 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 972 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 1118 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 976 | a resolved markdown link between documents |
 | `imports` | extracted | A imports B | 876 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 191 | this environment variable must be set for the node to work |
-| `contains` | extracted | A contains B | 92 | the first is composed of the second |
-| `uses_model` | extracted | A runs on B | 92 | the agent is configured with this model id |
-| `defined_in` | extracted | A is defined in B | 79 | where the thing is declared in source |
-| `runs` | extracted | A runs B | 72 | an entrypoint — a script, a process, a worker — executes this |
+| `contains` | extracted | A contains B | 93 | the first is composed of the second |
+| `uses_model` | extracted | A runs on B | 93 | the agent is configured with this model id |
+| `defined_in` | extracted | A is defined in B | 80 | where the thing is declared in source |
+| `runs` | extracted | A runs B | 74 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
-| `documents` | extracted | A documents B | 58 | the document derives from, and describes, this entity |
+| `documents` | extracted | A documents B | 59 | the document derives from, and describes, this entity |
 | `reads_table` | extracted | A reads or writes B | 28 | the module names this table |
 | `routes_to` | extracted | A routes to B | 10 | the model id resolves to this provider adapter |
-| `connects_mcp` | extracted | A dials B | 5 | the agent discovers tools from this MCP server at runtime |
+| `connects_mcp` | extracted | A dials B | 6 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
 | `constrains` | inferred | A constrains B | 255 | a decision or doctrine limits what the target may do |

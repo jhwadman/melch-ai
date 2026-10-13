@@ -1,0 +1,7 @@
+{
+  "_note": "FICTIONAL test accounts. The sign-in page lists these names in place of your application's real login. accountId is the opaque id the backend sends as X-User-Id; it never comes from the browser.",
+  "users": [
+    { "username": "ada", "displayName": "Ada (test user 1)", "accountId": "acct-test-0001" },
+    { "username": "ben", "displayName": "Ben (test user 2)", "accountId": "acct-test-0002" }
+  ]
+}

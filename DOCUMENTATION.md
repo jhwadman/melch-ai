@@ -627,7 +627,11 @@ itself; delegation runs through ordinary function calls to the subagent tools.
 both versions' endpoints, JSON-RPC and REST transports, and the task
 lifecycle. In your own Express
 app, mount `(await createA2AApp(options)).app` instead — same server, same
-options. `demo/a2a_demo.mjs` is a complete client.
+options. `demo/a2a_demo.mjs` is a complete client. `examples/capstone/` (in the
+repository, not the package) is a complete application in front of the
+server: a page, a backend that takes the user from its own session and
+sends `X-User-Id`, an MCP tool, failure states and an evaluation pack; its
+README has the commands.
 
 #### Routes
 

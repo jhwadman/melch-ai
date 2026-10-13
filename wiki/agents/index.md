@@ -14,6 +14,7 @@
 - [Critic Review Workflow](/agents/critic.md) — The Critic Review Workflow syndicate.
 - [Delegation Router Workflow](/agents/delegation.md) — The Delegation Router Workflow syndicate.
 - [Draft Review](/agents/draft_review.md) — The Draft Review syndicate.
+- [Event Assistant](/agents/event_assistant.md) — Answers visitors' questions about one community event from the published event information and the current updates, and says when neither holds the answer.
 - [Harness](/agents/harness.md) — The Harness syndicate.
 - [Hierarchical Task Decomposition](/agents/hierarchical.md) — The Hierarchical Task Decomposition syndicate.
 - [Multi-Modal Image Production Workflow](/agents/image_production.md) — The Multi-Modal Image Production Workflow syndicate.

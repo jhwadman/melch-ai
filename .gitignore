@@ -15,3 +15,6 @@
 /outputs/
 *.log
 .DS_Store
+
+# the capstone evaluation pack writes its runs here; a learner keeps their own
+/examples/capstone/eval/results/

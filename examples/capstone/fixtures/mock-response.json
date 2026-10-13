@@ -1,0 +1,4 @@
+{
+  "_note": "Step 1 of the integration sequence: the reply the backend returns in mock mode (CAPSTONE_MODE=mock), without calling the agent service or any model.",
+  "text": "MOCK RESPONSE: the interface reached the backend, and the backend answered without calling the agent service. Set CAPSTONE_MODE=a2a to send your question to the Event Assistant."
+}
