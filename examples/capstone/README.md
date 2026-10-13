@@ -131,7 +131,7 @@ Expected:
 ```
 Capstone starter on http://127.0.0.1:4100  (mode: a2a)
   agent service: http://127.0.0.1:4000/a2a/jsonrpc
-  A2A_SERVER_SECRET: set (64 chars)
+  A2A_SERVER_SECRET: set
   A2A_API_KEY: not set (the server pays with its own keys)
   updates tool (MCP): http://127.0.0.1:4100/mcp
 ```
