@@ -6,6 +6,17 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.4.0 — 2026-10-13
+
+A minor release with two additions and no breaking change. OAuth consent
+pauses now reach a turn from inside workflow nodes and resume there
+(ADR 0128), and the starter pack gains the course capstone's agent,
+`event_assistant.yaml`, with the capstone starter application in the
+repository at `examples/capstone/` (ADR 0129). Nothing in the exports map,
+the barrel or the YAML schema changes meaning; the one schema addition
+refuses an `authorization_code` grant on an agent a `map` node runs, a
+configuration that could only fail at run time before.
+
 ### Added
 
 - **`examples/event_assistant.yaml`, the course capstone's agent (ADR 0129).**
