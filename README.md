@@ -212,6 +212,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `scriptorium.yaml` | Agents over the `wiki/` bundle: answer with citations, author through a validated save gate | — |
 | `cartographers.yaml` | Agents that record the judgments in the wiki's prose as graph relations | — |
 | `scribe.yaml` | A brief in, a finished document out: draft, audit against the brief, revise | — |
+| `event_assistant.yaml` | The capstone's agent (local): answers from supplied event information and one read-only MCP tool, served over A2A to the starter app in `examples/capstone/` | [Put a syndicate behind your own website](https://lyceumagents.com/projects/syndicate-behind-your-website/) |
 
 See `config/agents/syndicateSchema.yaml` for the annotated schema reference.
 

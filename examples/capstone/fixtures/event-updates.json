@@ -1,0 +1,24 @@
+{
+  "_note": "FICTIONAL announcements for the capstone's event, returned by the get_event_updates tool on the starter's MCP endpoint (POST /mcp), without this _note. Newest first. The two dated 2026-11-09 disagree on purpose: they are the evaluation pack's conflicting-information case.",
+  "event": "Elmbrook Makers Fair 2026",
+  "updates": [
+    {
+      "id": "U3",
+      "date": "2026-11-10",
+      "issued_by": "Fair organisers",
+      "text": "The repair café moves from Room B to Room C because of flooring work in Room B. Its times are unchanged."
+    },
+    {
+      "id": "U2",
+      "date": "2026-11-09",
+      "issued_by": "Volunteer coordinator",
+      "text": "Because of demand, the fair now closes at 17:00 instead of 16:00."
+    },
+    {
+      "id": "U1",
+      "date": "2026-11-09",
+      "issued_by": "Elmbrook Community Hall management",
+      "text": "The hall must be cleared of all visitors by 16:30 on 14 November."
+    }
+  ]
+}

@@ -33,7 +33,7 @@ Every agent whose model id starts with `ollama/` runs on your machine through Ol
 
 **Runs at this level:**
 
-- keyless: conversational (template), assistant (example), council (example), tutor (example)
+- keyless: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
 
@@ -72,7 +72,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 - OPENAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - MOONSHOT_API_KEY: no shipped file yet (change a `model:` line to use one)
-- with no key at all: conversational (template), assistant (example), council (example), tutor (example)
+- with no key at all: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
 
@@ -322,7 +322,7 @@ OpenAI's own Sign in with ChatGPT lets an open-source app that runs on your mach
 **Runs at this level:**
 
 - OpenAI files: no shipped file yet (change a `model:` line to use one)
-- with no key at all: conversational (template), assistant (example), council (example), tutor (example)
+- with no key at all: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
 

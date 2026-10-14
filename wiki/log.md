@@ -3,6 +3,10 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-13] build | structural build: 1 created, 1 updated
+
+by process:wiki-build
+
 ## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —depends_on→ /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md
 
 by claude-code/claude-opus-5-5

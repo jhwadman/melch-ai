@@ -8,6 +8,20 @@ the starter pack and the templates), not the repo's full history.
 
 ### Added
 
+- **`examples/event_assistant.yaml`, the course capstone's agent (ADR 0129).**
+  A keyless starter-pack syndicate on `ollama/qwen3.5:9b` that answers
+  questions about one event from the information its caller puts in the
+  message and one read-only MCP tool, and says when neither holds the
+  answer. It is served to the capstone starter application, which lives in
+  the repository at `examples/capstone/` (not in the package): a page, a
+  dependency-free backend that sends `X-User-Id` from its own session, the
+  tool's MCP endpoint, failure states and a seven-case evaluation pack.
+  `npm run capstone:agent` serves it on the learner's machine with
+  `HOST=127.0.0.1`, `ALLOW_PRIVATE_MCP=true` and `MELCHIZEDEK_CHATGPT_SIGNIN=off`
+  as defaults, so a ChatGPT sign-in stored on the same machine no longer
+  stops the local run (the agent runs on Ollama; ADR 0126 is unchanged).
+  Nothing in the exports map, the barrel or the schema changes.
+
 - **OAuth consent pauses inside workflow nodes reach the turn and resume
   (ADR 0128).** A workflow node whose tool needs the person's
   `authorization_code` grant now pauses the walk instead of failing: an agent
