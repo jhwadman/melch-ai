@@ -24,6 +24,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { chatGptSignInFile } from '../paths.ts';
+import { credentialEnv } from '../models/credentialSource.ts';
 
 /** Where the credential file lives, when not the default (a path; never a value). */
 export const CHATGPT_SIGNIN_FILE_ENV = 'MELCHIZEDEK_CHATGPT_SIGNIN_FILE';
@@ -137,7 +138,7 @@ export function chatGptSignInStatus(env: NodeJS.ProcessEnv = process.env): ChatG
  * OPENAI_PLATFORM other than direct, no OPENAI_BASE_URL proxy, which must
  * never receive the token).
  */
-export function chatGptSignInRoutesOpenAi(env: NodeJS.ProcessEnv = process.env): boolean {
+export function chatGptSignInRoutesOpenAi(env: NodeJS.ProcessEnv = credentialEnv()): boolean {
   if (env.OPENAI_API_KEY?.trim()) return false;
   const platform = env.OPENAI_PLATFORM?.trim().toLowerCase();
   if (platform && platform !== 'direct') return false;

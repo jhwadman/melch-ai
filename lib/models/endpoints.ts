@@ -25,6 +25,7 @@
 import { PROVIDERS, providerKeyPresent } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
 import { trimTrailingSlashes } from './urls.ts';
+import { credentialEnv } from './credentialSource.ts';
 
 export type Platform = 'direct' | 'vertex' | 'bedrock' | 'azure';
 
@@ -97,7 +98,7 @@ export function platformFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = p
 }
 
 /** A provider's endpoint as the environment configures it. */
-export function endpointFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = process.env): ProviderEndpoint {
+export function endpointFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = credentialEnv()): ProviderEndpoint {
   const platform = platformFromEnv(provider, env);
   const mapEnv = MODEL_MAP_ENV[provider];
   const models = mapEnv ? parseModelMap(env[mapEnv], mapEnv) : undefined;

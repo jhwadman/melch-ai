@@ -127,3 +127,7 @@ export {
 } from './models/registry.ts';
 
 export { loadEnv } from './loadEnv.ts';
+
+// Where credentials are read, by environment variable name (ADR 0133).
+export { setCredentialSource, credentialValue } from './models/credentialSource.ts';
+export type { CredentialSource } from './models/credentialSource.ts';

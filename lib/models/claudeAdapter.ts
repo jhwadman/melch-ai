@@ -67,6 +67,7 @@ import { currentTurnStart, providerStateOf, withProviderState } from './provider
 import { errorDecision, errorText } from './errorResponse.ts';
 import { adaptiveThinkingFor, claudeGeneration, claudeReasoningOf, claudeUrlImagesOn, THINKING_BINDING_BETA } from './claudeModels.ts';
 import { isAboveHigh } from './reasoning.ts';
+import { credentialValue } from './credentialSource.ts';
 
 /** The provider id this adapter reports and writes its state under (lib/models/providerMap.ts). */
 export const ANTHROPIC_PROVIDER = 'anthropic';
@@ -299,7 +300,7 @@ export class ClaudeAdapter implements ModelAdapter {
       yield setupFailure('ENDPOINT_MISCONFIGURED', messageOf(err));
       return;
     }
-    const spec = claudeClientSpec(endpoint, this.#apiKey || endpoint.apiKey || process.env.ANTHROPIC_API_KEY);
+    const spec = claudeClientSpec(endpoint, this.#apiKey || endpoint.apiKey || credentialValue('ANTHROPIC_API_KEY'));
     if ('error' in spec) {
       yield setupFailure(endpoint.platform === 'direct' ? 'MISSING_API_KEY' : 'ENDPOINT_MISCONFIGURED', spec.error);
       return;

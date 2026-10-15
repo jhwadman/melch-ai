@@ -5,26 +5,26 @@
     "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 990,
-    "edges": 4157,
+    "nodes": 1000,
+    "edges": 4181,
     "byKind": {
-      "doc": 198,
+      "doc": 202,
       "provider": 6,
-      "env": 110,
+      "env": 111,
       "model": 10,
       "tool": 34,
-      "file": 218,
+      "file": 222,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 18,
-      "module": 199,
+      "module": 200,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 977,
-      "requires_env": 187,
+      "links_to": 982,
+      "requires_env": 170,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 882,
+      "imports": 901,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1122,
+      "derives_from": 1139,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3674,
+      "extracted": 3698,
       "inferred": 483
     },
     "isolated": 4
@@ -1960,6 +1960,54 @@
       }
     },
     {
+      "id": "/decisions/0130-embedded-postgres-single-process.md",
+      "kind": "doc",
+      "label": "ADR 0130: Embedded Postgres (PGlite) runs the same schema and adapter; the hardening skips absent API roles, and a single-process embed passes its own turn lock",
+      "source": "/decisions/0130-embedded-postgres-single-process.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 524
+      }
+    },
+    {
+      "id": "/decisions/0131-ledger-over-direct-postgres.md",
+      "kind": "doc",
+      "label": "ADR 0131: The telemetry ledger writes to any Postgres through the storage's own pool, with the Supabase sink's rows, policy and redaction",
+      "source": "/decisions/0131-ledger-over-direct-postgres.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 458
+      }
+    },
+    {
+      "id": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "kind": "doc",
+      "label": "ADR 0132: Local MCP servers run over stdio from an mcp_servers entry's command, only when the operator lists the command, with the environment named by the entry",
+      "source": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 568
+      }
+    },
+    {
+      "id": "/decisions/0133-credential-source-by-variable-name.md",
+      "kind": "doc",
+      "label": "ADR 0133: An embedding application supplies credentials through one source, asked by environment variable name at each use",
+      "source": "/decisions/0133-credential-source-by-variable-name.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 435
+      }
+    },
+    {
       "id": "/decisions/0134-one-data-directory-variable.md",
       "kind": "doc",
       "label": "ADR 0134: MELCHIZEDEK_DATA_DIR roots the engine's on-disk defaults; each location keeps its own variable, and the engine's version is read from its own package",
@@ -1992,7 +2040,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13829
+        "words": 13913
       }
     },
     {
@@ -2004,7 +2052,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2140
+        "words": 2162
       }
     },
     {
@@ -2148,7 +2196,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5421
+        "words": 5471
       }
     },
     {
@@ -2220,7 +2268,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1865
+        "words": 2000
       }
     },
     {
@@ -2328,7 +2376,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1761
+        "words": 1928
       }
     },
     {
@@ -3569,8 +3617,7 @@
       "id": "env:ANTHROPIC_API_KEY",
       "kind": "env",
       "label": "ANTHROPIC_API_KEY",
-      "source": "lib/models/claudeAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:ANTHROPIC_BASE_URL",
@@ -3664,12 +3711,6 @@
       "kind": "env",
       "label": "GIT_COMMIT",
       "source": "lib/observability/lineage.ts"
-    },
-    {
-      "id": "env:GOOGLE_API_KEY",
-      "kind": "env",
-      "label": "GOOGLE_API_KEY",
-      "source": "lib/models/geminiAdapter.ts"
     },
     {
       "id": "env:GOOGLE_CLOUD_LOCATION",
@@ -3801,6 +3842,12 @@
       "attrs": {}
     },
     {
+      "id": "env:MELCHIZEDEK_STDIO_MCP",
+      "kind": "env",
+      "label": "MELCHIZEDEK_STDIO_MCP",
+      "source": "lib/tools/mcpToolFactory.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_USER_ID",
       "kind": "env",
       "label": "MELCHIZEDEK_USER_ID",
@@ -3853,8 +3900,7 @@
       "id": "env:MOONSHOT_API_KEY",
       "kind": "env",
       "label": "MOONSHOT_API_KEY",
-      "source": "lib/models/kimiAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:MOONSHOT_BASE_URL",
@@ -3892,7 +3938,7 @@
       "id": "env:OPENAI_API_KEY",
       "kind": "env",
       "label": "OPENAI_API_KEY",
-      "source": "lib/models/gptAdapter.ts",
+      "source": "lib/memory/providers.ts",
       "attrs": {}
     },
     {
@@ -4041,6 +4087,12 @@
       "attrs": {}
     },
     {
+      "id": "env:TELEMETRY_POSTGRES",
+      "kind": "env",
+      "label": "TELEMETRY_POSTGRES",
+      "source": "scripts/a2a_server.ts"
+    },
+    {
       "id": "env:TELEMETRY_REDACT",
       "kind": "env",
       "label": "TELEMETRY_REDACT",
@@ -4088,8 +4140,7 @@
       "id": "env:XAI_API_KEY",
       "kind": "env",
       "label": "XAI_API_KEY",
-      "source": "lib/models/grokAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:XAI_COLLECTION_IDS",
@@ -4946,6 +4997,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/credentialSource.test.ts",
+      "kind": "file",
+      "label": "credentialSource.test.ts",
+      "source": "tests/credentialSource.test.ts"
+    },
+    {
       "id": "file:tests/delegatedPauses.test.ts",
       "kind": "file",
       "label": "delegatedPauses.test.ts",
@@ -4964,6 +5021,12 @@
       "kind": "file",
       "label": "doctor.test.ts",
       "source": "tests/doctor.test.ts"
+    },
+    {
+      "id": "file:tests/embeddedPostgres.test.ts",
+      "kind": "file",
+      "label": "embeddedPostgres.test.ts",
+      "source": "tests/embeddedPostgres.test.ts"
     },
     {
       "id": "file:tests/events.test.ts",
@@ -5123,6 +5186,12 @@
       "label": "mcpServer.test.ts",
       "source": "tests/mcpServer.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/mcpStdio.test.ts",
+      "kind": "file",
+      "label": "mcpStdio.test.ts",
+      "source": "tests/mcpStdio.test.ts"
     },
     {
       "id": "file:tests/mcpStreamable.test.ts",
@@ -5311,6 +5380,12 @@
       "kind": "file",
       "label": "paths.test.ts",
       "source": "tests/paths.test.ts"
+    },
+    {
+      "id": "file:tests/postgresLedger.test.ts",
+      "kind": "file",
+      "label": "postgresLedger.test.ts",
+      "source": "tests/postgresLedger.test.ts"
     },
     {
       "id": "file:tests/postgresStorage.test.ts",
@@ -5733,7 +5808,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1361
+        "lines": 1362
       }
     },
     {
@@ -5841,7 +5916,7 @@
       "label": "lib/chatgpt/state.ts",
       "source": "lib/chatgpt/state.ts",
       "attrs": {
-        "lines": 188
+        "lines": 189
       }
     },
     {
@@ -5859,7 +5934,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 704
+        "lines": 722
       }
     },
     {
@@ -5931,7 +6006,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 130
+        "lines": 134
       }
     },
     {
@@ -5949,7 +6024,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 789
+        "lines": 791
       }
     },
     {
@@ -5985,7 +6060,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 346
+        "lines": 347
       }
     },
     {
@@ -6057,7 +6132,7 @@
       "label": "lib/models/claudeAdapter.ts",
       "source": "lib/models/claudeAdapter.ts",
       "attrs": {
-        "lines": 741
+        "lines": 742
       }
     },
     {
@@ -6079,12 +6154,21 @@
       }
     },
     {
+      "id": "module:lib/models/credentialSource.ts",
+      "kind": "module",
+      "label": "lib/models/credentialSource.ts",
+      "source": "lib/models/credentialSource.ts",
+      "attrs": {
+        "lines": 54
+      }
+    },
+    {
       "id": "module:lib/models/endpoints.ts",
       "kind": "module",
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 323
+        "lines": 324
       }
     },
     {
@@ -6111,7 +6195,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 204
+        "lines": 205
       }
     },
     {
@@ -6120,7 +6204,7 @@
       "label": "lib/models/gatewayAdapter.ts",
       "source": "lib/models/gatewayAdapter.ts",
       "attrs": {
-        "lines": 111
+        "lines": 112
       }
     },
     {
@@ -6129,7 +6213,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 990
+        "lines": 991
       }
     },
     {
@@ -6156,7 +6240,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 931
+        "lines": 932
       }
     },
     {
@@ -6165,7 +6249,7 @@
       "label": "lib/models/grokAdapter.ts",
       "source": "lib/models/grokAdapter.ts",
       "attrs": {
-        "lines": 169
+        "lines": 170
       }
     },
     {
@@ -6174,7 +6258,7 @@
       "label": "lib/models/kimiAdapter.ts",
       "source": "lib/models/kimiAdapter.ts",
       "attrs": {
-        "lines": 225
+        "lines": 226
       }
     },
     {
@@ -6192,7 +6276,7 @@
       "label": "lib/models/providerMap.ts",
       "source": "lib/models/providerMap.ts",
       "attrs": {
-        "lines": 63
+        "lines": 65
       }
     },
     {
@@ -6282,7 +6366,7 @@
       "label": "lib/observability/embeddings.ts",
       "source": "lib/observability/embeddings.ts",
       "attrs": {
-        "lines": 65
+        "lines": 66
       }
     },
     {
@@ -6327,7 +6411,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 605
+        "lines": 650
       }
     },
     {
@@ -6336,7 +6420,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 829
+        "lines": 877
       }
     },
     {
@@ -6633,7 +6717,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 279
+        "lines": 310
       }
     },
     {
@@ -6705,7 +6789,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1316
+        "lines": 1356
       }
     },
     {
@@ -6786,7 +6870,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 127
+        "lines": 128
       }
     },
     {
@@ -6795,7 +6879,7 @@
       "label": "lib/tools/inspectImageTool.ts",
       "source": "lib/tools/inspectImageTool.ts",
       "attrs": {
-        "lines": 114
+        "lines": 115
       }
     },
     {
@@ -6813,7 +6897,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 542
+        "lines": 661
       }
     },
     {
@@ -7083,7 +7167,7 @@
       "label": "lib/tools/xApiSearchTool.ts",
       "source": "lib/tools/xApiSearchTool.ts",
       "attrs": {
-        "lines": 662
+        "lines": 663
       }
     },
     {
@@ -7299,7 +7383,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 662
+        "lines": 667
       }
     },
     {
@@ -18099,6 +18183,125 @@
       "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
     },
     {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:db/hardening.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:tests/embeddedPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "file:tests/mcpStdio.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "file:tests/credentialSource.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
       "from": "/decisions/0134-one-data-directory-variable.md",
       "to": "file:tests/paths.test.ts",
       "rel": "derives_from",
@@ -18425,7 +18628,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2550"
+      "evidence": "/memory/schema.md:2576"
     },
     {
       "from": "/memory/sessions.md",
@@ -18608,6 +18811,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:115"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:148"
     },
     {
       "from": "/memory/sessions.md",
@@ -19965,7 +20175,7 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:181"
+      "evidence": "/models/provider-routing.md:182"
     },
     {
       "from": "/models/provider-routing.md",
@@ -20015,6 +20225,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:38"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0133-credential-source-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:177"
     },
     {
       "from": "/models/provider-routing.md",
@@ -20889,7 +21106,7 @@
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:65"
+      "evidence": "/operations/setup.md:66"
     },
     {
       "from": "/operations/setup.md",
@@ -20903,14 +21120,14 @@
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:64"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:62"
     },
     {
       "from": "/operations/setup.md",
@@ -20924,14 +21141,14 @@
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:62"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:62"
     },
     {
       "from": "/operations/setup.md",
@@ -20945,7 +21162,21 @@
       "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:65"
+      "evidence": "/operations/setup.md:66"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:53"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0131-ledger-over-direct-postgres.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:60"
     },
     {
       "from": "/operations/setup.md",
@@ -22765,7 +22996,7 @@
       "to": "/agents/event_assistant.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:62"
+      "evidence": "/protocols/mcp.md:64"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22779,35 +23010,35 @@
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:47"
+      "evidence": "/protocols/mcp.md:49"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:52"
+      "evidence": "/protocols/mcp.md:54"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:50"
+      "evidence": "/protocols/mcp.md:52"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22818,17 +23049,24 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:43"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/protocols/mcp-server.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:66"
+      "evidence": "/protocols/mcp.md:68"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:60"
+      "evidence": "/protocols/mcp.md:62"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22842,7 +23080,7 @@
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:59"
+      "evidence": "/protocols/mcp.md:61"
     },
     {
       "from": "/tools/ask-user.md",
@@ -25226,6 +25464,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25326,20 +25571,6 @@
       "from": "module:lib/a2a/app.ts",
       "to": "module:lib/tools/oauthTools.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/a2a/app.ts"
-    },
-    {
-      "from": "module:lib/a2a/app.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/a2a/app.ts"
-    },
-    {
-      "from": "module:lib/a2a/app.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"
     },
@@ -25671,6 +25902,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/chatgpt/oauth.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
     },
     {
       "from": "module:lib/chatgpt/state.ts",
@@ -26143,6 +26381,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26473,6 +26718,13 @@
     {
       "from": "module:lib/memory/providers.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/memory/providers.ts"
@@ -26969,6 +27221,13 @@
     },
     {
       "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27017,13 +27276,6 @@
       "evidence": "lib/models/claudeAdapter.ts"
     },
     {
-      "from": "module:lib/models/claudeAdapter.ts",
-      "to": "env:ANTHROPIC_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeAdapter.ts"
-    },
-    {
       "from": "module:lib/models/claudeModels.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -27050,6 +27302,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/contract.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
     },
     {
       "from": "module:lib/models/endpoints.ts",
@@ -27200,6 +27459,13 @@
     },
     {
       "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
+    },
+    {
+      "from": "module:lib/models/gateway.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27235,6 +27501,13 @@
     },
     {
       "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
       "to": "module:lib/models/gateway.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27250,6 +27523,13 @@
     {
       "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/geminiAdapter.ts"
@@ -27293,27 +27573,6 @@
       "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GOOGLE_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/geminiAdapter.ts"
     },
@@ -27368,6 +27627,13 @@
     },
     {
       "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27416,13 +27682,6 @@
       "evidence": "lib/models/gptAdapter.ts"
     },
     {
-      "from": "module:lib/models/gptAdapter.ts",
-      "to": "env:OPENAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/gptAdapter.ts"
-    },
-    {
       "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
@@ -27432,6 +27691,13 @@
     {
       "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/grokAdapter.ts"
@@ -27473,13 +27739,6 @@
     },
     {
       "from": "module:lib/models/grokAdapter.ts",
-      "to": "env:XAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/grokAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/grokAdapter.ts",
       "to": "env:XAI_TIMEOUT_MS",
       "rel": "requires_env",
       "tier": "extracted",
@@ -27508,15 +27767,15 @@
     },
     {
       "from": "module:lib/models/kimiAdapter.ts",
-      "to": "module:lib/models/urls.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
     },
     {
       "from": "module:lib/models/kimiAdapter.ts",
-      "to": "env:MOONSHOT_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
     },
@@ -27550,15 +27809,8 @@
     },
     {
       "from": "module:lib/models/providerMap.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/providerMap.ts"
-    },
-    {
-      "from": "module:lib/models/providerMap.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/providerMap.ts"
     },
@@ -27662,15 +27914,8 @@
     },
     {
       "from": "module:lib/observability/embeddings.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/observability/embeddings.ts"
-    },
-    {
-      "from": "module:lib/observability/embeddings.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/observability/embeddings.ts"
     },
@@ -29258,6 +29503,20 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/postgres/credentialStore.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29594,6 +29853,13 @@
     },
     {
       "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
       "to": "module:lib/paths.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29607,18 +29873,11 @@
       "evidence": "lib/tools/generateImageTool.ts"
     },
     {
-      "from": "module:lib/tools/generateImageTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
+      "from": "module:lib/tools/inspectImageTool.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/tools/generateImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/generateImageTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/generateImageTool.ts"
+      "evidence": "lib/tools/inspectImageTool.ts"
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
@@ -29631,20 +29890,6 @@
       "from": "module:lib/tools/inspectImageTool.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/tools/inspectImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/inspectImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/inspectImageTool.ts"
     },
@@ -29728,6 +29973,13 @@
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "env:MCP_BEARER_TOKENS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "env:MELCHIZEDEK_STDIO_MCP",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
@@ -30364,22 +30616,15 @@
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xApiSearchTool.ts"
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/xApiSearchTool.ts"
-    },
-    {
-      "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xApiSearchTool.ts"
     },
@@ -31394,6 +31639,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:SUPABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:TELEMETRY_POSTGRES",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"

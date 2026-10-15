@@ -583,9 +583,47 @@
                 "description": "A short name for the server, unique on this agent: logs and errors name it."
               },
               "url": {
+                "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard. Give url or command, not both.",
                 "type": "string",
-                "format": "uri",
-                "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard."
+                "format": "uri"
+              },
+              "command": {
+                "description": "A local MCP server to start and speak to over stdio (ADR 0132), instead of url: the program to run. It runs only when the operator lists this exact value in MELCHIZEDEK_STDIO_MCP. One process per distinct command, args, env and cwd, kept for the life of the engine.",
+                "type": "string",
+                "minLength": 1
+              },
+              "args": {
+                "description": "The command's arguments (stdio only).",
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "env": {
+                "description": "Non-secret variables set for the command (stdio only). A credential is never written here: name it in pass_env.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "pass_env": {
+                "description": "Variables copied by name from the engine's environment into the command's (stdio only); the command sees no other variable of the engine's beyond a minimal default set (PATH, HOME, …). A name that is unset fails the compile.",
+                "maxItems": 32,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+                }
+              },
+              "cwd": {
+                "description": "The command's working directory (stdio only); relative to the YAML file's directory.",
+                "type": "string",
+                "minLength": 1
               },
               "tools": {
                 "minItems": 1,
@@ -694,7 +732,6 @@
             },
             "required": [
               "name",
-              "url",
               "tools"
             ],
             "additionalProperties": false,
@@ -1570,9 +1607,47 @@
                   "description": "A short name for the server, unique on this agent: logs and errors name it."
                 },
                 "url": {
+                  "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard. Give url or command, not both.",
                   "type": "string",
-                  "format": "uri",
-                  "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard."
+                  "format": "uri"
+                },
+                "command": {
+                  "description": "A local MCP server to start and speak to over stdio (ADR 0132), instead of url: the program to run. It runs only when the operator lists this exact value in MELCHIZEDEK_STDIO_MCP. One process per distinct command, args, env and cwd, kept for the life of the engine.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "args": {
+                  "description": "The command's arguments (stdio only).",
+                  "maxItems": 64,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "env": {
+                  "description": "Non-secret variables set for the command (stdio only). A credential is never written here: name it in pass_env.",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "pass_env": {
+                  "description": "Variables copied by name from the engine's environment into the command's (stdio only); the command sees no other variable of the engine's beyond a minimal default set (PATH, HOME, …). A name that is unset fails the compile.",
+                  "maxItems": 32,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+                  }
+                },
+                "cwd": {
+                  "description": "The command's working directory (stdio only); relative to the YAML file's directory.",
+                  "type": "string",
+                  "minLength": 1
                 },
                 "tools": {
                   "minItems": 1,
@@ -1681,7 +1756,6 @@
               },
               "required": [
                 "name",
-                "url",
                 "tools"
               ],
               "additionalProperties": false,
