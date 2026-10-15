@@ -29,6 +29,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
+import { enginePackageRoot } from '../paths.ts';
 
 /** Schema version stamped on every ledger row (adk_turns / adk_payloads). */
 export const TELEMETRY_SCHEMA_VERSION = 2;
@@ -120,8 +121,10 @@ export function engineVersion(): string {
   if (cachedEngineVersion) return cachedEngineVersion;
   let pkgVersion = '0.0.0';
   try {
-    const pkgPath = join(process.cwd(), 'package.json');
-    if (existsSync(pkgPath)) {
+    // The engine's own package.json, not the embedding application's.
+    const root = enginePackageRoot();
+    const pkgPath = root ? join(root, 'package.json') : '';
+    if (pkgPath && existsSync(pkgPath)) {
       pkgVersion = String(JSON.parse(readFileSync(pkgPath, 'utf-8')).version ?? pkgVersion);
     }
   } catch {
@@ -131,7 +134,11 @@ export function engineVersion(): string {
     process.env.SOURCE_VERSION ?? process.env.HEROKU_SLUG_COMMIT ?? process.env.GIT_COMMIT ?? '';
   if (!commit) {
     try {
-      commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      // Only from the engine's own checkout: an installed package inside an
+      // application's repository would otherwise report the application's commit.
+      const root = enginePackageRoot();
+      if (!root || !existsSync(join(root, '.git'))) throw new Error('not a checkout');
+      commit = execSync('git rev-parse --short HEAD', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] })
         .toString()
         .trim();
     } catch {

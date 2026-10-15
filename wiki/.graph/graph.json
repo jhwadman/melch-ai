@@ -2,29 +2,29 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-13"
+    "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 989,
-    "edges": 4150,
+    "nodes": 990,
+    "edges": 4157,
     "byKind": {
-      "doc": 197,
+      "doc": 198,
       "provider": 6,
-      "env": 112,
+      "env": 110,
       "model": 10,
       "tool": 34,
-      "file": 217,
+      "file": 218,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 18,
-      "module": 198,
+      "module": 199,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 976,
-      "requires_env": 191,
+      "links_to": 977,
+      "requires_env": 187,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 876,
+      "imports": 882,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1118,
+      "derives_from": 1122,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3667,
+      "extracted": 3674,
       "inferred": 483
     },
     "isolated": 4
@@ -216,7 +216,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 229
+        "words": 256
       }
     },
     {
@@ -1960,6 +1960,18 @@
       }
     },
     {
+      "id": "/decisions/0134-one-data-directory-variable.md",
+      "kind": "doc",
+      "label": "ADR 0134: MELCHIZEDEK_DATA_DIR roots the engine's on-disk defaults; each location keeps its own variable, and the engine's version is read from its own package",
+      "source": "/decisions/0134-one-data-directory-variable.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 375
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2208,7 +2220,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1808
+        "words": 1865
       }
     },
     {
@@ -3789,12 +3801,6 @@
       "attrs": {}
     },
     {
-      "id": "env:MELCHIZEDEK_TASKS_FILE",
-      "kind": "env",
-      "label": "MELCHIZEDEK_TASKS_FILE",
-      "source": "lib/tools/taskTools.ts"
-    },
-    {
       "id": "env:MELCHIZEDEK_USER_ID",
       "kind": "env",
       "label": "MELCHIZEDEK_USER_ID",
@@ -3938,13 +3944,6 @@
       "kind": "env",
       "label": "OTEL_SERVICE_NAME",
       "source": "lib/observability/tracer.ts"
-    },
-    {
-      "id": "env:OUTPUTS_DIR",
-      "kind": "env",
-      "label": "OUTPUTS_DIR",
-      "source": "lib/tools/inspectImageTool.ts",
-      "attrs": {}
     },
     {
       "id": "env:PGDATABASE",
@@ -5308,6 +5307,12 @@
       "source": "tests/parityHarness.test.ts"
     },
     {
+      "id": "file:tests/paths.test.ts",
+      "kind": "file",
+      "label": "paths.test.ts",
+      "source": "tests/paths.test.ts"
+    },
+    {
       "id": "file:tests/postgresStorage.test.ts",
       "kind": "file",
       "label": "postgresStorage.test.ts",
@@ -5836,7 +5841,7 @@
       "label": "lib/chatgpt/state.ts",
       "source": "lib/chatgpt/state.ts",
       "attrs": {
-        "lines": 189
+        "lines": 188
       }
     },
     {
@@ -6286,7 +6291,7 @@
       "label": "lib/observability/lineage.ts",
       "source": "lib/observability/lineage.ts",
       "attrs": {
-        "lines": 144
+        "lines": 151
       }
     },
     {
@@ -6322,7 +6327,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 604
+        "lines": 605
       }
     },
     {
@@ -6341,6 +6346,15 @@
       "source": "lib/onboarding.ts",
       "attrs": {
         "lines": 677
+      }
+    },
+    {
+      "id": "module:lib/paths.ts",
+      "kind": "module",
+      "label": "lib/paths.ts",
+      "source": "lib/paths.ts",
+      "attrs": {
+        "lines": 79
       }
     },
     {
@@ -6772,7 +6786,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 128
+        "lines": 127
       }
     },
     {
@@ -6781,7 +6795,7 @@
       "label": "lib/tools/inspectImageTool.ts",
       "source": "lib/tools/inspectImageTool.ts",
       "attrs": {
-        "lines": 108
+        "lines": 114
       }
     },
     {
@@ -18085,6 +18099,34 @@
       "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
     },
     {
+      "from": "/decisions/0134-one-data-directory-variable.md",
+      "to": "file:tests/paths.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0134-one-data-directory-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0134-one-data-directory-variable.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0134-one-data-directory-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0134-one-data-directory-variable.md",
+      "to": "module:lib/paths.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0134-one-data-directory-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0134-one-data-directory-variable.md",
+      "to": "module:lib/tools/inspectImageTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0134-one-data-directory-variable.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -20847,7 +20889,7 @@
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
     },
     {
       "from": "/operations/setup.md",
@@ -20861,14 +20903,14 @@
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20882,14 +20924,14 @@
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20903,7 +20945,14 @@
       "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0134-one-data-directory-variable.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:59"
     },
     {
       "from": "/operations/setup.md",
@@ -25625,6 +25674,13 @@
     },
     {
       "from": "module:lib/chatgpt/state.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
       "to": "env:OPENAI_API_KEY",
       "rel": "requires_env",
       "tier": "extracted",
@@ -27634,6 +27690,13 @@
     },
     {
       "from": "module:lib/observability/lineage.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/lineage.ts"
+    },
+    {
+      "from": "module:lib/observability/lineage.ts",
       "to": "env:GIT_COMMIT",
       "rel": "requires_env",
       "tier": "extracted",
@@ -27690,6 +27753,13 @@
     },
     {
       "from": "module:lib/observability/supabaseSpanExporter.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/supabaseSpanExporter.ts"
+    },
+    {
+      "from": "module:lib/observability/supabaseSpanExporter.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27713,13 +27783,6 @@
       "from": "module:lib/observability/supabaseSpanExporter.ts",
       "to": "table:adk_turns",
       "rel": "reads_table",
-      "tier": "extracted",
-      "evidence": "lib/observability/supabaseSpanExporter.ts"
-    },
-    {
-      "from": "module:lib/observability/supabaseSpanExporter.ts",
-      "to": "env:OUTPUTS_DIR",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/observability/supabaseSpanExporter.ts"
     },
@@ -29531,6 +29594,13 @@
     },
     {
       "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29551,11 +29621,11 @@
       "evidence": "lib/tools/generateImageTool.ts"
     },
     {
-      "from": "module:lib/tools/generateImageTool.ts",
-      "to": "env:OUTPUTS_DIR",
-      "rel": "requires_env",
+      "from": "module:lib/tools/inspectImageTool.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/tools/generateImageTool.ts"
+      "evidence": "lib/tools/inspectImageTool.ts"
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
@@ -29574,13 +29644,6 @@
     {
       "from": "module:lib/tools/inspectImageTool.ts",
       "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/inspectImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "env:OUTPUTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/inspectImageTool.ts"
@@ -30119,15 +30182,15 @@
     },
     {
       "from": "module:lib/tools/taskTools.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/paths.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/taskTools.ts"
     },
     {
       "from": "module:lib/tools/taskTools.ts",
-      "to": "env:MELCHIZEDEK_TASKS_FILE",
-      "rel": "requires_env",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/taskTools.ts"
     },

@@ -47,6 +47,7 @@ const { ExportResultCode } = core;
 import { hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
 import { TELEMETRY_SCHEMA_VERSION, isModelCallSpan } from './lineage.ts';
 import { redactRow, telemetryRedactor } from './redact.ts';
+import { outputsDir } from '../paths.ts';
 
 // ── Row shapes ───────────────────────────────────────────────────────────────
 
@@ -428,7 +429,7 @@ export function telemetrySinkEnabled(): boolean {
 }
 
 export function deadLetterPath(): string {
-  return join(process.env.OUTPUTS_DIR ?? join(process.cwd(), 'outputs'), 'telemetry-deadletter.ndjson');
+  return join(outputsDir(), 'telemetry-deadletter.ndjson');
 }
 
 export interface ExportStats {

@@ -55,11 +55,12 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from './toolContract.ts';
 import type { ToolCallContext } from './toolContract.ts';
+import { tasksFile } from '../paths.ts';
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
@@ -197,8 +198,7 @@ const RECENT_JOB_MS = 7 * 24 * 60 * 60 * 1000;
 const FINISHED: TaskStatus[] = ['done', 'cancelled', 'failed'];
 
 export function taskStorePath(): string {
-  const configured = process.env.MELCHIZEDEK_TASKS_FILE?.trim();
-  return configured ? resolve(configured) : join(process.cwd(), 'outputs', 'tasks.json');
+  return tasksFile();
 }
 
 function emptyStore(): TaskStore {
