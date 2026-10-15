@@ -624,8 +624,10 @@ export function loadSyndicate(
  * definition from the registry has no file and resolves against the cwd.
  */
 function anchorSpecPaths(config: SyndicateYamlConfig, dir: string): SyndicateYamlConfig {
-  const anchor = (agent: { openapi?: OpenApiConfig[] } | undefined) => {
+  const anchor = (agent: { openapi?: OpenApiConfig[]; mcp_servers?: McpServerConfig[] } | undefined) => {
     for (const entry of agent?.openapi ?? []) if (!path.isAbsolute(entry.spec)) entry.spec = path.resolve(dir, entry.spec);
+    // A stdio server's working directory, like a spec, is the YAML's (ADR 0132).
+    for (const entry of agent?.mcp_servers ?? []) if (entry.cwd && !path.isAbsolute(entry.cwd)) entry.cwd = path.resolve(dir, entry.cwd);
   };
   anchor(config.orchestrator);
   for (const sub of config.subagents ?? []) anchor(sub);

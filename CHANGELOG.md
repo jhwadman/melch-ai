@@ -8,6 +8,32 @@ the starter pack and the templates), not the repo's full history.
 
 ### Added
 
+- **`postgresStorage({ turnLock })` and `inProcessTurnLock` exported from
+  `melchizedek-agents/storage/postgres` (ADR 0130).** The storage uses the
+  given lock instead of its advisory lock and opens no turn-lock pool. Pass
+  `inProcessTurnLock()` when one process owns an embedded database such as
+  PGlite behind pglite-socket, where every connection shares one session and
+  an advisory lock excludes nothing. The default is unchanged.
+
+- **The telemetry ledger on any Postgres (ADR 0131).**
+  `postgresStorage({ ledger: true })` writes `adk_turns`, `adk_telemetry` and
+  `adk_payloads` through the storage's own pool, with the rows, payload
+  policy and redaction the Supabase sink uses; `close()` flushes it. The A2A
+  bin turns it on with `TELEMETRY_POSTGRES=true` beside `DATABASE_URL`.
+  New exports from `melchizedek-agents/observability/*`: `attachLedger`
+  (tracer), `postgresLedgerClient`, `LedgerClient` and `LEDGER_TABLES`
+  (supabaseSpanExporter).
+
+- **Local MCP servers over stdio (ADR 0132).** An `mcp_servers` entry may give
+  `command` (with `args`, `env`, `pass_env`, `cwd`) instead of `url`; the
+  server is started over stdio, one process per spec for the life of the
+  engine. It runs only when `MELCHIZEDEK_STDIO_MCP` lists the exact command.
+  The child gets a minimal environment plus `pass_env` by name and `env`
+  literals; a credential-looking `env` key is refused at load. New exports
+  from `melchizedek-agents/tools/mcpToolFactory`: `loadStdioMcpTools`,
+  `stdioCommandAllowed`, `stdioEnvironment`, `StdioMcpSpec`; `McpServerConfig.url`
+  is now optional.
+
 - **`setCredentialSource`, `credentialValue` and `CredentialSource` in the
   barrel (ADR 0133).** An embedding application supplies keys from its own
   store, asked by environment variable name (`ANTHROPIC_API_KEY`, …) before
@@ -15,6 +41,15 @@ the starter pack and the templates), not the repo's full history.
   goes through it: the five adapters, the gateway, provider presence and
   `providerStatuses()`, endpoints, embeddings, the memory providers and the
   Gemini image and vision tools. Without a source, behaviour is unchanged.
+
+### Fixed
+
+- **`db/hardening.sql` applies on Postgres without Supabase's API roles
+  (ADR 0130).** It revoked from `anon` and `authenticated` by name and failed
+  where they do not exist (plain Postgres, PGlite). It now revokes from
+  whichever of the two exist, through helpers in `pg_temp` that leave nothing
+  behind; on Supabase the result is the same as before. RLS and the `PUBLIC`
+  revokes apply everywhere.
 
 ## 1.4.0 — 2026-10-13
 

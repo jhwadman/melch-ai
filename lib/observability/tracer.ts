@@ -25,6 +25,7 @@ import {
   SupabaseSpanExporter,
   telemetrySinkEnabled,
 } from './supabaseSpanExporter.ts';
+import type { ExporterOptions, LedgerClient } from './supabaseSpanExporter.ts';
 
 /**
  * Optional OTLP export for a live trace viewer (Phoenix, Langfuse, Grafana
@@ -67,6 +68,51 @@ let tracerProvider: InstanceType<typeof NodeTracerProvider> | undefined;
 let telemetryExporter: SupabaseSpanExporter | undefined;
 
 /**
+ * The ledger an embedding application attaches at run time (ADR 0131):
+ * `attachLedger` (or `postgresStorage({ ledger: true })`) sets it, before or
+ * after tracing starts. The processor below is always registered and does
+ * nothing until then.
+ */
+let attachedLedger: { exporter: SupabaseSpanExporter; processor: InstanceType<typeof sdkBase.BatchSpanProcessor> } | undefined;
+
+class AttachedLedgerProcessor {
+  onStart(): void {}
+  onEnd(span: ReadableSpan): void {
+    attachedLedger?.processor.onEnd(span);
+  }
+  forceFlush(): Promise<void> {
+    return attachedLedger ? attachedLedger.processor.forceFlush().then(() => attachedLedger?.exporter.forceFlush()) : Promise.resolve();
+  }
+  shutdown(): Promise<void> {
+    return this.forceFlush();
+  }
+}
+
+/**
+ * Writes the ledger (adk_turns, adk_telemetry, adk_payloads) through
+ * `client`, batched off the turn's path, with the same rows, payload policy
+ * and redaction as the Supabase sink. One ledger is attached at a time;
+ * attaching another replaces it. Returns a detach that flushes what is
+ * buffered first.
+ */
+export function attachLedger(client: LedgerClient, options: Omit<ExporterOptions, 'client'> = {}): () => Promise<void> {
+  if (telemetrySinkEnabled()) {
+    console.warn('[TELEMETRY] ⚠ a ledger is attached while TELEMETRY_SUPABASE=true: every row is written twice. Use one sink.');
+  }
+  const exporter = new SupabaseSpanExporter({ ...options, client });
+  const entry = { exporter, processor: new sdkBase.BatchSpanProcessor(exporter) };
+  const previous = attachedLedger;
+  attachedLedger = entry;
+  void previous?.processor.shutdown();
+  initializeTracing();
+  return async () => {
+    if (attachedLedger === entry) attachedLedger = undefined;
+    await entry.processor.forceFlush();
+    await entry.exporter.shutdown();
+  };
+}
+
+/**
  * Flushes buffered span processors (console is synchronous; the Supabase
  * batch sink is not). Call before process exit in short-lived scripts so
  * telemetry rows aren't dropped.
@@ -74,6 +120,7 @@ let telemetryExporter: SupabaseSpanExporter | undefined;
 export async function flushTracing(): Promise<void> {
   await tracerProvider?.forceFlush?.();
   await telemetryExporter?.forceFlush?.();
+  await attachedLedger?.exporter.forceFlush();
 }
 
 // ── In-process span listeners ────────────────────────────────────────────────
@@ -269,6 +316,7 @@ export function initializeTracing() {
   const spanProcessors: any[] = [
     new SpanLineageProcessor(),
     new SimpleSpanProcessor(new JsonConsoleExporter()),
+    new AttachedLedgerProcessor(),
   ];
 
   // Optional durable sink (TELEMETRY_SUPABASE=true + Supabase credentials):

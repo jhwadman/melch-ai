@@ -20,7 +20,9 @@ test('a DATABASE_URL becomes libpq variables, password decoded and never an argu
 
 test('hardening revokes function execution from PUBLIC, not just the named roles', () => {
   const sql = readFileSync('db/hardening.sql', 'utf-8');
-  assert.match(sql, /REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION %s FROM PUBLIC'/);
+  // …and from the API roles wherever they exist (ADR 0130; behaviour in tests/embeddedPostgres.test.ts).
+  assert.match(sql, /melchizedek_revoke_api\(format\('FUNCTION %s', fn\)\)/);
   for (const fn of ['match_turns', 'melchizedek_prune_telemetry', 'melchizedek_prune_sessions', 'match_memory_facts']) {
     assert.ok(sql.includes(`'${fn}'`), `${fn} must be covered by the function lockdown`);
   }

@@ -150,7 +150,7 @@ Field reference:
 | `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). With `client_registration: dynamic` and no client id or endpoints, the authorization server is discovered from the MCP server and this deployment registers itself as a client, every discovered host held to `MELCHIZEDEK_OAUTH_HOSTS` (ADR 0124). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `mcp_transport` | subagent | How `mcp_server_url` is reached: `auto` (default: Streamable HTTP, falling back to the legacy SSE transport on the spec's signal), `streamable_http` or `sse` ([ADR 0124](./wiki/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md)). |
-| `mcp_servers` | any agent | Several MCP servers: a list of `{ name, url, tools, auth?, transport? }`. `tools` is required on each; a tool name on two servers, or shared with the agent's own tools, is refused at load. `require_approval` may name any server's tool. Not with `mcp_server_url` (ADR 0124). |
+| `mcp_servers` | any agent | Several MCP servers: a list of `{ name, url, tools, auth?, transport? }`, or for a local server `{ name, command, args?, env?, pass_env?, cwd?, tools }` started over stdio when `MELCHIZEDEK_STDIO_MCP` lists the command (ADR 0132). `tools` is required on each; a tool name on two servers, or shared with the agent's own tools, is refused at load. `require_approval` may name any server's tool. Not with `mcp_server_url` (ADR 0124). |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
@@ -206,6 +206,23 @@ modifies data on the far side of the protocol. The factory refuses
 loopback/private hosts unless `ALLOW_PRIVATE_MCP=true` (SSRF guard);
 treat any remote MCP server as an untrusted tool vendor whose results
 are data, never instructions.
+
+A local MCP server is an `mcp_servers` entry with `command` instead of
+`url`, started over stdio (ADR 0132):
+
+```yaml
+mcp_servers:
+  - name: github
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    pass_env: [GITHUB_PERSONAL_ACCESS_TOKEN]   # copied by name; never a value here
+    tools: [search_issues, get_issue]
+```
+
+It runs only when the operator lists the exact command,
+`MELCHIZEDEK_STDIO_MCP=npx`. The child sees a minimal environment plus
+the `pass_env` names and the non-secret `env` values, nothing else of the
+engine's. One process serves every turn and is restarted if it exits.
 
 **OpenAPI tools** turn any HTTP API with an OpenAPI 3 spec into an
 agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on the
@@ -301,6 +318,14 @@ install as one transaction under an advisory lock: if any statement fails,
 nothing is changed, and two applies started together run one after the other.
 Rolling back a migration that succeeded is a restore from backup (§6), since
 the migrations only move forward.
+
+The same install runs on plain Postgres without Supabase's `anon` and
+`authenticated` roles (the hardening skips the revokes by role name there), and
+on embedded Postgres: an application can run PGlite with pgvector in-process,
+serve it with pglite-socket, and pass `postgresStorage({ connectionString,
+turnLock: inProcessTurnLock() })`. Every connection to PGlite shares one
+session, so the default advisory turn lock would exclude nothing; one process
+owns the data directory (ADR 0130).
 
 The tables go in the `public` schema by default. To keep them out of reach of
 a REST layer (Supabase exposes `public`), install into a private schema and
@@ -587,7 +612,10 @@ as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`
 scripts keep those lines off unless `OTEL_CONSOLE_SPANS=true`. Set
 `TELEMETRY_SUPABASE=true` to persist
 spans to the `adk_telemetry` table (run `db/telemetry.sql`, then
-re-run `db/hardening.sql` — schema below):
+re-run `db/hardening.sql` — schema below). On `DATABASE_URL`, set
+`TELEMETRY_POSTGRES=true` instead to write the same rows through the
+storage's own pool; an application that builds its own storage passes
+`postgresStorage({ ledger: true })` (ADR 0131). Use one sink:
 
 `db/telemetry.sql` (idempotent) creates three tables: `adk_turns` — one
 row per turn with input, output, the responding agent, the plan-dispatch
