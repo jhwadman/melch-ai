@@ -582,7 +582,10 @@ as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`
 scripts keep those lines off unless `OTEL_CONSOLE_SPANS=true`. Set
 `TELEMETRY_SUPABASE=true` to persist
 spans to the `adk_telemetry` table (run `db/telemetry.sql`, then
-re-run `db/hardening.sql` — schema below):
+re-run `db/hardening.sql` — schema below). On `DATABASE_URL`, set
+`TELEMETRY_POSTGRES=true` instead to write the same rows through the
+storage's own pool; an application that builds its own storage passes
+`postgresStorage({ ledger: true })` (ADR 0131). Use one sink:
 
 `db/telemetry.sql` (idempotent) creates three tables: `adk_turns` — one
 row per turn with input, output, the responding agent, the plan-dispatch
