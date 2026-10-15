@@ -305,6 +305,12 @@ const mcpTransport = z
   .enum(MCP_TRANSPORTS)
   .describe('How the MCP server is reached: auto (the default) tries Streamable HTTP and falls back to the legacy SSE transport on the spec\'s signal; streamable_http or sse use that one only (ADR 0124).');
 
+/** An environment variable name, as a stdio MCP entry's env and pass_env keys must be. */
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+
+/** An `env` key that names a credential: such a value belongs in pass_env, never in the YAML (ADR 0132). */
+export const SECRET_ENV_KEY = /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH)/i;
+
 /** An `mcp_servers` entry's name: lowercase, bounded, one character class (no backtracking). */
 export const MCP_SERVER_NAME = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -314,7 +320,23 @@ const mcpServerEntry = z
       .string()
       .regex(MCP_SERVER_NAME, 'lowercase letters, digits, _ and -, starting with a letter (at most 64)')
       .describe('A short name for the server, unique on this agent: logs and errors name it.'),
-    url: z.string().url().describe('The MCP server\'s URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard.'),
+    url: z.string().url().optional().describe('The MCP server\'s URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard. Give url or command, not both.'),
+    command: z
+      .string()
+      .min(1)
+      .optional()
+      .describe('A local MCP server to start and speak to over stdio (ADR 0132), instead of url: the program to run. It runs only when the operator lists this exact value in MELCHIZEDEK_STDIO_MCP. One process per distinct command, args, env and cwd, kept for the life of the engine.'),
+    args: z.array(z.string()).max(64).optional().describe('The command\'s arguments (stdio only).'),
+    env: z
+      .record(z.string().regex(ENV_NAME, 'an environment variable name'), z.string())
+      .optional()
+      .describe('Non-secret variables set for the command (stdio only). A credential is never written here: name it in pass_env.'),
+    pass_env: z
+      .array(z.string().regex(ENV_NAME, 'an environment variable name'))
+      .max(32)
+      .optional()
+      .describe('Variables copied by name from the engine\'s environment into the command\'s (stdio only); the command sees no other variable of the engine\'s beyond a minimal default set (PATH, HOME, …). A name that is unset fails the compile.'),
+    cwd: z.string().min(1).optional().describe('The command\'s working directory (stdio only); relative to the YAML file\'s directory.'),
     tools: z
       .array(z.string().min(1))
       .min(1)
@@ -836,6 +858,24 @@ function mcpServersProblems(agent: Record<string, unknown>, path: (string | numb
   agent.mcp_servers.forEach((entry, i) => {
     if (!isObj(entry)) return;
     const name = typeof entry.name === 'string' ? entry.name : `#${i}`;
+    // url or command (ADR 0132), and each one's own keys only.
+    const at = (key: string) => [...path, 'mcp_servers', i, key];
+    if (entry.url === undefined && entry.command === undefined) out.push({ path: at('url'), message: 'give url (a remote server) or command (a local stdio server) (ADR 0132)' });
+    if (entry.url !== undefined && entry.command !== undefined) out.push({ path: at('command'), message: 'url and command cannot both be given: one entry is one server (ADR 0132)' });
+    if (entry.command !== undefined) {
+      for (const key of ['transport', 'auth']) {
+        if (entry[key] !== undefined) out.push({ path: at(key), message: `${key} is how a url is reached; a command entry speaks stdio and takes no ${key} (ADR 0132)` });
+      }
+      if (isObj(entry.env)) {
+        for (const key of Object.keys(entry.env)) {
+          if (SECRET_ENV_KEY.test(key)) out.push({ path: [...at('env'), key], message: `'${key}' looks like a credential: never write its value in the YAML; list the name in pass_env instead (ADR 0132)` });
+        }
+      }
+    } else {
+      for (const key of ['args', 'env', 'pass_env', 'cwd']) {
+        if (entry[key] !== undefined) out.push({ path: at(key), message: `${key} configures a command entry; this entry has a url (ADR 0132)` });
+      }
+    }
     if (typeof entry.name === 'string') {
       if (names.has(entry.name)) out.push({ path: [...path, 'mcp_servers', i, 'name'], message: `'${entry.name}' names mcp_servers entry ${names.get(entry.name)} too; each server's name is unique on the agent` });
       else names.set(entry.name, i);

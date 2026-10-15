@@ -5,15 +5,15 @@
     "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 994,
-    "edges": 4164,
+    "nodes": 997,
+    "edges": 4171,
     "byKind": {
-      "doc": 199,
+      "doc": 200,
       "provider": 6,
-      "env": 113,
+      "env": 114,
       "model": 10,
       "tool": 34,
-      "file": 219,
+      "file": 220,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,8 +23,8 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 979,
-      "requires_env": 192,
+      "links_to": 980,
+      "requires_env": 193,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -36,7 +36,7 @@
       "imports": 878,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1126,
+      "derives_from": 1131,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3681,
+      "extracted": 3688,
       "inferred": 483
     },
     "isolated": 4
@@ -1984,6 +1984,18 @@
       }
     },
     {
+      "id": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "kind": "doc",
+      "label": "ADR 0132: Local MCP servers run over stdio from an mcp_servers entry's command, only when the operator lists the command, with the environment named by the entry",
+      "source": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 568
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2340,7 +2352,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1761
+        "words": 1928
       }
     },
     {
@@ -3813,6 +3825,12 @@
       "attrs": {}
     },
     {
+      "id": "env:MELCHIZEDEK_STDIO_MCP",
+      "kind": "env",
+      "label": "MELCHIZEDEK_STDIO_MCP",
+      "source": "lib/tools/mcpToolFactory.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_TASKS_FILE",
       "kind": "env",
       "label": "MELCHIZEDEK_TASKS_FILE",
@@ -5162,6 +5180,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/mcpStdio.test.ts",
+      "kind": "file",
+      "label": "mcpStdio.test.ts",
+      "source": "tests/mcpStdio.test.ts"
+    },
+    {
       "id": "file:tests/mcpStreamable.test.ts",
       "kind": "file",
       "label": "mcpStreamable.test.ts",
@@ -5896,7 +5920,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 704
+        "lines": 722
       }
     },
     {
@@ -5986,7 +6010,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 789
+        "lines": 791
       }
     },
     {
@@ -6733,7 +6757,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1316
+        "lines": 1356
       }
     },
     {
@@ -6841,7 +6865,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 542
+        "lines": 661
       }
     },
     {
@@ -18183,6 +18207,41 @@
       "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
     },
     {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "file:tests/mcpStdio.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
+      "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -22835,7 +22894,7 @@
       "to": "/agents/event_assistant.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:62"
+      "evidence": "/protocols/mcp.md:64"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22849,35 +22908,35 @@
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:47"
+      "evidence": "/protocols/mcp.md:49"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:52"
+      "evidence": "/protocols/mcp.md:54"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:50"
+      "evidence": "/protocols/mcp.md:52"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22888,17 +22947,24 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:43"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/protocols/mcp-server.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:66"
+      "evidence": "/protocols/mcp.md:68"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:60"
+      "evidence": "/protocols/mcp.md:62"
     },
     {
       "from": "/protocols/mcp.md",
@@ -22912,7 +22978,7 @@
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:59"
+      "evidence": "/protocols/mcp.md:61"
     },
     {
       "from": "/tools/ask-user.md",
@@ -29798,6 +29864,13 @@
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "env:MCP_BEARER_TOKENS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "env:MELCHIZEDEK_STDIO_MCP",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"

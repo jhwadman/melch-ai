@@ -45,8 +45,9 @@ import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
 import { reasoningConfig } from './models/reasoning.ts';
 import { instructionFor, toEngineAgent } from './agentDialect.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
-import { createMcpTools } from './tools/mcpToolFactory.ts';
+import { createMcpTools, loadStdioMcpTools } from './tools/mcpToolFactory.ts';
 import type { McpServerConfig, McpTransportKind } from './tools/mcpToolFactory.ts';
+import type { Tool } from './tools/tool.ts';
 import { requireApproval, toolOf } from './tools/tool.ts';
 import type { ModelAdapter } from './models/contract.ts';
 import { examplesInstructionTool } from './tools/examples.ts';
@@ -204,6 +205,17 @@ interface AgentToolSource {
   examples?: ExampleConfig[];
 }
 
+/** A stdio server's tools (ADR 0132), narrowed to the names the entry lists. */
+async function stdioOfferedBy(server: McpServerConfig, opts: CompileOptions): Promise<Tool[]> {
+  const label = `${server.name} (stdio: ${server.command})`;
+  opts.log?.(`Loading MCP tools: ${label}`);
+  const offered = await loadStdioMcpTools(server.name, { command: server.command!, args: server.args, env: server.env, pass_env: server.pass_env, cwd: server.cwd });
+  const allowed = new Set(server.tools);
+  const missing = server.tools.filter((n) => !offered.some((t) => t.name === n));
+  if (missing.length) opts.log?.(`MCP ${label} does not offer ${missing.map((n) => `'${n}'`).join(', ')}`);
+  return offered.filter((t) => allowed.has(t.name));
+}
+
 async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): Promise<unknown[]> {
   const tools = [...resolveNamedTools(agent.tools, opts.onUnknownTool), ...examplesTool(agent.examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
@@ -239,7 +251,13 @@ async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): 
   // mcp_servers (ADR 0124): the loader refused a declared name twice; a
   // server that answers with a name already taken is refused here too, so
   // no server's tool can stand in for another's or the agent's own.
-  const servers = await Promise.all((agent.mcp_servers ?? []).map((server) => offeredBy(`${server.name} (${server.url})`, server.url, server.tools, server.auth?.oauth2, server.transport)));
+  const servers = await Promise.all(
+    (agent.mcp_servers ?? []).map((server) =>
+      server.command !== undefined
+        ? stdioOfferedBy(server, opts)
+        : offeredBy(`${server.name} (${server.url})`, server.url!, server.tools, server.auth?.oauth2, server.transport),
+    ),
+  );
   for (const [i, offered] of servers.entries()) {
     const server = agent.mcp_servers![i]!;
     for (const mcpTool of offered) {

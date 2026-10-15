@@ -25,6 +25,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ToolDeclaration } from '../models/contract.ts';
 import { toContractJsonSchema } from '../models/schemaNormalize.ts';
@@ -273,6 +274,127 @@ async function connectMcp(
   return conn;
 }
 
+// ── stdio servers (ADR 0132) ─────────────────────────────────────────────────
+
+/** A local MCP server: the program, its arguments, its environment and its directory. */
+export interface StdioMcpSpec {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  pass_env?: string[];
+  cwd?: string;
+}
+
+/**
+ * Whether the operator allows `command` to run as an MCP server: its exact
+ * value is one of MELCHIZEDEK_STDIO_MCP's comma-separated entries. Unset
+ * means none. Read at each connect, so an embedding application can set it
+ * as its user approves servers.
+ */
+export function stdioCommandAllowed(command: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  const list = (env.MELCHIZEDEK_STDIO_MCP ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return list.includes(command);
+}
+
+/** The command's environment: the SDK's minimal default set, then `pass_env` by name, then `env`. Throws naming an unset variable, never a value. */
+export function stdioEnvironment(spec: StdioMcpSpec, label: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const out: Record<string, string> = { ...getDefaultEnvironment() };
+  for (const name of spec.pass_env ?? []) {
+    const value = env[name];
+    if (value === undefined || value === '') throw new Error(`${label}: pass_env names ${name}, which is not set in the engine's environment`);
+    out[name] = value;
+  }
+  return { ...out, ...(spec.env ?? {}) };
+}
+
+/** Live stdio connections by spec: one process per distinct spec, for the life of the engine. */
+const stdioConnections = new Map<string, Promise<Client>>();
+/** The last stderr a stdio server wrote, for a failure message. */
+const STDERR_TAIL = 1_000;
+
+function stdioKey(spec: StdioMcpSpec): string {
+  return JSON.stringify([spec.command, spec.args ?? [], Object.entries(spec.env ?? {}).sort(), [...(spec.pass_env ?? [])].sort(), spec.cwd ?? null]);
+}
+
+async function connectStdio(spec: StdioMcpSpec, label: string): Promise<Client> {
+  const key = stdioKey(spec);
+  const live = stdioConnections.get(key);
+  if (live) return live;
+  const env = stdioEnvironment(spec, label);
+  const attempt = (async () => {
+    const transport = new StdioClientTransport({ command: spec.command, args: spec.args ?? [], env, ...(spec.cwd ? { cwd: spec.cwd } : {}), stderr: 'pipe' });
+    let tail = '';
+    transport.stderr?.on('data', (chunk: Buffer) => {
+      tail = (tail + chunk.toString('utf-8')).slice(-STDERR_TAIL);
+    });
+    const client = new Client({ name: 'melchizedek-a2a-client', version: '1.0.0' }, { capabilities: {} });
+    try {
+      await client.connect(transport);
+    } catch (error) {
+      await transport.close().catch(() => {});
+      // The tail reaches a log line: every value pass_env copied in is cut out of it.
+      const secrets = (spec.pass_env ?? []).map((n) => env[n]).filter((v): v is string => !!v);
+      const clean = secrets.reduce((text, v) => text.split(v).join('[redacted]'), tail.trim());
+      const said = clean ? ` (stderr: ${clean.split('\n').slice(-3).join(' | ')})` : '';
+      throw new Error(`${error instanceof Error ? error.message : String(error)}${said}`);
+    }
+    // A server that exits is started again by the next compile that needs it.
+    transport.onclose = () => {
+      stdioConnections.delete(key);
+      openTransports.delete(transport);
+    };
+    openTransports.add(transport);
+    return client;
+  })();
+  stdioConnections.set(key, attempt);
+  attempt.catch(() => stdioConnections.delete(key));
+  return attempt;
+}
+
+/**
+ * The tools a local stdio MCP server offers, as own Tools (ADR 0132). A
+ * command the operator has not allowed (MELCHIZEDEK_STDIO_MCP) or an unset
+ * pass_env variable fails the compile (thrown); a server that cannot be
+ * started or listed is logged and yields no tools, as a remote one does.
+ */
+export async function loadStdioMcpTools(name: string, spec: StdioMcpSpec): Promise<Tool[]> {
+  const label = `mcp_servers ${name}`;
+  if (!stdioCommandAllowed(spec.command)) {
+    throw new Error(`${label}: the command '${spec.command}' is not allowed to run; the operator lists it in MELCHIZEDEK_STDIO_MCP (ADR 0132)`);
+  }
+  let client: Client;
+  try {
+    client = await connectStdio(spec, label);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith(label)) throw error; // pass_env: a configuration error
+    console.warn(`[MCP] Failed to start or connect to ${label} (stdio: ${spec.command})`, error instanceof Error ? error.message : error);
+    return [];
+  }
+  try {
+    const { tools } = await client.listTools();
+    return tools.map((tool) => listedTool(client, tool));
+  } catch (error) {
+    console.warn(`[MCP] Failed to list tools from ${label} (stdio: ${spec.command})`, error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+/** One listed tool as an own Tool on `client`'s connection: the same declaration and result handling for every transport. */
+function listedTool(client: Client, tool: { name: string; description?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } }): Tool {
+  const declaration = declarationOf(tool);
+  return {
+    name: tool.name,
+    declaration: () => declaration,
+    execute: async (input: Record<string, unknown>): Promise<string> => {
+      try {
+        return resultText(await client.callTool({ name: tool.name, arguments: input }));
+      } catch (error: any) {
+        return `[MCP ERROR] Tool ${tool.name} failed: ${error instanceof ToolCredentialError ? error.message : error?.message}`;
+      }
+    },
+  };
+}
+
 /**
  * Close every open MCP connection. A connection otherwise lives as long as
  * the process (its tools are called for the life of the compiled agent), and
@@ -283,6 +405,7 @@ export async function closeMcpConnections(): Promise<void> {
   const all = [...openTransports];
   openTransports.clear();
   for (const pool of userPools) pool.clear();
+  stdioConnections.clear();
   rememberedTransports.clear();
   await Promise.all(all.map((t) => t.close().catch(() => {})));
 }
@@ -359,7 +482,16 @@ export interface McpToolOptions {
 export interface McpServerConfig {
   /** A short name for the server, unique on the agent: logs and errors name it. */
   name: string;
-  url: string;
+  /** A remote server. Exactly one of url and command is set (ADR 0132). */
+  url?: string;
+  /** A local server, started and spoken to over stdio (ADR 0132). */
+  command?: string;
+  args?: string[];
+  /** Non-secret variables for the command. */
+  env?: Record<string, string>;
+  /** Variables copied by name from the engine's environment. */
+  pass_env?: string[];
+  cwd?: string;
   /** The server's tools this agent may use, by name. Required: names across servers are refused on collision at load. */
   tools: string[];
   auth?: { oauth2: OAuth2AuthConfig };
@@ -406,22 +538,9 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
     // Fetch available tools from the MCP server
     const toolsResponse = await client.listTools();
 
-    return toolsResponse.tools.map((tool): Tool => {
-      // MCP servers describe tools in standard lowercase JSON Schema, which
-      // is the contract's dialect; mcpToolParameters derives the parameters.
-      const declaration = declarationOf(tool);
-      return {
-        name: tool.name,
-        declaration: () => declaration,
-        execute: async (input: Record<string, unknown>): Promise<string> => {
-          try {
-            return resultText(await client.callTool({ name: tool.name, arguments: input }));
-          } catch (error: any) {
-            return `[MCP ERROR] Tool ${tool.name} failed: ${error instanceof ToolCredentialError ? error.message : error?.message}`;
-          }
-        },
-      };
-    });
+    // MCP servers describe tools in standard lowercase JSON Schema, which is
+    // the contract's dialect; mcpToolParameters derives the parameters.
+    return toolsResponse.tools.map((tool) => listedTool(client, tool));
   } catch (error) {
     // A token that cannot be had is reported by kind; the rest as before.
     console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error instanceof ToolCredentialError ? error.message : error);
