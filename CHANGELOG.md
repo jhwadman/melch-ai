@@ -34,6 +34,14 @@ the starter pack and the templates), not the repo's full history.
   `stdioCommandAllowed`, `stdioEnvironment`, `StdioMcpSpec`; `McpServerConfig.url`
   is now optional.
 
+- **`setCredentialSource`, `credentialValue` and `CredentialSource` in the
+  barrel (ADR 0133).** An embedding application supplies keys from its own
+  store, asked by environment variable name (`ANTHROPIC_API_KEY`, …) before
+  `process.env`, at each use and never cached. Every key read in the engine
+  goes through it: the five adapters, the gateway, provider presence and
+  `providerStatuses()`, endpoints, embeddings, the memory providers and the
+  Gemini image and vision tools. Without a source, behaviour is unchanged.
+
 ### Fixed
 
 - **`db/hardening.sql` applies on Postgres without Supabase's API roles

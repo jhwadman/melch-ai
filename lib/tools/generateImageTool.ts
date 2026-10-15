@@ -21,6 +21,7 @@ import { join, resolve } from 'node:path';
 import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
+import { credentialValue } from '../models/credentialSource.ts';
 
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
@@ -38,7 +39,7 @@ export const generateImageContract = defineTool({
   execute: async ({ prompt, style, aspect_ratio, color_palette }): Promise<string> => {
     console.log("[ImageTool] Starting image generation execution...");
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    const apiKey = credentialValue('GEMINI_API_KEY') || credentialValue('GOOGLE_GENAI_API_KEY');
     if (!apiKey) {
       const err = new Error('Gemini API Key is not configured (neither GEMINI_API_KEY nor GOOGLE_GENAI_API_KEY was found in environment).');
       console.error(`[ImageTool ERROR] Initialization failed: ${err.message}`);

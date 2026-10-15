@@ -12,6 +12,7 @@
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from '../config.ts';
 import { memoryProvidersFromEnv } from '../memory/providers.ts';
 import type { Embedder } from '../memory/providers.ts';
+import { credentialValue } from '../models/credentialSource.ts';
 
 const MAX_CHARS = 8_000;
 
@@ -33,7 +34,7 @@ export interface EmbedOptions {
 export async function embedTexts(texts: string[], options: EmbedOptions = {}): Promise<number[][]> {
   let embedder = options.embedder;
   if (!embedder) {
-    const apiKey = options.apiKey ?? process.env.GOOGLE_GENAI_API_KEY ?? process.env.GEMINI_API_KEY;
+    const apiKey = options.apiKey ?? credentialValue('GOOGLE_GENAI_API_KEY') ?? credentialValue('GEMINI_API_KEY');
     const provider = (process.env.MEMORY_EMBEDDING_PROVIDER?.trim() || 'gemini').toLowerCase();
     if (provider === 'gemini' && !apiKey) throw new Error('GOOGLE_GENAI_API_KEY is required for Gemini embeddings');
     embedder = memoryProvidersFromEnv(process.env, apiKey).embedder;

@@ -42,6 +42,7 @@ import { providerForModel } from '../models/providerMap.ts';
 import { resolveModel } from '../models/registry.ts';
 import { startEngineSpan, traceLlmGeneration } from '../observability/tracer.ts';
 import { trimTrailingSlashes } from '../models/urls.ts';
+import { credentialEnv } from '../models/credentialSource.ts';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -253,7 +254,7 @@ export interface MemoryProviders {
  * model or embedder is Gemini.
  */
 export function memoryProvidersFromEnv(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = credentialEnv(),
   geminiKey?: string,
 ): MemoryProviders {
   const extractionModel = env.MEMORY_EXTRACTION_MODEL?.trim() || MEMORY_EXTRACTION_MODEL;

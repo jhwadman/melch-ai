@@ -5,26 +5,26 @@
     "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 997,
-    "edges": 4171,
+    "nodes": 999,
+    "edges": 4174,
     "byKind": {
-      "doc": 200,
+      "doc": 201,
       "provider": 6,
-      "env": 114,
+      "env": 113,
       "model": 10,
       "tool": 34,
-      "file": 220,
+      "file": 221,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 18,
-      "module": 198,
+      "module": 199,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 980,
-      "requires_env": 193,
+      "links_to": 981,
+      "requires_env": 174,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 878,
+      "imports": 895,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1131,
+      "derives_from": 1135,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3688,
+      "extracted": 3691,
       "inferred": 483
     },
     "isolated": 4
@@ -1996,6 +1996,18 @@
       }
     },
     {
+      "id": "/decisions/0133-credential-source-by-variable-name.md",
+      "kind": "doc",
+      "label": "ADR 0133: An embedding application supplies credentials through one source, asked by environment variable name at each use",
+      "source": "/decisions/0133-credential-source-by-variable-name.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 435
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2172,7 +2184,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5421
+        "words": 5471
       }
     },
     {
@@ -3593,8 +3605,7 @@
       "id": "env:ANTHROPIC_API_KEY",
       "kind": "env",
       "label": "ANTHROPIC_API_KEY",
-      "source": "lib/models/claudeAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:ANTHROPIC_BASE_URL",
@@ -3688,12 +3699,6 @@
       "kind": "env",
       "label": "GIT_COMMIT",
       "source": "lib/observability/lineage.ts"
-    },
-    {
-      "id": "env:GOOGLE_API_KEY",
-      "kind": "env",
-      "label": "GOOGLE_API_KEY",
-      "source": "lib/models/geminiAdapter.ts"
     },
     {
       "id": "env:GOOGLE_CLOUD_LOCATION",
@@ -3889,8 +3894,7 @@
       "id": "env:MOONSHOT_API_KEY",
       "kind": "env",
       "label": "MOONSHOT_API_KEY",
-      "source": "lib/models/kimiAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:MOONSHOT_BASE_URL",
@@ -3928,7 +3932,7 @@
       "id": "env:OPENAI_API_KEY",
       "kind": "env",
       "label": "OPENAI_API_KEY",
-      "source": "lib/models/gptAdapter.ts",
+      "source": "lib/memory/providers.ts",
       "attrs": {}
     },
     {
@@ -4137,8 +4141,7 @@
       "id": "env:XAI_API_KEY",
       "kind": "env",
       "label": "XAI_API_KEY",
-      "source": "lib/models/grokAdapter.ts",
-      "attrs": {}
+      "source": "lib/models/providerMap.ts"
     },
     {
       "id": "env:XAI_COLLECTION_IDS",
@@ -4995,6 +4998,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/credentialSource.test.ts",
+      "kind": "file",
+      "label": "credentialSource.test.ts",
+      "source": "tests/credentialSource.test.ts"
+    },
+    {
       "id": "file:tests/delegatedPauses.test.ts",
       "kind": "file",
       "label": "delegatedPauses.test.ts",
@@ -5794,7 +5803,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1361
+        "lines": 1362
       }
     },
     {
@@ -5902,7 +5911,7 @@
       "label": "lib/chatgpt/state.ts",
       "source": "lib/chatgpt/state.ts",
       "attrs": {
-        "lines": 189
+        "lines": 190
       }
     },
     {
@@ -5992,7 +6001,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 130
+        "lines": 134
       }
     },
     {
@@ -6046,7 +6055,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 346
+        "lines": 347
       }
     },
     {
@@ -6118,7 +6127,7 @@
       "label": "lib/models/claudeAdapter.ts",
       "source": "lib/models/claudeAdapter.ts",
       "attrs": {
-        "lines": 741
+        "lines": 742
       }
     },
     {
@@ -6140,12 +6149,21 @@
       }
     },
     {
+      "id": "module:lib/models/credentialSource.ts",
+      "kind": "module",
+      "label": "lib/models/credentialSource.ts",
+      "source": "lib/models/credentialSource.ts",
+      "attrs": {
+        "lines": 54
+      }
+    },
+    {
       "id": "module:lib/models/endpoints.ts",
       "kind": "module",
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 323
+        "lines": 324
       }
     },
     {
@@ -6172,7 +6190,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 204
+        "lines": 205
       }
     },
     {
@@ -6181,7 +6199,7 @@
       "label": "lib/models/gatewayAdapter.ts",
       "source": "lib/models/gatewayAdapter.ts",
       "attrs": {
-        "lines": 111
+        "lines": 112
       }
     },
     {
@@ -6190,7 +6208,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 990
+        "lines": 991
       }
     },
     {
@@ -6217,7 +6235,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 931
+        "lines": 932
       }
     },
     {
@@ -6226,7 +6244,7 @@
       "label": "lib/models/grokAdapter.ts",
       "source": "lib/models/grokAdapter.ts",
       "attrs": {
-        "lines": 169
+        "lines": 170
       }
     },
     {
@@ -6235,7 +6253,7 @@
       "label": "lib/models/kimiAdapter.ts",
       "source": "lib/models/kimiAdapter.ts",
       "attrs": {
-        "lines": 225
+        "lines": 226
       }
     },
     {
@@ -6253,7 +6271,7 @@
       "label": "lib/models/providerMap.ts",
       "source": "lib/models/providerMap.ts",
       "attrs": {
-        "lines": 63
+        "lines": 65
       }
     },
     {
@@ -6343,7 +6361,7 @@
       "label": "lib/observability/embeddings.ts",
       "source": "lib/observability/embeddings.ts",
       "attrs": {
-        "lines": 65
+        "lines": 66
       }
     },
     {
@@ -6838,7 +6856,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 128
+        "lines": 129
       }
     },
     {
@@ -6847,7 +6865,7 @@
       "label": "lib/tools/inspectImageTool.ts",
       "source": "lib/tools/inspectImageTool.ts",
       "attrs": {
-        "lines": 108
+        "lines": 109
       }
     },
     {
@@ -7135,7 +7153,7 @@
       "label": "lib/tools/xApiSearchTool.ts",
       "source": "lib/tools/xApiSearchTool.ts",
       "attrs": {
-        "lines": 662
+        "lines": 663
       }
     },
     {
@@ -18242,6 +18260,34 @@
       "evidence": "/decisions/0132-local-mcp-servers-over-stdio.md frontmatter"
     },
     {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "file:tests/credentialSource.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0133-credential-source-by-variable-name.md",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0133-credential-source-by-variable-name.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -20087,7 +20133,7 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:181"
+      "evidence": "/models/provider-routing.md:182"
     },
     {
       "from": "/models/provider-routing.md",
@@ -20137,6 +20183,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:38"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0133-credential-source-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:177"
     },
     {
       "from": "/models/provider-routing.md",
@@ -25362,6 +25415,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25462,20 +25522,6 @@
       "from": "module:lib/a2a/app.ts",
       "to": "module:lib/tools/oauthTools.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/a2a/app.ts"
-    },
-    {
-      "from": "module:lib/a2a/app.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/a2a/app.ts"
-    },
-    {
-      "from": "module:lib/a2a/app.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"
     },
@@ -25807,6 +25853,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/chatgpt/oauth.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
     },
     {
       "from": "module:lib/chatgpt/state.ts",
@@ -26272,6 +26325,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26602,6 +26662,13 @@
     {
       "from": "module:lib/memory/providers.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/memory/providers.ts"
@@ -27098,6 +27165,13 @@
     },
     {
       "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27146,13 +27220,6 @@
       "evidence": "lib/models/claudeAdapter.ts"
     },
     {
-      "from": "module:lib/models/claudeAdapter.ts",
-      "to": "env:ANTHROPIC_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeAdapter.ts"
-    },
-    {
       "from": "module:lib/models/claudeModels.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -27179,6 +27246,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/contract.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
     },
     {
       "from": "module:lib/models/endpoints.ts",
@@ -27329,6 +27403,13 @@
     },
     {
       "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
+    },
+    {
+      "from": "module:lib/models/gateway.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27364,6 +27445,13 @@
     },
     {
       "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
       "to": "module:lib/models/gateway.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27379,6 +27467,13 @@
     {
       "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/geminiAdapter.ts"
@@ -27422,27 +27517,6 @@
       "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GOOGLE_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/geminiAdapter.ts"
     },
@@ -27497,6 +27571,13 @@
     },
     {
       "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27545,13 +27626,6 @@
       "evidence": "lib/models/gptAdapter.ts"
     },
     {
-      "from": "module:lib/models/gptAdapter.ts",
-      "to": "env:OPENAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/gptAdapter.ts"
-    },
-    {
       "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
@@ -27561,6 +27635,13 @@
     {
       "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/grokAdapter.ts"
@@ -27602,13 +27683,6 @@
     },
     {
       "from": "module:lib/models/grokAdapter.ts",
-      "to": "env:XAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/grokAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/grokAdapter.ts",
       "to": "env:XAI_TIMEOUT_MS",
       "rel": "requires_env",
       "tier": "extracted",
@@ -27637,15 +27711,15 @@
     },
     {
       "from": "module:lib/models/kimiAdapter.ts",
-      "to": "module:lib/models/urls.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
     },
     {
       "from": "module:lib/models/kimiAdapter.ts",
-      "to": "env:MOONSHOT_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
     },
@@ -27679,15 +27753,8 @@
     },
     {
       "from": "module:lib/models/providerMap.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/providerMap.ts"
-    },
-    {
-      "from": "module:lib/models/providerMap.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/providerMap.ts"
     },
@@ -27791,15 +27858,8 @@
     },
     {
       "from": "module:lib/observability/embeddings.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/observability/embeddings.ts"
-    },
-    {
-      "from": "module:lib/observability/embeddings.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/observability/embeddings.ts"
     },
@@ -29730,22 +29790,15 @@
     },
     {
       "from": "module:lib/tools/generateImageTool.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/generateImageTool.ts"
     },
     {
       "from": "module:lib/tools/generateImageTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/generateImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/generateImageTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/generateImageTool.ts"
     },
@@ -29758,22 +29811,15 @@
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/inspectImageTool.ts"
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/inspectImageTool.ts"
-    },
-    {
-      "from": "module:lib/tools/inspectImageTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/inspectImageTool.ts"
     },
@@ -30507,22 +30553,15 @@
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xApiSearchTool.ts"
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "env:GEMINI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/xApiSearchTool.ts"
-    },
-    {
-      "from": "module:lib/tools/xApiSearchTool.ts",
-      "to": "env:GOOGLE_GENAI_API_KEY",
-      "rel": "requires_env",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xApiSearchTool.ts"
     },

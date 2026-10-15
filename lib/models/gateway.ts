@@ -43,6 +43,7 @@ import { providerReady } from './endpoints.ts';
 import { PROVIDERS, providerForModel } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
 import { trimTrailingSlashes } from './urls.ts';
+import { credentialValue } from './credentialSource.ts';
 
 export type GatewayId = 'vercel' | 'openrouter';
 
@@ -104,7 +105,7 @@ export function gatewayConfig(): GatewayConfig | null {
   return {
     gateway,
     baseUrl: trimTrailingSlashes(override || gateway.baseUrl),
-    keyPresent: !!process.env[GATEWAY_KEY_ENV],
+    keyPresent: !!credentialValue(GATEWAY_KEY_ENV),
   };
 }
 

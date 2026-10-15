@@ -96,6 +96,7 @@ import { setOAuthHosts } from '../tools/oauthHosts.ts';
 import { setCredentialHosts } from '../tools/credentialHosts.ts';
 import { syndicateCredentialHostProblems } from '../tools/credentialUses.ts';
 import { syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
+import { credentialValue } from '../models/credentialSource.ts';
 const SURFACE_HEADERS = [
   ['x-surface', 'name'],
   ['x-surface-guild', 'guild'],
@@ -658,7 +659,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     // Embeddings and fact extraction use the SERVER's Gemini key: memory is
     // operator infrastructure, like tools.
     const services = await createSupabaseServices({
-      apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '',
+      apiKey: credentialValue('GOOGLE_GENAI_API_KEY') || credentialValue('GEMINI_API_KEY') || '',
       withMemory: true,
       extractor: options.memory?.extractor,
       embedder: options.memory?.embedder,

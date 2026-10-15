@@ -99,6 +99,7 @@ import type { ProviderState } from './providerState.ts';
 import { classifyError, errorStatus, retryUntilFirstYield } from './retry.ts';
 import { isAboveHigh, reasoningConfig } from './reasoning.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
+import { credentialValue } from './credentialSource.ts';
 
 /**
  * The provider id this adapter reports and writes its state under, and the
@@ -973,7 +974,7 @@ function nonEmpty(value: string | undefined): string | undefined {
 
 /** The Gemini API key from the environment, in ADK's order. */
 function envApiKey(): string | undefined {
-  return nonEmpty(process.env.GOOGLE_GENAI_API_KEY) ?? nonEmpty(process.env.GOOGLE_API_KEY) ?? nonEmpty(process.env.GEMINI_API_KEY);
+  return nonEmpty(credentialValue('GOOGLE_GENAI_API_KEY')) ?? nonEmpty(credentialValue('GOOGLE_API_KEY')) ?? nonEmpty(credentialValue('GEMINI_API_KEY'));
 }
 
 function messageOf(err: unknown): string {

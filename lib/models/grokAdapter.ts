@@ -38,6 +38,7 @@ import {
   xSearchParamsFromEnv,
 } from '../tools/xaiSearchParams.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
+import { credentialValue } from './credentialSource.ts';
 
 export const XAI_BASE_URL = 'https://api.x.ai/v1';
 
@@ -81,7 +82,7 @@ export class GrokAdapter extends GptAdapter {
   }
 
   protected override apiKeyFromEnv(): string | undefined {
-    return process.env.XAI_API_KEY;
+    return credentialValue('XAI_API_KEY');
   }
 
   protected override missingKeyMessage(): string {
