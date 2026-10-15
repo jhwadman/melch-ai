@@ -568,6 +568,19 @@ helpers. A project that only calls models imports from there. Its
 `resolveAdapter` gives a Gemini id `GeminiAdapter`; `resolveModel` is not
 in it.
 
+An application that keeps keys outside the environment (an OS keychain,
+a secret manager) sets one credential source, asked by the same variable
+names at each use, before `process.env` (ADR 0133):
+
+```ts
+import { setCredentialSource } from 'melchizedek-agents';
+setCredentialSource((name) => keychain.get(name)); // e.g. 'ANTHROPIC_API_KEY'
+```
+
+Every key read goes through it: the adapters, the gateway, provider
+status, embeddings and the image tools. A key removed from the source
+stops being sent on the next request.
+
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it
 as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`

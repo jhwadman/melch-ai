@@ -23,6 +23,7 @@ import { resolve, extname, sep } from 'node:path';
 import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
+import { credentialValue } from '../models/credentialSource.ts';
 
 const VISION_MODEL = 'gemini-3.8-flash';
 
@@ -65,7 +66,7 @@ export const inspectImageContract = defineTool({
       throw new Error('inspect_image only reads files under outputs/');
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    const apiKey = credentialValue('GEMINI_API_KEY') || credentialValue('GOOGLE_GENAI_API_KEY');
     if (!apiKey) {
       throw new Error(
         'Gemini API Key is not configured (neither GEMINI_API_KEY nor GOOGLE_GENAI_API_KEY was found in environment).',

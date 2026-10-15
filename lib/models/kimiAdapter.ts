@@ -123,6 +123,7 @@ import { DEFAULT_KIMI_REASONING_EFFORT } from '../config.ts';
 import { ChatCompletionsAdapter, reasonsNotAtAll } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
 import { trimTrailingSlashes } from './urls.ts';
+import { credentialValue } from './credentialSource.ts';
 
 export const MOONSHOT_BASE_URL = 'https://api.moonshot.ai/v1';
 
@@ -174,7 +175,7 @@ export class KimiAdapter extends ChatCompletionsAdapter {
   }
 
   #key(): string | undefined {
-    return this.#apiKey ?? process.env.MOONSHOT_API_KEY;
+    return this.#apiKey ?? credentialValue('MOONSHOT_API_KEY');
   }
 
   protected headers(): Record<string, string> {

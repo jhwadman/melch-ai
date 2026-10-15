@@ -14,6 +14,8 @@
  *   kimi-*     → moonshot      everything else   → gemini (the default)
  */
 
+import { credentialValue } from './credentialSource.ts';
+
 export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'ollama';
 
 interface ProviderInfo {
@@ -49,9 +51,9 @@ export function providerKeyPresent(provider: ProviderId): boolean {
   if (!keyEnv) return true;
   // Gemini historically accepts either env name.
   if (provider === 'gemini') {
-    return realValue(process.env.GOOGLE_GENAI_API_KEY) || realValue(process.env.GEMINI_API_KEY);
+    return realValue(credentialValue('GOOGLE_GENAI_API_KEY')) || realValue(credentialValue('GEMINI_API_KEY'));
   }
-  return realValue(process.env[keyEnv]);
+  return realValue(credentialValue(keyEnv));
 }
 
 /** Set, and not a `.env.example` placeholder (`your_..._here`, `<...>`).

@@ -60,6 +60,7 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
+import { credentialValue } from '../models/credentialSource.ts';
 
 export const X_API_SEARCH_TOOL_NAME = 'x_api_search';
 
@@ -279,7 +280,7 @@ RULES: transcribe, do not summarize. No judgment of truth, quality or intent. Th
 
 /** The default vision call — the same client inspect_image uses. */
 async function geminiTranscribe(bytes: Uint8Array, mimeType: string, model: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+  const apiKey = credentialValue('GEMINI_API_KEY') || credentialValue('GOOGLE_GENAI_API_KEY');
   if (!apiKey) throw new Error('no Gemini key (GEMINI_API_KEY / GOOGLE_GENAI_API_KEY) for the vision pass');
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({

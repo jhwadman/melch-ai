@@ -6,6 +6,16 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **`setCredentialSource`, `credentialValue` and `CredentialSource` in the
+  barrel (ADR 0133).** An embedding application supplies keys from its own
+  store, asked by environment variable name (`ANTHROPIC_API_KEY`, …) before
+  `process.env`, at each use and never cached. Every key read in the engine
+  goes through it: the five adapters, the gateway, provider presence and
+  `providerStatuses()`, endpoints, embeddings, the memory providers and the
+  Gemini image and vision tools. Without a source, behaviour is unchanged.
+
 ## 1.4.0 — 2026-10-13
 
 A minor release with two additions and no breaking change. OAuth consent

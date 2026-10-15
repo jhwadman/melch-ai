@@ -35,6 +35,7 @@ import type { ChatFailure } from './chatCompletionsAdapter.ts';
 import { GATEWAY_ENV, GATEWAY_KEY_ENV, GATEWAY_MODEL_MAP_ENV, gatewayConfig, gatewayWireModel } from './gateway.ts';
 import type { GatewayConfig } from './gateway.ts';
 import { providerForModel } from './providerMap.ts';
+import { credentialValue } from './credentialSource.ts';
 
 export interface GatewayAdapterOptions {
   /** The model id as the YAML names it; the gateway's id comes from gatewayWireModel. */
@@ -61,7 +62,7 @@ export class GatewayAdapter extends ChatCompletionsAdapter {
   }
 
   protected headers(): Record<string, string> {
-    return { Authorization: `Bearer ${process.env[GATEWAY_KEY_ENV] ?? ''}` };
+    return { Authorization: `Bearer ${credentialValue(GATEWAY_KEY_ENV) ?? ''}` };
   }
 
   protected override wireModelName(model: string): string {

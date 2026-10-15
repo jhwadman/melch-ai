@@ -72,6 +72,7 @@ import { effortWord } from './reasoning.ts';
 import type { RetryDecision } from './retry.ts';
 import { toContractJsonSchema } from './schemaNormalize.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
+import { credentialValue } from './credentialSource.ts';
 
 /** The providerState kind the Responses adapters write: the reasoning output items that preceded a part (ADR 0046, ADR 0050). */
 export const REASONING_STATE_KIND = 'reasoning_items';
@@ -517,7 +518,7 @@ export class GptAdapter implements ModelAdapter {
   }
 
   protected apiKeyFromEnv(): string | undefined {
-    return process.env.OPENAI_API_KEY;
+    return credentialValue('OPENAI_API_KEY');
   }
 
   protected missingKeyMessage(): string {
