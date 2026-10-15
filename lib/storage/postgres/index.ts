@@ -29,6 +29,9 @@ import type { CredentialStore } from '../../tools/auth.ts';
 import { searchPathOption } from '../schema.ts';
 import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
+import { attachLedger } from '../../observability/tracer.ts';
+import { postgresLedgerClient } from '../../observability/supabaseSpanExporter.ts';
+import type { PayloadPolicy } from '../../observability/supabaseSpanExporter.ts';
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
 import type { TaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
@@ -78,6 +81,14 @@ export interface PostgresStorageOptions {
    * pool is opened.
    */
   turnLock?: TurnLock;
+  /**
+   * Write the telemetry ledger (adk_turns, adk_telemetry, adk_payloads) to
+   * this database (ADR 0131): the rows the Supabase sink writes, with the
+   * same payload policy (TELEMETRY_PAYLOADS, or `policy`) and redaction.
+   * Needs db/telemetry.sql applied. `close()` flushes and detaches it.
+   * Default off.
+   */
+  ledger?: boolean | { policy?: PayloadPolicy; deadLetterFile?: string };
   /**
    * Connections reserved for turn locks: each running turn holds one for its
    * length, apart from the main pool so a long turn never starves queries.
@@ -235,6 +246,9 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
   };
 
   const turnLock = options.turnLock ?? advisoryTurnLock;
+  const detachLedger = options.ledger
+    ? attachLedger(postgresLedgerClient(pool), options.ledger === true ? {} : options.ledger)
+    : undefined;
 
   const audit = postgresAuditSink(pool);
   const credentials = options.credentials ? postgresCredentialStore(pool, { ...options.credentials, audit }) : undefined;
@@ -287,6 +301,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       return counts;
     },
     async close() {
+      await detachLedger?.();
       if (lockPool) await lockPool.end();
       if (owned) await pool.end();
     },

@@ -404,8 +404,13 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
         ...(positiveInt('DATABASE_POOL_MAX') ? { poolConfig: { max: positiveInt('DATABASE_POOL_MAX') } } : {}),
         ...(positiveInt('A2A_TURN_LOCK_POOL_MAX') ? { lockPoolMax: positiveInt('A2A_TURN_LOCK_POOL_MAX') } : {}),
         memory: { apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '' },
+        // The ledger in this database (ADR 0131): TELEMETRY_POSTGRES=true.
+        ...(process.env.TELEMETRY_POSTGRES === 'true' ? { ledger: true } : {}),
       })
     : undefined;
+  if (process.env.TELEMETRY_POSTGRES === 'true' && !pgStorage) {
+    console.warn('[TELEMETRY] TELEMETRY_POSTGRES=true needs DATABASE_URL; no ledger is written.');
+  }
   if (!pgStorage && dbSchema() !== 'public') {
     console.error(`[A2A] ✗ MELCHIZEDEK_DB_SCHEMA=${dbSchema()} needs DATABASE_URL: a private schema is not reachable over the Supabase REST API.`);
     process.exit(1);

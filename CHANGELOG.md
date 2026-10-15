@@ -15,6 +15,15 @@ the starter pack and the templates), not the repo's full history.
   PGlite behind pglite-socket, where every connection shares one session and
   an advisory lock excludes nothing. The default is unchanged.
 
+- **The telemetry ledger on any Postgres (ADR 0131).**
+  `postgresStorage({ ledger: true })` writes `adk_turns`, `adk_telemetry` and
+  `adk_payloads` through the storage's own pool, with the rows, payload
+  policy and redaction the Supabase sink uses; `close()` flushes it. The A2A
+  bin turns it on with `TELEMETRY_POSTGRES=true` beside `DATABASE_URL`.
+  New exports from `melchizedek-agents/observability/*`: `attachLedger`
+  (tracer), `postgresLedgerClient`, `LedgerClient` and `LEDGER_TABLES`
+  (supabaseSpanExporter).
+
 ### Fixed
 
 - **`db/hardening.sql` applies on Postgres without Supabase's API roles

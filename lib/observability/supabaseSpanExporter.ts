@@ -438,8 +438,53 @@ export interface ExportStats {
   payloadsDropped: number;
 }
 
-interface SupabaseLikeClient {
+/** Where the exporter writes: supabase-js, or `postgresLedgerClient` on a pg pool. */
+export interface LedgerClient {
   from(table: string): { insert(rows: unknown[]): PromiseLike<{ error: { message: string } | null }> };
+}
+type SupabaseLikeClient = LedgerClient;
+
+/** The tables the exporter writes; nothing else is ever named in its SQL. */
+export const LEDGER_TABLES = ['adk_telemetry', 'adk_turns', 'adk_payloads'] as const;
+
+/** The subset of a pg Pool the ledger client needs. */
+export interface LedgerPool {
+  query(text: string, values?: unknown[]): Promise<unknown>;
+}
+
+const quoteIdent = (name: string): string => `"${name.replace(/"/g, '""')}"`;
+
+/**
+ * The ledger over a direct Postgres connection (ADR 0131): the same rows the
+ * Supabase sink writes, through one parameterised statement per batch. The
+ * rows go in as one JSON array and `jsonb_populate_recordset` gives each
+ * value its column's type, so JSON, arrays and timestamps need no mapping
+ * here. Only the columns the rows carry are named, so the rest keep their
+ * defaults. The table must be one of LEDGER_TABLES and every column name
+ * comes from the row builders above, never from span content.
+ */
+export function postgresLedgerClient(pool: LedgerPool): LedgerClient {
+  return {
+    from(table: string) {
+      return {
+        async insert(rows: unknown[]) {
+          if (!(LEDGER_TABLES as readonly string[]).includes(table)) return { error: { message: `not a ledger table: ${table}` } };
+          const columns = [...new Set(rows.flatMap((r) => Object.entries(r as Record<string, unknown>).filter(([, v]) => v !== undefined).map(([k]) => k)))];
+          if (!columns.length) return { error: null };
+          const list = columns.map(quoteIdent).join(', ');
+          try {
+            await pool.query(
+              `INSERT INTO ${quoteIdent(table)} (${list}) SELECT ${list} FROM jsonb_populate_recordset(NULL::${quoteIdent(table)}, $1::jsonb)`,
+              [JSON.stringify(rows)],
+            );
+            return { error: null };
+          } catch (err) {
+            return { error: { message: err instanceof Error ? err.message : String(err) } };
+          }
+        },
+      };
+    },
+  };
 }
 
 export interface ExporterOptions {

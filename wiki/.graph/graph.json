@@ -5,15 +5,15 @@
     "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 991,
-    "edges": 4155,
+    "nodes": 994,
+    "edges": 4164,
     "byKind": {
-      "doc": 198,
+      "doc": 199,
       "provider": 6,
-      "env": 112,
+      "env": 113,
       "model": 10,
       "tool": 34,
-      "file": 218,
+      "file": 219,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,8 +23,8 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 978,
-      "requires_env": 191,
+      "links_to": 979,
+      "requires_env": 192,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 876,
+      "imports": 878,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1121,
+      "derives_from": 1126,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3672,
+      "extracted": 3681,
       "inferred": 483
     },
     "isolated": 4
@@ -1972,6 +1972,18 @@
       }
     },
     {
+      "id": "/decisions/0131-ledger-over-direct-postgres.md",
+      "kind": "doc",
+      "label": "ADR 0131: The telemetry ledger writes to any Postgres through the storage's own pool, with the Supabase sink's rows, policy and redaction",
+      "source": "/decisions/0131-ledger-over-direct-postgres.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 458
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2220,7 +2232,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1885
+        "words": 1943
       }
     },
     {
@@ -4054,6 +4066,12 @@
       "attrs": {}
     },
     {
+      "id": "env:TELEMETRY_POSTGRES",
+      "kind": "env",
+      "label": "TELEMETRY_POSTGRES",
+      "source": "scripts/a2a_server.ts"
+    },
+    {
       "id": "env:TELEMETRY_REDACT",
       "kind": "env",
       "label": "TELEMETRY_REDACT",
@@ -5326,6 +5344,12 @@
       "source": "tests/parityHarness.test.ts"
     },
     {
+      "id": "file:tests/postgresLedger.test.ts",
+      "kind": "file",
+      "label": "postgresLedger.test.ts",
+      "source": "tests/postgresLedger.test.ts"
+    },
+    {
       "id": "file:tests/postgresStorage.test.ts",
       "kind": "file",
       "label": "postgresStorage.test.ts",
@@ -6340,7 +6364,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 604
+        "lines": 649
       }
     },
     {
@@ -6349,7 +6373,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 829
+        "lines": 877
       }
     },
     {
@@ -6637,7 +6661,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 295
+        "lines": 310
       }
     },
     {
@@ -7303,7 +7327,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 662
+        "lines": 667
       }
     },
     {
@@ -18124,6 +18148,41 @@
       "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
     },
     {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -20893,7 +20952,7 @@
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
     },
     {
       "from": "/operations/setup.md",
@@ -20907,14 +20966,14 @@
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20928,14 +20987,14 @@
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20949,7 +21008,7 @@
       "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
     },
     {
       "from": "/operations/setup.md",
@@ -20957,6 +21016,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:53"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0131-ledger-over-direct-postgres.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:59"
     },
     {
       "from": "/operations/setup.md",
@@ -29248,6 +29314,20 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/postgres/credentialStore.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -31384,6 +31464,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:SUPABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:TELEMETRY_POSTGRES",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
