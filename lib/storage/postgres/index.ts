@@ -29,6 +29,9 @@ import type { CredentialStore } from '../../tools/auth.ts';
 import { searchPathOption } from '../schema.ts';
 import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
+import { attachLedger } from '../../observability/tracer.ts';
+import { postgresLedgerClient } from '../../observability/supabaseSpanExporter.ts';
+import type { PayloadPolicy } from '../../observability/supabaseSpanExporter.ts';
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
 import type { TaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
@@ -41,6 +44,9 @@ export { PostgresSessionService } from './sessionService.ts';
 export { PostgresTaskStore } from './taskStore.ts';
 export { postgresMemoryStore } from './memoryStore.ts';
 export { postgresCredentialRows, postgresCredentialStore } from './credentialStore.ts';
+// The single-process turn lock, for an embedded database (`turnLock` below).
+export { inProcessTurnLock } from '../../a2a/turnLock.ts';
+export type { TurnLock } from '../../a2a/turnLock.ts';
 
 export interface PostgresStorageOptions {
   /** A Postgres URL. Ignored when `pool` is given. */
@@ -64,6 +70,25 @@ export interface PostgresStorageOptions {
   memory?: { apiKey?: string; extractor?: MemoryExtractor; embedder?: Embedder };
   /** Owner of an A2A call, for the task store. Default: the SDK's user scope. */
   taskOwner?: PostgresTaskStoreOptions['ownerResolver'];
+  /**
+   * The turn lock to use instead of the advisory lock below. The advisory
+   * lock is what makes several instances on one database take turns; it
+   * needs a database that gives each connection its own session. Embedded
+   * Postgres (PGlite behind pglite-socket) runs every connection in ONE
+   * session, where an advisory lock is re-entrant and so excludes nothing:
+   * there, one process owns the database, and `inProcessTurnLock()`
+   * (exported here) is the correct lock. When given, no turn-lock
+   * pool is opened.
+   */
+  turnLock?: TurnLock;
+  /**
+   * Write the telemetry ledger (adk_turns, adk_telemetry, adk_payloads) to
+   * this database (ADR 0131): the rows the Supabase sink writes, with the
+   * same payload policy (TELEMETRY_PAYLOADS, or `policy`) and redaction.
+   * Needs db/telemetry.sql applied. `close()` flushes and detaches it.
+   * Default off.
+   */
+  ledger?: boolean | { policy?: PayloadPolicy; deadLetterFile?: string };
   /**
    * Connections reserved for turn locks: each running turn holds one for its
    * length, apart from the main pool so a long turn never starves queries.
@@ -187,7 +212,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       }),
       'turn-lock pool',
     ));
-  const turnLock: TurnLock = async (key, { waitMs, signal }) => {
+  const advisoryTurnLock: TurnLock = async (key, { waitMs, signal }) => {
     const lockId = advisoryLockId(key);
     const client = await locks().connect();
     const deadline = Date.now() + Math.max(0, waitMs);
@@ -219,6 +244,11 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     };
     return release;
   };
+
+  const turnLock = options.turnLock ?? advisoryTurnLock;
+  const detachLedger = options.ledger
+    ? attachLedger(postgresLedgerClient(pool), options.ledger === true ? {} : options.ledger)
+    : undefined;
 
   const audit = postgresAuditSink(pool);
   const credentials = options.credentials ? postgresCredentialStore(pool, { ...options.credentials, audit }) : undefined;
@@ -271,6 +301,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       return counts;
     },
     async close() {
+      await detachLedger?.();
       if (lockPool) await lockPool.end();
       if (owned) await pool.end();
     },

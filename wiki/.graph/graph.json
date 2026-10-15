@@ -5,15 +5,15 @@
     "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 992,
-    "edges": 4157,
+    "nodes": 997,
+    "edges": 4171,
     "byKind": {
-      "doc": 198,
+      "doc": 200,
       "provider": 6,
-      "env": 113,
+      "env": 114,
       "model": 10,
       "tool": 34,
-      "file": 218,
+      "file": 220,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,8 +23,8 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 977,
-      "requires_env": 192,
+      "links_to": 980,
+      "requires_env": 193,
       "routes_to": 10,
       "defined_in": 80,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 876,
+      "imports": 878,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1123,
+      "derives_from": 1131,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3674,
+      "extracted": 3688,
       "inferred": 483
     },
     "isolated": 4
@@ -1960,6 +1960,30 @@
       }
     },
     {
+      "id": "/decisions/0130-embedded-postgres-single-process.md",
+      "kind": "doc",
+      "label": "ADR 0130: Embedded Postgres (PGlite) runs the same schema and adapter; the hardening skips absent API roles, and a single-process embed passes its own turn lock",
+      "source": "/decisions/0130-embedded-postgres-single-process.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 524
+      }
+    },
+    {
+      "id": "/decisions/0131-ledger-over-direct-postgres.md",
+      "kind": "doc",
+      "label": "ADR 0131: The telemetry ledger writes to any Postgres through the storage's own pool, with the Supabase sink's rows, policy and redaction",
+      "source": "/decisions/0131-ledger-over-direct-postgres.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 458
+      }
+    },
+    {
       "id": "/decisions/0132-local-mcp-servers-over-stdio.md",
       "kind": "doc",
       "label": "ADR 0132: Local MCP servers run over stdio from an mcp_servers entry's command, only when the operator lists the command, with the environment named by the entry",
@@ -1992,7 +2016,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13829
+        "words": 13913
       }
     },
     {
@@ -2004,7 +2028,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2140
+        "words": 2162
       }
     },
     {
@@ -2220,7 +2244,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1808
+        "words": 1943
       }
     },
     {
@@ -4060,6 +4084,12 @@
       "attrs": {}
     },
     {
+      "id": "env:TELEMETRY_POSTGRES",
+      "kind": "env",
+      "label": "TELEMETRY_POSTGRES",
+      "source": "scripts/a2a_server.ts"
+    },
+    {
       "id": "env:TELEMETRY_REDACT",
       "kind": "env",
       "label": "TELEMETRY_REDACT",
@@ -4985,6 +5015,12 @@
       "source": "tests/doctor.test.ts"
     },
     {
+      "id": "file:tests/embeddedPostgres.test.ts",
+      "kind": "file",
+      "label": "embeddedPostgres.test.ts",
+      "source": "tests/embeddedPostgres.test.ts"
+    },
+    {
       "id": "file:tests/events.test.ts",
       "kind": "file",
       "label": "events.test.ts",
@@ -5330,6 +5366,12 @@
       "kind": "file",
       "label": "parityHarness.test.ts",
       "source": "tests/parityHarness.test.ts"
+    },
+    {
+      "id": "file:tests/postgresLedger.test.ts",
+      "kind": "file",
+      "label": "postgresLedger.test.ts",
+      "source": "tests/postgresLedger.test.ts"
     },
     {
       "id": "file:tests/postgresStorage.test.ts",
@@ -6346,7 +6388,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 604
+        "lines": 649
       }
     },
     {
@@ -6355,7 +6397,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 829
+        "lines": 877
       }
     },
     {
@@ -6643,7 +6685,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 279
+        "lines": 310
       }
     },
     {
@@ -7309,7 +7351,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 662
+        "lines": 667
       }
     },
     {
@@ -18109,6 +18151,62 @@
       "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
     },
     {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:db/hardening.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:tests/embeddedPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
+      "from": "/decisions/0131-ledger-over-direct-postgres.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0131-ledger-over-direct-postgres.md frontmatter"
+    },
+    {
       "from": "/decisions/0132-local-mcp-servers-over-stdio.md",
       "to": "file:tests/mcpStdio.test.ts",
       "rel": "derives_from",
@@ -18442,7 +18540,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2550"
+      "evidence": "/memory/schema.md:2576"
     },
     {
       "from": "/memory/sessions.md",
@@ -18625,6 +18723,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:115"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:148"
     },
     {
       "from": "/memory/sessions.md",
@@ -20906,7 +21011,7 @@
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
     },
     {
       "from": "/operations/setup.md",
@@ -20920,14 +21025,14 @@
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:61"
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20941,14 +21046,14 @@
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
@@ -20962,7 +21067,21 @@
       "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:63"
+      "evidence": "/operations/setup.md:65"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:53"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0131-ledger-over-direct-postgres.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:59"
     },
     {
       "from": "/operations/setup.md",
@@ -29261,6 +29380,20 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/postgres/credentialStore.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -31404,6 +31537,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:SUPABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:TELEMETRY_POSTGRES",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"

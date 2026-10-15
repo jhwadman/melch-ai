@@ -319,6 +319,14 @@ nothing is changed, and two applies started together run one after the other.
 Rolling back a migration that succeeded is a restore from backup (§6), since
 the migrations only move forward.
 
+The same install runs on plain Postgres without Supabase's `anon` and
+`authenticated` roles (the hardening skips the revokes by role name there), and
+on embedded Postgres: an application can run PGlite with pgvector in-process,
+serve it with pglite-socket, and pass `postgresStorage({ connectionString,
+turnLock: inProcessTurnLock() })`. Every connection to PGlite shares one
+session, so the default advisory turn lock would exclude nothing; one process
+owns the data directory (ADR 0130).
+
 The tables go in the `public` schema by default. To keep them out of reach of
 a REST layer (Supabase exposes `public`), install into a private schema and
 run the server with the same setting:
@@ -591,7 +599,10 @@ as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`
 scripts keep those lines off unless `OTEL_CONSOLE_SPANS=true`. Set
 `TELEMETRY_SUPABASE=true` to persist
 spans to the `adk_telemetry` table (run `db/telemetry.sql`, then
-re-run `db/hardening.sql` — schema below):
+re-run `db/hardening.sql` — schema below). On `DATABASE_URL`, set
+`TELEMETRY_POSTGRES=true` instead to write the same rows through the
+storage's own pool; an application that builds its own storage passes
+`postgresStorage({ ledger: true })` (ADR 0131). Use one sink:
 
 `db/telemetry.sql` (idempotent) creates three tables: `adk_turns` — one
 row per turn with input, output, the responding agent, the plan-dispatch
