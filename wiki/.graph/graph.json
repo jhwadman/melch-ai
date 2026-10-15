@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-13"
+    "at": "2026-10-15"
   },
   "stats": {
-    "nodes": 989,
-    "edges": 4150,
+    "nodes": 991,
+    "edges": 4155,
     "byKind": {
-      "doc": 197,
+      "doc": 198,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 34,
-      "file": 217,
+      "file": 218,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 976,
+      "links_to": 978,
       "requires_env": 191,
       "routes_to": 10,
       "defined_in": 80,
@@ -36,7 +36,7 @@
       "imports": 876,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1118,
+      "derives_from": 1121,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3667,
+      "extracted": 3672,
       "inferred": 483
     },
     "isolated": 4
@@ -216,7 +216,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 229
+        "words": 256
       }
     },
     {
@@ -1960,6 +1960,18 @@
       }
     },
     {
+      "id": "/decisions/0130-embedded-postgres-single-process.md",
+      "kind": "doc",
+      "label": "ADR 0130: Embedded Postgres (PGlite) runs the same schema and adapter; the hardening skips absent API roles, and a single-process embed passes its own turn lock",
+      "source": "/decisions/0130-embedded-postgres-single-process.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 524
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1980,7 +1992,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13829
+        "words": 13913
       }
     },
     {
@@ -1992,7 +2004,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2140
+        "words": 2162
       }
     },
     {
@@ -2208,7 +2220,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1808
+        "words": 1885
       }
     },
     {
@@ -4967,6 +4979,12 @@
       "source": "tests/doctor.test.ts"
     },
     {
+      "id": "file:tests/embeddedPostgres.test.ts",
+      "kind": "file",
+      "label": "embeddedPostgres.test.ts",
+      "source": "tests/embeddedPostgres.test.ts"
+    },
+    {
       "id": "file:tests/events.test.ts",
       "kind": "file",
       "label": "events.test.ts",
@@ -6619,7 +6637,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 279
+        "lines": 295
       }
     },
     {
@@ -18085,6 +18103,27 @@
       "evidence": "/decisions/0129-capstone-starter-in-the-repository.md frontmatter"
     },
     {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:db/hardening.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "file:tests/embeddedPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
+      "from": "/decisions/0130-embedded-postgres-single-process.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0130-embedded-postgres-single-process.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18383,7 +18422,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2550"
+      "evidence": "/memory/schema.md:2576"
     },
     {
       "from": "/memory/sessions.md",
@@ -18566,6 +18605,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:115"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:148"
     },
     {
       "from": "/memory/sessions.md",
@@ -20904,6 +20950,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:63"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0130-embedded-postgres-single-process.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:53"
     },
     {
       "from": "/operations/setup.md",

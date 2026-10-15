@@ -302,6 +302,14 @@ nothing is changed, and two applies started together run one after the other.
 Rolling back a migration that succeeded is a restore from backup (§6), since
 the migrations only move forward.
 
+The same install runs on plain Postgres without Supabase's `anon` and
+`authenticated` roles (the hardening skips the revokes by role name there), and
+on embedded Postgres: an application can run PGlite with pgvector in-process,
+serve it with pglite-socket, and pass `postgresStorage({ connectionString,
+turnLock: inProcessTurnLock() })`. Every connection to PGlite shares one
+session, so the default advisory turn lock would exclude nothing; one process
+owns the data directory (ADR 0130).
+
 The tables go in the `public` schema by default. To keep them out of reach of
 a REST layer (Supabase exposes `public`), install into a private schema and
 run the server with the same setting:
