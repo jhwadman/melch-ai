@@ -17,10 +17,11 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
+import { outputsDir } from '../paths.ts';
 import { credentialValue } from '../models/credentialSource.ts';
 
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
@@ -88,10 +89,8 @@ export const generateImageContract = defineTool({
           if (inlineData?.data) {
             const { mimeType, data } = inlineData;
             const ext = (mimeType as string)?.split('/')[1] ?? 'png';
-            // OUTPUTS_DIR env overrides the cwd default (package consumers).
-            const outputDir = process.env.OUTPUTS_DIR
-              ? resolve(process.env.OUTPUTS_DIR)
-              : join(process.cwd(), 'outputs');
+            // OUTPUTS_DIR, else MELCHIZEDEK_DATA_DIR/outputs, else ./outputs (lib/paths.ts).
+            const outputDir = outputsDir();
             
             console.log(`[ImageTool] Found inline image data. MimeType: ${mimeType}, Data Length: ${data.length} chars.`);
             console.log(`[ImageTool] Ensuring output directory exists: ${outputDir}`);

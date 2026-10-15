@@ -19,10 +19,11 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { readFileSync } from 'node:fs';
-import { resolve, extname, sep } from 'node:path';
+import { isAbsolute, resolve, extname, sep } from 'node:path';
 import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
+import { outputsDir } from '../paths.ts';
 import { credentialValue } from '../models/credentialSource.ts';
 
 const VISION_MODEL = 'gemini-3.8-flash';
@@ -43,6 +44,13 @@ RULES:
 - If something is genuinely ambiguous, write "uncertain:" and describe what is visible.
 Return a plain, factual, numbered inventory.`;
 
+/** A path generate_image reported, inside the outputs directory: relative paths are read there, a leading `outputs/` dropped. */
+export function resolveOutputPath(imagePath: string): string {
+  if (isAbsolute(imagePath)) return resolve(imagePath);
+  const rel = imagePath.replace(/^(\.\/)?outputs[\\/]/, '');
+  return resolve(outputsDir(), rel);
+}
+
 export const inspectImageContract = defineTool({
   name: 'inspect_image',
   description:
@@ -55,14 +63,12 @@ export const inspectImageContract = defineTool({
   execute: async ({ image_path }): Promise<string> => {
     console.log(`[InspectTool] Blind inventory requested (path ${image_path.length} chars).`);
 
-    // Confine reads to the outputs/ directory — this tool inventories
-    // generated artifacts, not the filesystem. OUTPUTS_DIR env overrides
-    // the cwd default (must match generateImageTool's).
-    const outputsDir = process.env.OUTPUTS_DIR
-      ? resolve(process.env.OUTPUTS_DIR)
-      : resolve(process.cwd(), 'outputs');
-    const fullPath = resolve(process.cwd(), image_path);
-    if (!fullPath.startsWith(outputsDir + sep)) {
+    // Confine reads to the outputs directory — this tool inventories
+    // generated artifacts, not the filesystem. generate_image reports
+    // `outputs/<file>` wherever that directory is (lib/paths.ts), so a
+    // relative path is read inside it, with that prefix dropped.
+    const fullPath = resolveOutputPath(image_path);
+    if (!fullPath.startsWith(outputsDir() + sep)) {
       throw new Error('inspect_image only reads files under outputs/');
     }
 

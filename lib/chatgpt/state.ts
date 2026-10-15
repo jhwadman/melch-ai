@@ -22,8 +22,8 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { chatGptSignInFile } from '../paths.ts';
 import { credentialEnv } from '../models/credentialSource.ts';
 
 /** Where the credential file lives, when not the default (a path; never a value). */
@@ -72,8 +72,7 @@ export interface ChatGptSignInStatus {
 
 /** The credential file: MELCHIZEDEK_CHATGPT_SIGNIN_FILE, else ~/.melchizedek/chatgpt-signin.json. */
 export function signInFile(env: NodeJS.ProcessEnv = process.env): string {
-  const set = env[CHATGPT_SIGNIN_FILE_ENV]?.trim();
-  return set ? resolve(set) : join(homedir(), '.melchizedek', 'chatgpt-signin.json');
+  return chatGptSignInFile(env);
 }
 
 /** The git work tree a path sits inside, if any (an ancestor holding `.git`). */

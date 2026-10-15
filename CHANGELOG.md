@@ -42,6 +42,12 @@ the starter pack and the templates), not the repo's full history.
   `providerStatuses()`, endpoints, embeddings, the memory providers and the
   Gemini image and vision tools. Without a source, behaviour is unchanged.
 
+- **`MELCHIZEDEK_DATA_DIR` (ADR 0134).** When set, the engine's on-disk
+  defaults go under it: `outputs/` (generated images, the telemetry spool),
+  `outputs/tasks.json` and `chatgpt-signin.json`. `OUTPUTS_DIR`,
+  `MELCHIZEDEK_TASKS_FILE` and `MELCHIZEDEK_CHATGPT_SIGNIN_FILE` still win;
+  without any, the defaults are unchanged.
+
 ### Fixed
 
 - **`db/hardening.sql` applies on Postgres without Supabase's API roles
@@ -50,6 +56,15 @@ the starter pack and the templates), not the repo's full history.
   whichever of the two exist, through helpers in `pg_temp` that leave nothing
   behind; on Supabase the result is the same as before. RLS and the `PUBLIC`
   revokes apply everywhere.
+
+- **`inspect_image` reads the image `generate_image` reported when
+  `OUTPUTS_DIR` is set (ADR 0134).** It resolved `outputs/<file>` against the
+  working directory and refused it whenever the outputs directory was
+  elsewhere. A relative path is now read inside the outputs directory; the
+  confinement is unchanged.
+- **The ledger's `engine_version` is the engine's (ADR 0134).** It read
+  `package.json` and the git commit from the working directory, so an
+  installed engine reported the embedding application's version and commit.
 
 ## 1.4.0 — 2026-10-13
 
