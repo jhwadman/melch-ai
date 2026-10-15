@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **Local MCP servers over stdio (ADR 0132).** An `mcp_servers` entry may give
+  `command` (with `args`, `env`, `pass_env`, `cwd`) instead of `url`; the
+  server is started over stdio, one process per spec for the life of the
+  engine. It runs only when `MELCHIZEDEK_STDIO_MCP` lists the exact command.
+  The child gets a minimal environment plus `pass_env` by name and `env`
+  literals; a credential-looking `env` key is refused at load. New exports
+  from `melchizedek-agents/tools/mcpToolFactory`: `loadStdioMcpTools`,
+  `stdioCommandAllowed`, `stdioEnvironment`, `StdioMcpSpec`; `McpServerConfig.url`
+  is now optional.
+
 ## 1.4.0 — 2026-10-13
 
 A minor release with two additions and no breaking change. OAuth consent
