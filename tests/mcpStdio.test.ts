@@ -16,6 +16,7 @@ import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { closeMcpConnections, loadStdioMcpTools, stdioCommandAllowed } from '../lib/tools/mcpToolFactory.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
+import { setCredentialSource } from '../lib/models/credentialSource.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
@@ -54,6 +55,19 @@ test('the child sees pass_env and env, and none of the engine\'s other variables
   assert.equal(me.literal, 'literal');
   assert.equal(me.hidden, null, 'an unnamed variable stays in the engine');
   assert.equal(me.cwd, here);
+});
+
+test('pass_env reads through the credential source: a key only the source holds reaches the child', async () => {
+  process.env.MELCHIZEDEK_STDIO_MCP = NODE;
+  delete process.env.STDIO_TEST_PASSED;
+  setCredentialSource((name) => (name === 'STDIO_TEST_PASSED' ? 'from-keychain' : undefined));
+  try {
+    const me = await whoami(await loadStdioMcpTools('fixture', spec({ pass_env: ['STDIO_TEST_PASSED'], env: { STDIO_TEST_MODE: 'source' } })));
+    assert.equal(me.passed, 'from-keychain');
+    assert.equal(process.env.STDIO_TEST_PASSED, undefined, 'the engine\'s own environment never held it');
+  } finally {
+    setCredentialSource(undefined);
+  }
 });
 
 test('an unset pass_env variable fails the compile, naming it and no value', async () => {

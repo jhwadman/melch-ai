@@ -6,6 +6,21 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.5.0 — 2026-10-15
+
+A minor release that makes the engine embeddable in a single-process
+application with no database server and no keys in its environment, and
+adds local MCP servers. Embedded Postgres (PGlite) runs the schema and
+`postgresStorage` unchanged (ADR 0130); the telemetry ledger can be written
+to any Postgres through the storage's own pool (ADR 0131); an `mcp_servers`
+entry can start a local server over stdio, behind an operator allowlist
+(ADR 0132); an application supplies credentials from its own store through
+one source asked by variable name (ADR 0133); and one variable,
+`MELCHIZEDEK_DATA_DIR`, roots the engine's files (ADR 0134). Nothing
+changes for an existing deployment that sets none of the new options. Two
+fixes ride along: `inspect_image` with `OUTPUTS_DIR` set, and the ledger's
+`engine_version` for an installed engine.
+
 ### Added
 
 - **`postgresStorage({ turnLock })` and `inProcessTurnLock` exported from
@@ -32,7 +47,9 @@ the starter pack and the templates), not the repo's full history.
   literals; a credential-looking `env` key is refused at load. New exports
   from `melchizedek-agents/tools/mcpToolFactory`: `loadStdioMcpTools`,
   `stdioCommandAllowed`, `stdioEnvironment`, `StdioMcpSpec`; `McpServerConfig.url`
-  is now optional.
+  is now optional. `pass_env` reads through the credential source (below)
+  before the environment, so a key held in an application's keychain reaches
+  the server by name.
 
 - **`setCredentialSource`, `credentialValue` and `CredentialSource` in the
   barrel (ADR 0133).** An embedding application supplies keys from its own

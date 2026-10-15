@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 1000,
-    "edges": 4181,
+    "edges": 4183,
     "byKind": {
       "doc": 202,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 982,
+      "links_to": 983,
       "requires_env": 170,
       "routes_to": 10,
       "defined_in": 80,
@@ -33,7 +33,7 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 901,
+      "imports": 902,
       "reads_table": 28,
       "runs": 74,
       "derives_from": 1139,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3698,
+      "extracted": 3700,
       "inferred": 483
     },
     "isolated": 4
@@ -2376,7 +2376,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1928
+        "words": 1938
       }
     },
     {
@@ -6897,7 +6897,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 661
+        "lines": 663
       }
     },
     {
@@ -23056,6 +23056,13 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/decisions/0133-credential-source-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:43"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/protocols/mcp-server.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -29903,6 +29910,13 @@
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"

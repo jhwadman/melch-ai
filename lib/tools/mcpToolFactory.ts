@@ -26,6 +26,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { credentialValue } from '../models/credentialSource.ts';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ToolDeclaration } from '../models/contract.ts';
 import { toContractJsonSchema } from '../models/schemaNormalize.ts';
@@ -296,11 +297,12 @@ export function stdioCommandAllowed(command: string, env: NodeJS.ProcessEnv = pr
   return list.includes(command);
 }
 
-/** The command's environment: the SDK's minimal default set, then `pass_env` by name, then `env`. Throws naming an unset variable, never a value. */
+/** The command's environment: the SDK's minimal default set, then `pass_env` by name (the credential source first, then the environment), then `env`. Throws naming an unset variable, never a value. */
 export function stdioEnvironment(spec: StdioMcpSpec, label: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = { ...getDefaultEnvironment() };
   for (const name of spec.pass_env ?? []) {
-    const value = env[name];
+    // Through the credential source (ADR 0133): a key held in an application's keychain reaches the server by name.
+    const value = credentialValue(name, env);
     if (value === undefined || value === '') throw new Error(`${label}: pass_env names ${name}, which is not set in the engine's environment`);
     out[name] = value;
   }
