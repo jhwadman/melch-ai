@@ -119,7 +119,7 @@ import { REQUEST_INPUT_CALL } from './history.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import { currentTurnControl } from '../turnControl.ts';
-import type { NestedDispatchEnd } from '../turnControl.ts';
+import type { AgentBranch, NestedDispatchEnd } from '../turnControl.ts';
 
 // ── The subagent tool ────────────────────────────────────────────────────────
 
@@ -516,9 +516,33 @@ export function resumeSubagent(agent: NativeAgent, answer: TurnPart[], context: 
   return runChild(agent, { role: 'user', parts: answer }, context, scope, true);
 }
 
+/**
+ * Where a delegated call's run sits (ADR 0135): the path below the caller's,
+ * `name` last, and the call's id. A top-level caller's path is its name.
+ */
+function branchOf(name: string, context: ToolContext, scope: DelegationScope): AgentBranch {
+  const path = [...(scope.ctx.agentPath ?? [scope.caller]), name];
+  return { agent: name, path, ...(context.functionCallId ? { callId: context.functionCallId } : {}) };
+}
+
+type AgentEventSink = (event: TurnEvent, branch: AgentBranch) => void;
+
+/** Hands one event to the turn's observer (ADR 0135). An observer that throws never breaks the run. */
+function observe(sink: AgentEventSink | undefined, event: TurnEvent, branch: AgentBranch): void {
+  if (!sink) return;
+  try {
+    sink(event, branch);
+  } catch {
+    /* the observer is the caller's; the turn goes on */
+  }
+}
+
 async function runChild(agent: NativeAgent, content: TurnContent, context: ToolContext, scope: DelegationScope, resuming: boolean): Promise<unknown> {
   const { ctx, signal } = scope;
   const { sessions } = ctx;
+  // With an observer the child streams, so its thinking and text reach it as partials (ADR 0135); partials are stored nowhere.
+  const sink = currentTurnControl()?.agentEvents;
+  const branch = branchOf(agent.name, context, scope);
 
   const session = await childSession(agent.name, context, scope, resuming);
   if (signal?.aborted) return '';
@@ -532,9 +556,10 @@ async function runChild(agent: NativeAgent, content: TurnContent, context: ToolC
     sessions,
     invocationId,
     userContent: content,
-    stream: false,
+    stream: sink !== undefined,
     // Its own delegations are filed below its path (childAppName, ADR 0111).
     delegated: true,
+    agentPath: branch.path,
     // ADK's AgentTool builds its sub-runner without the reflect-and-retry
     // plugins, so a subagent's own errors are not retried (ADR 0075).
     selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
@@ -560,6 +585,8 @@ async function runChild(agent: NativeAgent, content: TurnContent, context: ToolC
       await loop.return(undefined as never);
       break;
     }
+    observe(sink, next.value, branch);
+    if (next.value.partial) continue;
     recordState(next.value, context);
     last = next.value;
   }
@@ -595,6 +622,8 @@ export function resumeWorkflowSubagent(workflow: WorkflowSubagent, answer: TurnP
 
 async function walkChild(workflow: WorkflowSubagent, userParts: unknown[], context: ToolContext, scope: DelegationScope, resuming: boolean): Promise<unknown> {
   const { ctx, signal } = scope;
+  const sink = currentTurnControl()?.agentEvents;
+  const branch = branchOf(workflow.name, context, scope);
   const session = await childSession(workflow.name, context, scope, resuming);
   if (signal?.aborted) return '';
   const walk = workflow.walk({
@@ -627,6 +656,7 @@ async function walkChild(workflow: WorkflowSubagent, userParts: unknown[], conte
       break;
     }
     const event = next.value;
+    observe(sink, event, branch);
     if (event.partial) continue;
     recordState(event, context);
     last = event;

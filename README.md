@@ -104,7 +104,7 @@ const result = await runSyndicateTurn({
 console.log(result.status, result.text);
 ```
 
-`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs every syndicate on the engine's own agent loop and, for a workflow, its own scheduler (the `native` runtime, the only one). `MELCHIZEDEK_RUNTIME=adk` is an error that names 1.0.0; `npx melchizedek-doctor` prints the runtime in use (ADR 0107). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
+`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs every syndicate on the engine's own agent loop and, for a workflow, its own scheduler (the `native` runtime, the only one). `MELCHIZEDEK_RUNTIME=adk` is an error that names 1.0.0; `npx melchizedek-doctor` prints the runtime in use (ADR 0107). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`. `events.onEvent` and `events.onTextDelta` follow the answering agent; `events.onAgentEvent(event, branch)` follows every delegated subagent live, its thinking, text and tool calls, with `branch.path` and `branch.callId` saying where it runs (ADR 0135).
 
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 
