@@ -6,6 +6,17 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.6.0 — 2026-10-15
+
+A minor release for applications that show a turn as it runs and account
+for what it costs. Delegated subagents report live through
+`events.onAgentEvent`, with their path and the call that started them
+(ADR 0135), and the ledger records dollars: `model_pricing` and `cost_usd`
+on every turn and model-call row, computed at write time (ADR 0136).
+Nothing changes for a consumer that passes no new callback; a ledger
+deployment re-runs `npx melchizedek-db apply --telemetry` to get the
+column.
+
 ### Added
 
 - **Live events from delegated subagents (ADR 0135).** `TurnEvents` gains
