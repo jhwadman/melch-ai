@@ -18,6 +18,15 @@ the starter pack and the templates), not the repo's full history.
   `agentEvents` it is carried on. Passing the callback makes delegated runs
   stream; the stored sessions, `onEvent` and `onTextDelta` are unchanged.
 
+- **Cost in the ledger (ADR 0136).** Migration `0015_model_pricing` adds
+  `model_pricing` (USD per million tokens, `verified_at` per row, seeded
+  from melch-obs's `pricing.toml`, `ollama/*` at zero) and the functions
+  `melchizedek_cost_usd` and `melchizedek_usage_cost`. `db/telemetry.sql`
+  adds `cost_usd` to `adk_turns` and `adk_telemetry`, filled at write time by
+  a trigger (NULL for a model with no row), and `cost_usd` to
+  `adk_kpi_daily`. The root span gains `syndicate.usage` (each model's
+  calls and tokens). Re-run `npx melchizedek-db apply --telemetry`.
+
 ## 1.5.0 — 2026-10-15
 
 A minor release that makes the engine embeddable in a single-process

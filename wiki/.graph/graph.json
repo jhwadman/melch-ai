@@ -5,28 +5,28 @@
     "at": "2026-10-16"
   },
   "stats": {
-    "nodes": 1002,
-    "edges": 4193,
+    "nodes": 1005,
+    "edges": 4203,
     "byKind": {
-      "doc": 203,
+      "doc": 204,
       "provider": 6,
       "env": 111,
       "model": 10,
       "tool": 34,
-      "file": 223,
+      "file": 224,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
-      "table": 18,
+      "table": 19,
       "module": 200,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 986,
+      "links_to": 989,
       "requires_env": 170,
       "routes_to": 10,
-      "defined_in": 80,
+      "defined_in": 81,
       "documents": 59,
       "contains": 93,
       "uses_model": 93,
@@ -36,7 +36,7 @@
       "imports": 903,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1145,
+      "derives_from": 1151,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3710,
+      "extracted": 3720,
       "inferred": 483
     },
     "isolated": 4
@@ -2032,6 +2032,18 @@
       }
     },
     {
+      "id": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "kind": "doc",
+      "label": "ADR 0136: The ledger records cost at write time, by a database trigger reading model_pricing, from per-model usage the tracer puts on the root span",
+      "source": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 563
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2052,7 +2064,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13913
+        "words": 15027
       }
     },
     {
@@ -2280,7 +2292,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2000
+        "words": 2062
       }
     },
     {
@@ -4672,6 +4684,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0015_model_pricing.sql",
+      "kind": "file",
+      "label": "0015_model_pricing.sql",
+      "source": "db/migrations/0015_model_pricing.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5404,7 +5423,8 @@
       "id": "file:tests/postgresLedger.test.ts",
       "kind": "file",
       "label": "postgresLedger.test.ts",
-      "source": "tests/postgresLedger.test.ts"
+      "source": "tests/postgresLedger.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/postgresStorage.test.ts",
@@ -6439,7 +6459,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 877
+        "lines": 901
       }
     },
     {
@@ -8640,6 +8660,12 @@
       "kind": "table",
       "label": "melchizedek_usage",
       "source": "db/migrations/0004_usage.sql"
+    },
+    {
+      "id": "table:model_pricing",
+      "kind": "table",
+      "label": "model_pricing",
+      "source": "db/migrations/0015_model_pricing.sql"
     },
     {
       "id": "tool:ask_user",
@@ -18398,6 +18424,55 @@
       "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md:29"
     },
     {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "file:db/hardening.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md frontmatter"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "file:db/migrations/0015_model_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md frontmatter"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "file:db/telemetry.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md frontmatter"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md frontmatter"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md frontmatter"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "/decisions/0009-observability-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md:24"
+    },
+    {
+      "from": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "to": "/decisions/0131-ledger-over-direct-postgres.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18679,6 +18754,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0015_model_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18689,14 +18771,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:35"
+      "evidence": "/memory/schema.md:36"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2576"
+      "evidence": "/memory/schema.md:2772"
     },
     {
       "from": "/memory/sessions.md",
@@ -21252,6 +21334,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:59"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:60"
     },
     {
       "from": "/operations/setup.md",
@@ -34720,6 +34809,13 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/migrations/0004_usage.sql"
+    },
+    {
+      "from": "table:model_pricing",
+      "to": "file:db/migrations/0015_model_pricing.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0015_model_pricing.sql"
     },
     {
       "from": "tool:check_retraction",

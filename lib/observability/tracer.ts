@@ -229,7 +229,17 @@ interface TraceStats {
   toolMs: number;
   llmCalls: number;
   models: Set<string>;
+  /** Each model's calls and tokens, input summed per call (what a provider bills), for `syndicate.usage` (ADR 0136). */
+  usage: Map<string, ModelUsage>;
   startedAt: number;
+}
+
+/** One model's share of a turn: what the ledger prices it from (model_pricing, ADR 0136). */
+export interface ModelUsage {
+  calls: number;
+  input: number;
+  output: number;
+  thinking: number;
 }
 const traceStats = new Map<string, TraceStats>();
 const TRACE_STATS_TTL_MS = 60 * 60 * 1000;
@@ -237,7 +247,7 @@ const TRACE_STATS_TTL_MS = 60 * 60 * 1000;
 function statsFor(traceId: string): TraceStats {
   let s = traceStats.get(traceId);
   if (!s) {
-    s = { modelMs: 0, toolMs: 0, llmCalls: 0, models: new Set(), startedAt: Date.now() };
+    s = { modelMs: 0, toolMs: 0, llmCalls: 0, models: new Set(), usage: new Map(), startedAt: Date.now() };
     traceStats.set(traceId, s);
     if (traceStats.size > 2_000) {
       const cutoff = Date.now() - TRACE_STATS_TTL_MS;
@@ -287,7 +297,19 @@ class SpanLineageProcessor {
       s.modelMs += spanDurationMs(span);
       s.llmCalls += 1;
       const model = span.attributes['llm.model'];
-      if (typeof model === 'string' && model) s.models.add(model);
+      if (typeof model === 'string' && model) {
+        s.models.add(model);
+        const tokens = (key: string): number => {
+          const v = span.attributes[key];
+          return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+        };
+        const u = s.usage.get(model) ?? { calls: 0, input: 0, output: 0, thinking: 0 };
+        u.calls += 1;
+        u.input += tokens('llm.tokens.input');
+        u.output += tokens('llm.tokens.output');
+        u.thinking += tokens('llm.tokens.thinking');
+        s.usage.set(model, u);
+      }
     } else if (isToolSpanName(span.name)) {
       statsFor(traceId).toolMs += spanDurationMs(span);
     }
@@ -656,6 +678,8 @@ export async function* traceAgentRun(
       span.setAttribute('syndicate.latency.tool_ms', Math.round(stats.toolMs));
       span.setAttribute('syndicate.llm_calls', stats.llmCalls);
       span.setAttribute('syndicate.models', [...stats.models].sort().join(','));
+      // The ledger prices the turn from this, per model (melchizedek_usage_cost, ADR 0136).
+      span.setAttribute('syndicate.usage', JSON.stringify(Object.fromEntries([...stats.usage].sort(([a], [b]) => a.localeCompare(b)))));
     }
     try {
       for (const [key, value] of Object.entries(metadata.onEnd?.() ?? {})) {

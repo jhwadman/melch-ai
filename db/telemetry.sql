@@ -163,6 +163,83 @@ CREATE INDEX IF NOT EXISTS idx_adk_turns_surface_user
 -- at CREATE time. It does not gain these columns until it is re-created, so
 -- run the whole file, in order.
 
+-- ── Cost: dollars per turn and per model call (ADR 0136) ─────────────────
+-- cost_usd is filled at write time by the trigger below from model_pricing
+-- (db/migrations/0015_model_pricing.sql), so both sinks and a replayed
+-- dead-letter spool get it, and the price table is the one source:
+--   adk_telemetry  an llm.request row: its model and tokens. A root row: the
+--                  turn's per-model usage on the span (syndicate.usage).
+--   adk_turns      the turn's per-model usage (attributes->'syndicate.usage',
+--                  the tracer sums each model's calls), so a turn that used
+--                  two models is priced per model, input summed per call.
+-- NULL when a model has no price row (a partial sum would read as the
+-- total), or when the row carries no usage (a row written before this
+-- column). A value the writer set itself is kept. The rate in force at
+-- write time is the rate recorded: a later price change does not rewrite
+-- history. Re-price on purpose with an UPDATE ... SET cost_usd = ... .
+ALTER TABLE adk_turns     ADD COLUMN IF NOT EXISTS cost_usd NUMERIC;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cost_usd NUMERIC;
+
+-- SECURITY DEFINER: the inserting role (service_role, or an application's
+-- own role) need not be able to execute the pricing functions or read
+-- model_pricing. Each reads only NEW and the price table. Unreadable usage
+-- leaves the cost NULL; it never fails the insert.
+CREATE OR REPLACE FUNCTION melchizedek_usage_text_cost(usage_text TEXT)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
+BEGIN
+  IF usage_text IS NULL OR to_regclass('model_pricing') IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN melchizedek_usage_cost(usage_text::jsonb);
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_turns_cost()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.cost_usd IS NULL THEN
+    NEW.cost_usd := melchizedek_usage_text_cost(NEW.attributes->>'syndicate.usage');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_telemetry_cost()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.cost_usd IS NOT NULL OR to_regclass('model_pricing') IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.model IS NOT NULL THEN
+    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens);
+  ELSE
+    NEW.cost_usd := melchizedek_usage_text_cost(NEW.span->'attributes'->>'syndicate.usage');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS melchizedek_turns_cost ON adk_turns;
+CREATE TRIGGER melchizedek_turns_cost BEFORE INSERT ON adk_turns
+  FOR EACH ROW EXECUTE FUNCTION melchizedek_turns_cost();
+DROP TRIGGER IF EXISTS melchizedek_telemetry_cost ON adk_telemetry;
+CREATE TRIGGER melchizedek_telemetry_cost BEFORE INSERT ON adk_telemetry
+  FOR EACH ROW EXECUTE FUNCTION melchizedek_telemetry_cost();
+
 -- ── adk_payloads: full prompt/response per model call, by policy, expiring ─
 CREATE TABLE IF NOT EXISTS adk_payloads (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -360,7 +437,8 @@ CREATE OR REPLACE VIEW adk_kpi_daily AS
          sum(output_tokens)                                 AS output_tokens,
          sum(thinking_tokens)                               AS thinking_tokens,
          avg(llm_calls)                                     AS avg_llm_calls,
-         avg(tool_calls)                                    AS avg_tool_calls
+         avg(tool_calls)                                    AS avg_tool_calls,
+         sum(cost_usd)                                      AS cost_usd
   FROM adk_turns_production
   GROUP BY 1, 2;
 
