@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-15"
+    "at": "2026-10-16"
   },
   "stats": {
-    "nodes": 1000,
-    "edges": 4183,
+    "nodes": 1002,
+    "edges": 4193,
     "byKind": {
-      "doc": 202,
+      "doc": 203,
       "provider": 6,
       "env": 111,
       "model": 10,
       "tool": 34,
-      "file": 222,
+      "file": 223,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 983,
+      "links_to": 986,
       "requires_env": 170,
       "routes_to": 10,
       "defined_in": 80,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 902,
+      "imports": 903,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1139,
+      "derives_from": 1145,
       "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3700,
+      "extracted": 3710,
       "inferred": 483
     },
     "isolated": 4
@@ -2020,6 +2020,18 @@
       }
     },
     {
+      "id": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "kind": "doc",
+      "label": "ADR 0135: Delegated runs report live through events.onAgentEvent, carried on the turn's control, and stream only when someone listens",
+      "source": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 609
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2304,7 +2316,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 8577
+        "words": 8729
       }
     },
     {
@@ -4900,6 +4912,13 @@
       "source": "tests/agentDialect.test.ts"
     },
     {
+      "id": "file:tests/agentEvents.test.ts",
+      "kind": "file",
+      "label": "agentEvents.test.ts",
+      "source": "tests/agentEvents.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/agents.test.ts",
       "kind": "file",
       "label": "agents.test.ts",
@@ -6006,7 +6025,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 134
+        "lines": 135
       }
     },
     {
@@ -6510,7 +6529,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 959
+        "lines": 965
       }
     },
     {
@@ -6537,7 +6556,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 741
+        "lines": 771
       }
     },
     {
@@ -6654,7 +6673,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1563
+        "lines": 1579
       }
     },
     {
@@ -6663,7 +6682,7 @@
       "label": "lib/runtime/turnControl.ts",
       "source": "lib/runtime/turnControl.ts",
       "attrs": {
-        "lines": 224
+        "lines": 253
       }
     },
     {
@@ -18330,6 +18349,55 @@
       "evidence": "/decisions/0134-one-data-directory-variable.md frontmatter"
     },
     {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "file:tests/agentEvents.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md:24"
+    },
+    {
+      "from": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21453,6 +21521,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/agentEvents.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/compaction.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -21715,336 +21790,343 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:177"
+      "evidence": "/overview/native-loop.md:178"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:242"
+      "evidence": "/overview/native-loop.md:243"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:276"
+      "evidence": "/overview/native-loop.md:277"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:62"
+      "evidence": "/overview/native-loop.md:63"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:203"
+      "evidence": "/overview/native-loop.md:204"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:154"
+      "evidence": "/overview/native-loop.md:155"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:112"
+      "evidence": "/overview/native-loop.md:113"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:238"
+      "evidence": "/overview/native-loop.md:239"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:57"
+      "evidence": "/overview/native-loop.md:58"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:57"
+      "evidence": "/overview/native-loop.md:58"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:264"
+      "evidence": "/overview/native-loop.md:265"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:57"
+      "evidence": "/overview/native-loop.md:58"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:203"
+      "evidence": "/overview/native-loop.md:204"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:371"
+      "evidence": "/overview/native-loop.md:376"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:244"
+      "evidence": "/overview/native-loop.md:245"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:183"
+      "evidence": "/overview/native-loop.md:184"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:278"
+      "evidence": "/overview/native-loop.md:279"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:231"
+      "evidence": "/overview/native-loop.md:232"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:264"
+      "evidence": "/overview/native-loop.md:265"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:210"
+      "evidence": "/overview/native-loop.md:211"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:207"
+      "evidence": "/overview/native-loop.md:208"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:294"
+      "evidence": "/overview/native-loop.md:295"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:126"
+      "evidence": "/overview/native-loop.md:127"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:157"
+      "evidence": "/overview/native-loop.md:158"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:211"
+      "evidence": "/overview/native-loop.md:212"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:356"
+      "evidence": "/overview/native-loop.md:361"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0109-structured-output-beside-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:86"
+      "evidence": "/overview/native-loop.md:87"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:321"
+      "evidence": "/overview/native-loop.md:326"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:288"
+      "evidence": "/overview/native-loop.md:289"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:315"
+      "evidence": "/overview/native-loop.md:316"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:70"
+      "evidence": "/overview/native-loop.md:71"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:307"
+      "evidence": "/overview/native-loop.md:308"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:70"
+      "evidence": "/overview/native-loop.md:71"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:272"
+      "evidence": "/overview/native-loop.md:273"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:324"
+      "evidence": "/overview/native-loop.md:329"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:298"
+      "evidence": "/overview/native-loop.md:299"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:268"
+      "evidence": "/overview/native-loop.md:269"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:320"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:130"
+      "evidence": "/overview/native-loop.md:131"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:92"
+      "evidence": "/overview/native-loop.md:93"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:66"
+      "evidence": "/overview/native-loop.md:67"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:89"
+      "evidence": "/overview/native-loop.md:90"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:272"
+      "evidence": "/overview/native-loop.md:273"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:78"
+      "evidence": "/overview/native-loop.md:79"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:78"
+      "evidence": "/overview/native-loop.md:79"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:76"
+      "evidence": "/overview/native-loop.md:77"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:75"
+      "evidence": "/overview/native-loop.md:76"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -29409,6 +29491,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/turnControl.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/turnControl.ts"
     },
     {
       "from": "module:lib/session/supabaseSessionService.ts",

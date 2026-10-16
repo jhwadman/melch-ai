@@ -210,6 +210,12 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
    * its own delegations are filed below that path. Set by runChild only.
    */
   delegated?: boolean;
+  /**
+   * A delegated run's place in the turn: the agents from the caller at the
+   * top of the delegation down to this one, itself last (ADR 0135). Its own
+   * delegations extend it. Set by runChild only.
+   */
+  agentPath?: readonly string[];
 }
 
 /** How the run ended. */

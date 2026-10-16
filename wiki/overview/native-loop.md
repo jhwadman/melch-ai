@@ -8,7 +8,7 @@ tags:
   - overview
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-11
+  at: 2026-10-15
 sources:
   - resource: lib/runtime/native/request.ts
   - resource: lib/runtime/native/history.ts
@@ -32,6 +32,7 @@ sources:
   - resource: tests/nativeTurn.test.ts
   - resource: tests/nativeDelegate.test.ts
   - resource: tests/parallelDelegation.test.ts
+  - resource: tests/agentEvents.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
   - resource: tests/traceOff.test.ts
@@ -313,6 +314,10 @@ Calls to subagents in one step run at once ([ADR 0116](/decisions/0116-a-steps-s
 - **Cancel.** The children share the turn's signal: a cancel or the deadline aborts every running child, a call still waiting for a slot answers `''` without running, and the step stores no response.
 - **Budget.** Every child's model call counts toward `max_steps` as it starts; the children entered first in call order reach the model first.
 - **Durable runs.** A checkpoint is taken only at a step boundary, where every call in every session of the run has its response ([ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md)), so a child that finishes while another still runs is no boundary.
+
+### Live events from a delegated run
+
+A surface that passes `events.onAgentEvent` sees each delegated run as it happens ([ADR 0135](/decisions/0135-delegated-runs-report-live-through-on-agent-event.md)). `runSyndicateTurn` sets `TurnControl.agentEvents`; `runChild` reads it, runs the child with `stream: true` so its thinking and text arrive as partials, and hands every event the child's loop yields to it, with an `AgentBranch`: the agent, its `path` (the caller at the top of the delegation down to it, from the loop context's `agentPath`, which the child's own delegations extend) and the `callId` of the call that started it. Partials are skipped when the call records state and reads its answer, so the sessions hold what they hold without the observer. `walkChild` hands on a nested workflow's events under the workflow's name; a delegation inside that walk starts its path again at the node's agent. Without the callback a delegated run does not stream, as before. An observer that throws is ignored.
 
 Other calls in a step start at once, uncapped, as they always have ([ADR 0071](/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md)). The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run.
 

@@ -25,6 +25,8 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
+import type { TurnEvent } from './events.ts';
+
 /** Why a turn was stopped before it finished on its own. */
 export type TurnStopReason = 'canceled' | 'deadline' | 'step_limit';
 
@@ -57,6 +59,33 @@ export interface TurnControl {
    * which sit below the turn runner and cannot import it.
    */
   nestedDispatch?: (run: NestedDispatchRun) => Promise<NestedDispatchEnd>;
+  /**
+   * Receives every event a delegated run yields, as it yields it, with
+   * where that run sits (ADR 0135): set by the turn runner when the caller
+   * passed `events.onAgentEvent`, read where a delegated call runs
+   * (lib/runtime/native/delegate.ts), which sits below the turn runner.
+   * Its presence also makes each delegated run stream, so its thinking and
+   * text arrive as partial events.
+   */
+  agentEvents?: (event: TurnEvent, branch: AgentBranch) => void;
+}
+
+/**
+ * Where a delegated run sits in the turn (ADR 0135): the agent, the
+ * delegation path from the agent that took the call down to it, and the id
+ * of the call that started it.
+ */
+export interface AgentBranch {
+  /** The delegated agent: a subagent, or a nested workflow's name for an event its walk yielded. */
+  agent: string;
+  /**
+   * The agents from the caller at the top of the delegation down to this
+   * one, itself last: `['Boss', 'Researcher']`, `['Boss', 'Researcher',
+   * 'Fetcher']`. Below a nested workflow it starts again at the node's agent.
+   */
+  path: readonly string[];
+  /** The id of the function call, in the caller's event, that started this run: what pairs it with the caller's tool call. */
+  callId?: string;
 }
 
 /** One run of a nested dispatch syndicate (ADR 0120): what it is, where its conversation is filed, and the message. */

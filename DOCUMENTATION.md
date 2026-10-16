@@ -847,6 +847,18 @@ in flight, and the task ends `canceled`. Final states: `completed`,
 capacity). Message parts may be `text` or `data` (sent to the model as
 JSON); `file` parts are refused.
 
+In code, `runSyndicateTurn`'s `events` follow a turn as it runs:
+`onProgress` (the `[STATUS]` lines), `onEvent` (every event of the
+answering agent), `onTextDelta`/`onTextReset` (its reply as it is written,
+with `streaming: true`), and `onAgentEvent(event, branch)` for delegated
+runs (ADR 0135). The last receives every event a delegated subagent yields
+while it runs: its thinking and text as partial events, then its tool
+calls, their results and its answer, at any depth. `branch.agent` names the
+subagent, `branch.path` lists the agents from the caller at the top down to
+it, and `branch.callId` is the id of the caller's call that started it, so
+calls running at once can be told apart. Passing it makes delegated runs
+stream; the sessions store the same events either way.
+
 #### Approval gates (`require_approval`)
 
 A skill script run (`skills.scripts: local`) pauses the same way, without being listed: every `run_skill_script` call waits for the person's answer.

@@ -107,7 +107,8 @@ export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
 import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
-import type { NestedDispatchEnd, NestedDispatchRun, TurnStopReason } from './turnControl.ts';
+import type { AgentBranch, NestedDispatchEnd, NestedDispatchRun, TurnStopReason } from './turnControl.ts';
+export type { AgentBranch } from './turnControl.ts';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -131,6 +132,18 @@ export interface TurnEvents {
   onTextDelta?(delta: string): void;
   /** The text streamed so far was narration before a tool call: discard it. */
   onTextReset?(): void;
+  /**
+   * Every event of a delegated run, live, with where it runs (ADR 0135): a
+   * subagent's thinking and text as partial events, then each event it
+   * stores (its tool calls, their results, its answer), and a nested
+   * workflow's events; at any depth, parallel calls interleaved and told
+   * apart by `branch.callId` and `branch.path`. The answering agent's
+   * events stay on onEvent and onTextDelta, which this does not change.
+   * Passing it makes each delegated run stream; what the sessions store is
+   * the same. Fires for a syndicate with guards too: a delegated run's text
+   * is never the answer a guard rewrites. An observer that throws is ignored.
+   */
+  onAgentEvent?(event: TurnEvent, branch: AgentBranch): void;
   /** Diagnostic lines (the server prefixes and prints them). */
   log?(message: string): void;
   warn?(message: string): void;
@@ -537,6 +550,9 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
   });
   // A nested dispatch syndicate, wherever the turn reaches one, runs as a turn of its own under these controls (ADR 0120).
   control.nestedDispatch = (run) => runNestedDispatch(opts, control, runtime, run);
+  // Delegated runs report to the caller as they run (ADR 0135).
+  const onAgentEvent = opts.events?.onAgentEvent;
+  if (onAgentEvent) control.agentEvents = (event, branch) => onAgentEvent.call(opts.events, event, branch);
   try {
     const run = () => runWithTurnControl(control, () => runTurnInner(opts, control, runtime));
     // A span a library opens through OpenTelemetry's own API (not the

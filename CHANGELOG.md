@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **Live events from delegated subagents (ADR 0135).** `TurnEvents` gains
+  `onAgentEvent(event, branch)`: every event a delegated run yields, as it
+  yields it (thinking and text partials, tool calls, results, the answer),
+  at any depth, with `branch.agent`, `branch.path` (the delegation path from
+  the caller at the top) and `branch.callId` (the caller's call that started
+  it). New type export `AgentBranch` from the barrel and
+  `melchizedek-agents/runtime`; `TurnControl` gains the optional
+  `agentEvents` it is carried on. Passing the callback makes delegated runs
+  stream; the stored sessions, `onEvent` and `onTextDelta` are unchanged.
+
 ## 1.5.0 — 2026-10-15
 
 A minor release that makes the engine embeddable in a single-process

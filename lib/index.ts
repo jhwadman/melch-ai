@@ -42,6 +42,7 @@ export type { TurnEvent } from './runtime/events.ts';
 export { approvalResponsePart, pendingApproval, APPROVAL_REQUEST } from './runtime/approvals.ts';
 export type { PendingApproval } from './runtime/approvals.ts';
 export type {
+  AgentBranch,
   DrainedRun,
   MessagePart,
   TurnUsage,
