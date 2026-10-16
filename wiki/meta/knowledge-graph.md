@@ -28,15 +28,15 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 223 | a repo file that is not a source module (DDL, config, prose) |
-| `doc` | `/dir/doc.md` | 203 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 224 | a repo file that is not a source module (DDL, config, prose) |
+| `doc` | `/dir/doc.md` | 204 | a concept document in the bundle — identity is its bundle path |
 | `module` | `module:<name>` | 200 | one source module |
 | `env` | `env:<name>` | 111 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 93 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 51 | an npm script entrypoint |
 | `syndicate` | `syndicate:<name>` | 35 | one agent-team definition (a YAML) |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
-| `table` | `table:<name>` | 18 | a database table |
+| `table` | `table:<name>` | 19 | a database table |
 | `external` | `external:<name>` | 13 | a resource outside the repo, named by URL |
 | `model` | `model:<name>` | 10 | a model id exactly as written in configuration |
 | `provider` | `provider:<name>` | 6 | a provider adapter the model registry routes to |
@@ -50,13 +50,13 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1145 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 986 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 1151 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 989 | a resolved markdown link between documents |
 | `imports` | extracted | A imports B | 903 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 170 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 93 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 93 | the agent is configured with this model id |
-| `defined_in` | extracted | A is defined in B | 80 | where the thing is declared in source |
+| `defined_in` | extracted | A is defined in B | 81 | where the thing is declared in source |
 | `runs` | extracted | A runs B | 74 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 59 | the document derives from, and describes, this entity |

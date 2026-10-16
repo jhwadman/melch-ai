@@ -356,6 +356,8 @@ function scrubbed(row: Record<string, any>): Record<string, any> {
     const copy = { ...attrs };
     for (const key of ['syndicate.latency.model_ms', 'syndicate.latency.tool_ms']) if (key in copy) copy[key] = '<ms>';
     if ('engine.version' in copy) copy['engine.version'] = '<engine>';
+    // ADK never wrote the per-model usage the ledger prices a turn from (ADR 0136); tests/postgresLedger.test.ts checks its value.
+    delete copy['syndicate.usage'];
     return copy;
   };
   if (out.attributes) out.attributes = scrub(out.attributes);

@@ -37,7 +37,7 @@ async function install(db: PGlite): Promise<void> {
   for (const f of INSTALL) await db.exec(readFileSync(f, 'utf-8'));
 }
 
-const API_TABLES = ['adk_sessions', 'adk_memory_facts', 'adk_turns', 'adk_payloads', 'adk_agent_registry', 'melchizedek_tool_credentials'];
+const API_TABLES = ['adk_sessions', 'adk_memory_facts', 'adk_turns', 'adk_payloads', 'adk_agent_registry', 'melchizedek_tool_credentials', 'model_pricing'];
 
 let plain: PGlite;
 let server: PGLiteSocketServer;

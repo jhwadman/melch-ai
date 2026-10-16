@@ -75,7 +75,8 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['adk_telemetry', 'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
-                            'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage', 'melchizedek_audit'] LOOP
+                            'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage', 'melchizedek_audit',
+                            'model_pricing'] LOOP
     IF to_regclass('public.' || t) IS NOT NULL THEN
       EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
       PERFORM pg_temp.melchizedek_revoke_api(format('%I', t));
@@ -163,7 +164,9 @@ BEGIN
                         'melchizedek_registry_versions_immutable', 'melchizedek_registry_publish',
                         'melchizedek_registry_activate', 'melchizedek_memory_commit',
                         'melchizedek_memory_dimensions', 'melchizedek_prune_memory_ingest',
-                        'melchizedek_prune_memory', 'melchizedek_prune_audit')
+                        'melchizedek_prune_memory', 'melchizedek_prune_audit',
+                        'melchizedek_cost_usd', 'melchizedek_usage_cost', 'melchizedek_usage_text_cost',
+                        'melchizedek_turns_cost', 'melchizedek_telemetry_cost')
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', fn);
     PERFORM pg_temp.melchizedek_revoke_api(format('FUNCTION %s', fn));

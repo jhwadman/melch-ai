@@ -634,7 +634,17 @@ a clean call's row comes from `model.call` and holds the request and the
 adapter's response in the contract's shapes. Rows written before 1.0.0
 under ADK's `invoke_agent`, `call_llm` and `execute_tool` spans hold ADK's
 request, and the ledger still reads them (ADR 0076). The view `adk_turns_production` excludes
-eval and classifier turns. Operate it with `npm run telemetry:stats`,
+eval and classifier turns. `adk_turns.cost_usd` and `adk_telemetry.cost_usd`
+are filled at write time by a trigger from `model_pricing` (migration 0015,
+USD per million tokens, seeded from melch-obs's `pricing.toml` with a
+`verified_at` per row; NULL means unchecked): a model call from its model and
+tokens, a turn from its per-model usage (`syndicate.usage` on the root span,
+input summed per call), thinking at the output rate unless the row sets
+`thinking_per_mtok`. A model with no row leaves the call and its turn NULL,
+never a partial sum; `ollama/*` costs zero. Add or change a rate with an
+`INSERT … ON CONFLICT (model) DO UPDATE` on `model_pricing`; rows already
+written keep the rate in force when they were written (ADR 0136).
+Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
 

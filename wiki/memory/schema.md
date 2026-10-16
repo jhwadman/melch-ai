@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-10-15
+  at: 2026-10-16
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -25,6 +25,7 @@ sources:
   - resource: db/migrations/0012_audit_log.sql
   - resource: db/migrations/0013_tool_credentials.sql
   - resource: db/migrations/0014_durable_runs.sql
+  - resource: db/migrations/0015_model_pricing.sql
   - resource: db/telemetry.sql
   - resource: db/hardening.sql
   - resource: db/memory_v2.sql
@@ -1839,6 +1840,120 @@ ON CONFLICT (version) DO NOTHING;
 ```
 <!-- /wiki:generated -->
 
+<!-- wiki:generated section="migration-0015_model_pricing" source="db/migrations/0015_model_pricing.sql" -->
+## Migration 0015_model_pricing
+
+```sql
+-- ============================================================================
+-- 0015_model_pricing — what a model call costs, so the ledger records dollars
+--                      (ADR 0136)
+-- ============================================================================
+-- model_pricing: USD per million tokens, one row per model id as the YAML
+-- declares it (`claude-opus-5`, `gemini-3.8-flash`, `grok-4.7`). A row whose
+-- id ends in `/*` prices every id under that prefix (`ollama/*`: local
+-- models cost nothing). `thinking_per_mtok` NULL means thinking bills at the
+-- output rate, as every provider here bills it. `verified_at` NULL means
+-- nobody has checked the row against the vendor's price list: spend built on
+-- it is a steering estimate (the convention ymir_model_pricing set).
+--
+-- Seeded from melch-obs's pricing.toml (2026-10). The seed never overwrites a
+-- row: an operator's own rates survive a re-run. A rate change ships as a
+-- later migration that UPDATEs the row and its verified_at.
+--
+-- The cost functions below are what db/telemetry.sql's ledger trigger calls
+-- to fill adk_turns.cost_usd and adk_telemetry.cost_usd at write time:
+--   melchizedek_cost_usd(model, input, output, thinking)  one call's cost,
+--       NULL for a model with no row
+--   melchizedek_usage_cost(usage)  a turn's cost from its per-model usage
+--       ({"<model>": {"input": n, "output": n, "thinking": n}}), NULL when
+--       any model in it has no row: a partial sum would read as the total.
+-- Ledger output_tokens exclude thinking (genaiMapping's usage meaning), so
+-- thinking is priced on top of output.
+--
+-- Nothing secret, nothing personal; hardening.sql closes it to the API roles
+-- like every other table. Idempotent; safe to re-run.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS model_pricing (
+  model              TEXT PRIMARY KEY,
+  input_per_mtok     NUMERIC NOT NULL CHECK (input_per_mtok >= 0),
+  output_per_mtok    NUMERIC NOT NULL CHECK (output_per_mtok >= 0),
+  thinking_per_mtok  NUMERIC CHECK (thinking_per_mtok >= 0),
+  verified_at        TIMESTAMPTZ,
+  source             TEXT,
+  note               TEXT,
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO model_pricing (model, input_per_mtok, output_per_mtok, verified_at, source, note) VALUES
+  -- Anthropic first-party rates; pricing.toml dates the check to the month (2026-06).
+  ('claude-fable-5-1',      10.00, 50.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-fable-5',        10.00, 50.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-opus-5',          5.00, 25.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-opus-4-8',        5.00, 25.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-opus-4-7',        5.00, 25.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-opus-4-6',        5.00, 25.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-sonnet-5',        2.00, 10.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-sonnet-4-6',      3.00, 15.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('claude-haiku-4-5',       1.00,  5.00, '2026-06-01', 'melch-obs/pricing.toml', 'Anthropic first-party, checked 2026-06'),
+  ('gemini-3.5-flash-lite',  0.30,  2.50, '2026-10-01', 'melch-obs/pricing.toml', 'Gemini API standard tier, checked 2026-10-01'),
+  -- Carried over from ymir_model_pricing, never checked against a vendor list.
+  ('gemini-3.1-flash-lite',  0.10,  0.40, NULL, 'melch-obs/pricing.toml', 'unverified estimate'),
+  ('gemini-3.7-flash',       0.30,  2.50, NULL, 'melch-obs/pricing.toml', 'unverified estimate'),
+  ('gemini-3.8-flash',       0.30,  2.50, NULL, 'melch-obs/pricing.toml', 'placeholder at 3.7''s rate, unverified'),
+  ('grok-4.5',               3.00, 15.00, NULL, 'melch-obs/pricing.toml', 'unverified estimate'),
+  ('grok-4.7',               3.00, 15.00, NULL, 'melch-obs/pricing.toml', 'unverified estimate'),
+  -- A local model bills nothing; that needs no vendor list.
+  ('ollama/*',               0,     0,    '2026-10-15', 'engine', 'local models: no provider charge')
+ON CONFLICT (model) DO NOTHING;
+
+-- The row that prices `model`: its own, else its prefix's `<prefix>/*`.
+CREATE OR REPLACE FUNCTION melchizedek_cost_usd(model TEXT, input BIGINT, output BIGINT, thinking BIGINT)
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT (coalesce(input, 0) * p.input_per_mtok
+          + coalesce(output, 0) * p.output_per_mtok
+          + coalesce(thinking, 0) * coalesce(p.thinking_per_mtok, p.output_per_mtok)) / 1000000
+  FROM model_pricing p
+  WHERE p.model = melchizedek_cost_usd.model
+     OR (position('/' IN melchizedek_cost_usd.model) > 0
+         AND p.model = split_part(melchizedek_cost_usd.model, '/', 1) || '/*')
+  ORDER BY (p.model = melchizedek_cost_usd.model) DESC
+  LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_usage_cost(usage JSONB)
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN usage IS NULL OR jsonb_typeof(usage) <> 'object' THEN NULL
+    -- bool_and over no rows is NULL: a turn that made no model call costs nothing.
+    WHEN coalesce(bool_and(c.cost IS NOT NULL), true) THEN coalesce(sum(c.cost), 0)
+    ELSE NULL
+  END
+  FROM (
+    SELECT melchizedek_cost_usd(
+             e.key,
+             CASE WHEN jsonb_typeof(e.value->'input') = 'number' THEN (e.value->>'input')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'output') = 'number' THEN (e.value->>'output')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'thinking') = 'number' THEN (e.value->>'thinking')::numeric::bigint END
+           ) AS cost
+    FROM jsonb_each(CASE WHEN jsonb_typeof(usage) = 'object' THEN usage ELSE '{}'::jsonb END) e
+  ) c
+$$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (15, '0015_model_pricing')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
 <!-- wiki:generated section="telemetry-ddl" source="db/telemetry.sql" -->
 ## Telemetry ledger (optional)
 
@@ -2007,6 +2122,83 @@ CREATE INDEX IF NOT EXISTS idx_adk_turns_surface_user
 -- file: adk_turns_production below is `SELECT *`, and Postgres expands that
 -- at CREATE time. It does not gain these columns until it is re-created, so
 -- run the whole file, in order.
+
+-- ── Cost: dollars per turn and per model call (ADR 0136) ─────────────────
+-- cost_usd is filled at write time by the trigger below from model_pricing
+-- (db/migrations/0015_model_pricing.sql), so both sinks and a replayed
+-- dead-letter spool get it, and the price table is the one source:
+--   adk_telemetry  an llm.request row: its model and tokens. A root row: the
+--                  turn's per-model usage on the span (syndicate.usage).
+--   adk_turns      the turn's per-model usage (attributes->'syndicate.usage',
+--                  the tracer sums each model's calls), so a turn that used
+--                  two models is priced per model, input summed per call.
+-- NULL when a model has no price row (a partial sum would read as the
+-- total), or when the row carries no usage (a row written before this
+-- column). A value the writer set itself is kept. The rate in force at
+-- write time is the rate recorded: a later price change does not rewrite
+-- history. Re-price on purpose with an UPDATE ... SET cost_usd = ... .
+ALTER TABLE adk_turns     ADD COLUMN IF NOT EXISTS cost_usd NUMERIC;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cost_usd NUMERIC;
+
+-- SECURITY DEFINER: the inserting role (service_role, or an application's
+-- own role) need not be able to execute the pricing functions or read
+-- model_pricing. Each reads only NEW and the price table. Unreadable usage
+-- leaves the cost NULL; it never fails the insert.
+CREATE OR REPLACE FUNCTION melchizedek_usage_text_cost(usage_text TEXT)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
+BEGIN
+  IF usage_text IS NULL OR to_regclass('model_pricing') IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN melchizedek_usage_cost(usage_text::jsonb);
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_turns_cost()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.cost_usd IS NULL THEN
+    NEW.cost_usd := melchizedek_usage_text_cost(NEW.attributes->>'syndicate.usage');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_telemetry_cost()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.cost_usd IS NOT NULL OR to_regclass('model_pricing') IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.model IS NOT NULL THEN
+    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens);
+  ELSE
+    NEW.cost_usd := melchizedek_usage_text_cost(NEW.span->'attributes'->>'syndicate.usage');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS melchizedek_turns_cost ON adk_turns;
+CREATE TRIGGER melchizedek_turns_cost BEFORE INSERT ON adk_turns
+  FOR EACH ROW EXECUTE FUNCTION melchizedek_turns_cost();
+DROP TRIGGER IF EXISTS melchizedek_telemetry_cost ON adk_telemetry;
+CREATE TRIGGER melchizedek_telemetry_cost BEFORE INSERT ON adk_telemetry
+  FOR EACH ROW EXECUTE FUNCTION melchizedek_telemetry_cost();
 
 -- ── adk_payloads: full prompt/response per model call, by policy, expiring ─
 CREATE TABLE IF NOT EXISTS adk_payloads (
@@ -2205,7 +2397,8 @@ CREATE OR REPLACE VIEW adk_kpi_daily AS
          sum(output_tokens)                                 AS output_tokens,
          sum(thinking_tokens)                               AS thinking_tokens,
          avg(llm_calls)                                     AS avg_llm_calls,
-         avg(tool_calls)                                    AS avg_tool_calls
+         avg(tool_calls)                                    AS avg_tool_calls,
+         sum(cost_usd)                                      AS cost_usd
   FROM adk_turns_production
   GROUP BY 1, 2;
 
@@ -2328,7 +2521,8 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['adk_telemetry', 'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
-                            'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage', 'melchizedek_audit'] LOOP
+                            'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage', 'melchizedek_audit',
+                            'model_pricing'] LOOP
     IF to_regclass('public.' || t) IS NOT NULL THEN
       EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
       PERFORM pg_temp.melchizedek_revoke_api(format('%I', t));
@@ -2416,7 +2610,9 @@ BEGIN
                         'melchizedek_registry_versions_immutable', 'melchizedek_registry_publish',
                         'melchizedek_registry_activate', 'melchizedek_memory_commit',
                         'melchizedek_memory_dimensions', 'melchizedek_prune_memory_ingest',
-                        'melchizedek_prune_memory', 'melchizedek_prune_audit')
+                        'melchizedek_prune_memory', 'melchizedek_prune_audit',
+                        'melchizedek_cost_usd', 'melchizedek_usage_cost', 'melchizedek_usage_text_cost',
+                        'melchizedek_turns_cost', 'melchizedek_telemetry_cost')
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', fn);
     PERFORM pg_temp.melchizedek_revoke_api(format('FUNCTION %s', fn));
