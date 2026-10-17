@@ -170,6 +170,8 @@ import type { PendingConsent } from '../credentials.ts';
 import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { ASK_USER, pendingQuestion } from '../questions.ts';
+import { isJournalEvent, scriptPauseIn } from '../../script/journal.ts';
+// A script's journal events carry `<script>.<seq>` paths but are not a walk's nodes (ADR 0137).
 import type { Session, SessionService } from '../sessions.ts';
 import { childAppName, entryAppName, legacyChild, legacyEntry } from './delegate.ts';
 import type { EntryKind } from './delegate.ts';
@@ -569,6 +571,12 @@ async function conversationPause(
       ...(routed.consent ? { consent: { ...routed.consent, path } } : {}),
     };
   }
+  // A nested script syndicate's own pause (ADR 0137 item 15): its askUser or a gated tool() call, authored by the script.
+  const scripted = scriptPauseIn(child.events, id);
+  if (scripted) {
+    const path = scripted.asker === name ? [name] : down([scripted.asker]);
+    return { path, ...(scripted.approval ? { approval: { ...scripted.approval, path } } : {}), ...(scripted.question ? { question: { ...scripted.question, path } } : {}) };
+  }
   const approval = pendingApproval(child.events);
   if (approval && approval.agent && approval.agent !== 'user' && approval.agent !== name && wanted(approval.id)) {
     const path = down([approval.agent]);
@@ -596,8 +604,8 @@ async function conversationPause(
   };
 }
 
-/** A walk's session: its node events carry a dotted node path (`<workflow>.<node>`). */
-const isWalk = (session: Session): boolean => session.events.some((e) => typeof e.nodeInfo?.path === 'string' && e.nodeInfo.path.includes('.'));
+/** A walk's session: its node events carry a dotted node path (`<workflow>.<node>`); a script's journal events do not count. */
+const isWalk = (session: Session): boolean => session.events.some((e) => typeof e.nodeInfo?.path === 'string' && e.nodeInfo.path.includes('.') && !isJournalEvent(e));
 
 /**
  * The pause a nested workflow's walk holds in its child session (ADR 0111):

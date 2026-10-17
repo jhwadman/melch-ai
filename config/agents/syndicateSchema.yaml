@@ -190,6 +190,48 @@ dispatch:
 #     Confirm: { ask_user: "Publish? Reply yes, or say what to change." }
 #   max_concurrency: 4
 
+# [optional] Switches this syndicate to a SCRIPT (ADR 0137): one
+# JavaScript module, run in the engine's QuickJS sandbox, is the
+# orchestration. It calls the agents below, the tools it lists and the
+# person as functions, so routing, per-call models and pauses live here
+# and change with a deploy. Needs MELCHIZEDEK_CODE_SANDBOX=on. Cannot be
+# combined with `dispatch` or `workflow`. Contract: lib/script/.
+#
+#   - The default export is called with { message, transcript, variables,
+#     agent, tool, askUser, parallel, now, random, log }; its return (text,
+#     or JSON) is the answer, and `guards` run on it once.
+#   - agent(name, input, { model?, reasoning?, temperature?,
+#     conversation? }) runs a declared agent seeing only `input` (null:
+#     the message); it returns parsed JSON when the agent has an output
+#     schema, else its text, and throws when the run fails. With
+#     `conversation: true` it answers in the conversation, as a dispatch
+#     route does. `model` must be in script.models.
+#   - tool(name, args) runs a registry tool listed in script.tools; one
+#     also in script.require_approval waits for a person to approve the
+#     exact call (refused, the script gets { error }).
+#   - askUser(id, question, { payload?, schema? }) pauses the turn
+#     input-required; the next message resumes it, returning
+#     { reply, input }. The run replays its journal from the top, so a
+#     script must make the same calls on every run: use now() and
+#     random(), never Date or Math.random (they throw), and never
+#     Promise.race.
+#   - require_approval, the ask_user tool, skills.scripts: local and
+#     authorization_code grants are refused on a script's agents in this
+#     version (a pause inside a called agent cannot be replayed).
+#   - {{token}} interpolation does not touch `source`; read `variables`.
+#   - A yaml_reference to a script syndicate runs its whole script as a
+#     subagent, a route or a node, its pauses reaching the turn.
+# script:
+#   models: ["gemini-3.8-flash", "claude-opus-5-5"]
+#   tools: ["web_extract", "publish"]
+#   require_approval: ["publish"]
+#   source: |
+#     export default async ({ message, agent, askUser, log }) => {
+#       const triage = await agent("OrchestratorName", message);
+#       log(`Routed to ${triage.route}`);
+#       return agent(triage.route, null, { conversation: true });
+#     };
+
 # ── Orchestrator ────────────────────────────────────────────
 # The turn's root agent: the engine's agent loop runs it. Its keys are
 # spelled after ADK's LlmAgentConfig.
@@ -292,6 +334,14 @@ orchestrator:
   # [optional] "gemini": the model writes Python and Gemini runs it in
   # Google's server-side sandbox; nothing runs on this host. Gemini only.
   # code_execution: "gemini"
+
+  # [optional] With `run_code` in tools, the agent runs JavaScript in the
+  # engine's QuickJS sandbox on any provider and rests its answer on the
+  # result (no network, no host, no clock; needs MELCHIZEDEK_CODE_SANDBOX=on,
+  # ADR 0137). `attach: true` puts each run's code and result on the reply
+  # as a code_run data part. Default off.
+  # run_code:
+  #   attach: true
 
   # [optional] Summarize a long conversation instead of overflowing the
   # window: past `compact_after_tokens` (the last request's prompt), earlier

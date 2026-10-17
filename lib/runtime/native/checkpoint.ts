@@ -15,7 +15,8 @@
  *   runner, unchanged, continues where the snapshot stood. runDurableTurn
  *   is runSyndicateTurn with that store and a sink.
  *
- * A STEP BOUNDARY is an append that carries function responses after which
+ * A STEP BOUNDARY is an append that carries function responses, or a
+ * script's journal event (ADR 0137 item 8), after which
  * every function call any session of the run holds has its response (calls
  * listed in their event's longRunningToolIds, which wait on a person, aside).
  * So a parent waiting on a delegated subagent is never at a boundary, the
@@ -77,6 +78,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { getFunctionCalls, getFunctionResponses, parseTurnEvents } from '../events.ts';
+import { JOURNAL_EVERY_CALL, isJournalEvent } from '../../script/journal.ts';
 import type { TurnEvent } from '../events.ts';
 import { InProcessSessionService } from '../sessions.ts';
 import type {
@@ -211,6 +213,8 @@ interface Tracked {
 }
 
 class CheckpointingStore implements SessionService {
+  /** A script run stores each call's journal event as it ends, and each is a step boundary (ADR 0137 item 8). */
+  readonly [JOURNAL_EVERY_CALL] = true;
   private readonly inner: InProcessSessionService;
   private readonly opts: CheckpointingOptions;
   private readonly openingParts: string;
@@ -332,7 +336,7 @@ class CheckpointingStore implements SessionService {
     t.firstSeq ??= order;
     if (stored.author !== 'user' && this.firstAgentSeq === undefined) this.firstAgentSeq = order;
     this.track(stored);
-    if (getFunctionResponses(stored).length > 0 && this.openCalls.size === 0) await this.boundary();
+    if ((getFunctionResponses(stored).length > 0 || isJournalEvent(stored)) && this.openCalls.size === 0) await this.boundary();
     return stored;
   }
 

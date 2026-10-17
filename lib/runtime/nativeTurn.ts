@@ -18,7 +18,8 @@
  * feature (UnsupportedOnRuntimeError): a caller's `transformAgent` (it
  * transformed ADK agents, and ADK left in 1.0.0), and an `ask_user` tool on
  * a workflow's agent (the schema refuses it; a config that skipped
- * validation is refused here, ADR 0095). A workflow syndicate runs on the
+ * validation is refused here, ADR 0095), and a script or a `run_code`
+ * tool while MELCHIZEDEK_CODE_SANDBOX is off (CodeSandboxOffError, ADR 0137). A workflow syndicate runs on the
  * engine's scheduler (lib/workflow/turn.ts, ADR 0095). An answer to an
  * approval resumes the call (lib/runtime/native/interrupts.ts), an answer
  * to a question resumes the agent that asked (lib/runtime/questions.ts, ADR
@@ -42,6 +43,7 @@ import type { CredentialStore } from '../tools/auth.ts';
 import type { OAuthConsent } from '../tools/oauthConsent.ts';
 import { ASK_USER } from './questions.ts';
 import { unsupportedOnNative } from './runtimeFlag.ts';
+import { refuseWithoutSandbox } from '../sandbox/sandbox.ts';
 
 // ── What native refuses before a turn starts ─────────────────────────────────
 
@@ -55,6 +57,8 @@ export function refuseOnNative(
 ): void {
   const where = config.syndicate_name || config.orchestrator?.name || 'syndicate';
   if (call.transformAgent) throw unsupportedOnNative('transformAgent (it transformed ADK agents; the ADK runtime was removed in 1.0.0)', where);
+  // A script, or an agent listing run_code, runs code: only once the operator turned the sandbox on (ADR 0137 item 4).
+  refuseWithoutSandbox(config);
   if (call.isWorkflow) {
     // A pause inside an agent node cannot be resumed by the native walk (lib/workflow/resume.ts).
     const asking = [config.orchestrator, ...(config.subagents ?? [])].find((agent) => (agent?.tools ?? []).includes(ASK_USER));
