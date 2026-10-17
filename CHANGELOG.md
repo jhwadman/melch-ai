@@ -6,6 +6,73 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.7.0 — 2026-10-17
+
+A minor release that lets a syndicate hold code (ADR 0137). A `script:`
+block is the fourth orchestration method: one JavaScript module, run in
+a QuickJS sandbox on a worker thread, calls the syndicate's agents, its
+allowed tools and the person as functions, so routing, per-call models
+and human-in-the-loop change with a YAML deploy instead of an engine
+release. Agents on any provider get `run_code`, the same sandbox as a
+registry tool. Both are off until the operator sets
+`MELCHIZEDEK_CODE_SANDBOX=on`; nothing changes for a deployment that
+does not.
+
+### Added
+
+- **`script:` orchestration (ADR 0137 Part B).** `script: { source,
+  models?, tools? }` at the root; cannot be combined with `dispatch` or
+  `workflow`. The default export is called with `{ message, transcript,
+  variables, agent, tool, askUser, parallel, now, random, log }` and its
+  return is the answer; guards run on it once. `agent(name, input, {
+  model?, reasoning?, temperature?, conversation? })` runs a declared
+  agent (parsed JSON when it has an output schema, else text; a failed run
+  throws into the script); `conversation: true` answers in the
+  conversation as a dispatch route does. `askUser(id, question, {
+  payload?, schema? })` pauses the turn `input-required` with the same
+  `result.input` an `ask_user` node writes; the next message resumes the
+  run by replaying its journal (one content-less event per call, stored in
+  the conversation only when the run pauses) on the source the pause pinned, so a redeploy never breaks
+  a waiting conversation. A resume whose calls no longer match fails
+  `SCRIPT_DIVERGED`; a run past 1,000 calls fails `SCRIPT_CALL_LIMIT`.
+  The schema refuses `require_approval`, the `ask_user` tool, local skill
+  scripts and authorization_code grants on a script's agents (a pause
+  inside a called agent cannot be replayed yet), `context:` and root
+  `max_concurrency`; `mode: task` is allowed. `{{token}}` interpolation
+  skips `script.source`; the script reads the bound `variables`. A
+  `yaml_reference` to a script syndicate is refused by name.
+  `TurnStage` gains `'script'`; `SyndicateTurnResult.failedStage` may be
+  `'script'`.
+- **`run_code` (ADR 0137 Part A).** A registry tool: `{ code, input? }`,
+  an ES module whose default export is called with `input`, returning
+  `{ result, logs, error }`, each bounded at 20,000 characters. No
+  network, files, host, clock or randomness. An agent's
+  `run_code: { attach: true }` puts each run on the reply:
+  `SyndicateTurnResult.codeRuns` and, on the A2A server, a `code_runs`
+  artifact of `code_run` data parts. `DrainedRun` gains `codeRuns`.
+- **The sandbox.** QuickJS (`quickjs-emscripten-core` and
+  `@jitl/quickjs-wasmfile-release-sync`, both pinned at 0.32.0) on a
+  worker thread per run: 64 MB memory, 1 MB stack, 5 s of compute (waits
+  on the host not counted), a watchdog and the turn's signal terminate
+  it; `MELCHIZEDEK_CODE_SANDBOX_WORKERS` (default 16) caps concurrent
+  runs. A syndicate with a script or a `run_code` agent is refused with
+  `CodeSandboxOffError` when a turn starts while the switch is off.
+- **Package surface.** New subpaths `melchizedek-agents/script`
+  (`runScript`, `ScriptFatal`, `SCRIPT_CALL_LIMIT`) and
+  `melchizedek-agents/sandbox` (`runInSandbox`, `codeSandboxEnabled`,
+  `refuseWithoutSandbox`, `CodeSandboxOffError`, `SandboxHalt`,
+  `DEFAULT_SANDBOX_LIMITS`). The barrel adds those plus
+  `isScriptSyndicate`, `runCodeTool`, `RUN_CODE` and the types
+  `ScriptConfig`, `ScriptHost`, `ScriptRunInput`, `ScriptRunOutcome`,
+  `SandboxLimits`, `SandboxResult`, `SandboxRunOptions`, `CodeRun`,
+  `RunCodeOutput`.
+
+### For melch-app
+
+- An Electron build must list `quickjs-emscripten-core`,
+  `@jitl/quickjs-wasmfile-release-sync` and `melchizedek-agents/dist/lib/sandbox`
+  in `asarUnpack`: the wasm file and the worker script load from disk.
+
 ## 1.6.0 — 2026-10-15
 
 A minor release for applications that show a turn as it runs and account

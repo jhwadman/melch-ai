@@ -3885,6 +3885,15 @@
       "evidence": "ADR 0128 Decision 3 extends ADR 0120's nested dispatch node: where ADR 0120 decision 3 failed the node on a consent request, the node now raises a credential request rebuilt from its turn's consent (requestCallOf); ADR 0128 resolves ADR 0120's open item 'a consent pause inside a nested walk'.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0137 Context: \"A wasm sandbox with no host reach is neither of those executors, and it needs no approval because it grants nothing; this record supersedes that clause of ADR 0033\"; ADR 0033 Note (2026-10-17) marks Decision 1's last sentence superseded.",
+      "by": "claude-code/claude-fable-5-1",
+      "at": "2026-10-17",
+      "note": "In part: only ADR 0033 Decision 1's clause that local execution of model-written code is not offered, and the rejected approval-prompt alternative. code_execution: gemini, context: and mode: task stand."
     }
   ]
 }

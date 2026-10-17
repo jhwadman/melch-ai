@@ -19,6 +19,8 @@ export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
 import type { ReasoningSetting } from './models/contract.ts';
 export type { WorkflowConfig } from './workflowConfig.ts';
+export type { ScriptConfig } from './script/config.ts';
+import type { ScriptConfig } from './script/config.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -199,6 +201,8 @@ export interface AgentYamlConfig {
   openapi?: OpenApiConfig[];
   /** `gemini`: the model's Python runs in Gemini's server-side sandbox (ADR 0033). Gemini models only. */
   code_execution?: 'gemini';
+  /** How this agent's `run_code` tool behaves (ADR 0137): `attach` puts each run's code and result on the reply. Needs run_code in `tools`. */
+  run_code?: { attach?: boolean };
   /** Compact a long conversation into a summary past a token threshold (ADR 0033). Delegate orchestrator only. */
   context?: ContextConfig;
   /** `task`: the agent works until it calls finish_task; its arguments are the node's output. Workflow nodes only. */
@@ -263,6 +267,13 @@ export interface SyndicateYamlConfig {
    * Contract: lib/workflow.ts.
    */
   workflow?: WorkflowConfig;
+  /**
+   * Opts this syndicate into SCRIPT orchestration (ADR 0137): one JavaScript
+   * module, run in the engine's sandbox, calls the agents, the allowed tools
+   * and a person as functions. Cannot be combined with `dispatch` or
+   * `workflow`. Needs MELCHIZEDEK_CODE_SANDBOX=on. Contract: lib/script/.
+   */
+  script?: ScriptConfig;
   /** Optional default variable definitions for {{token}} interpolation. */
   variables?: VariableMap;
   /** Defines the persistence and semantic memory layer for the syndicate. */
@@ -430,7 +441,12 @@ function resolveAndValidate(
     ...bindings,
   };
 
-  const interpolated = isPlainObject(raw) ? interpolateDeep(raw, merged) : raw;
+  // A script's source is code, not a template: `{{` is JavaScript there, and the script reads `variables` itself (ADR 0137 item 5).
+  const scriptSource = isPlainObject(raw) && isPlainObject(raw.script) && typeof raw.script.source === 'string' ? raw.script.source : undefined;
+  let interpolated = isPlainObject(raw) ? interpolateDeep(raw, merged) : raw;
+  if (scriptSource !== undefined && isPlainObject(interpolated) && isPlainObject(interpolated.script)) {
+    interpolated = { ...interpolated, script: { ...interpolated.script, source: scriptSource } };
+  }
 
   warnV1Spellings(interpolated, label, options.onWarning);
 
@@ -447,6 +463,11 @@ function resolveAndValidate(
   );
   const { variables: _stripped, ...clean } = valid;
   let config = clean as SyndicateYamlConfig;
+  // The script reads the bound variables (ADR 0137 item 6): the YAML's, then the caller's bindings, as {{token}} resolves them.
+  if (config.script) {
+    const yamlBound = isPlainObject(interpolated) && isPlainObject(interpolated.variables) ? (interpolated.variables as VariableMap) : {};
+    config = { ...config, script: { ...config.script, variables: { ...defaultBindings(), ...yamlBound, ...bindings } } };
+  }
 
   if (overrides) {
     config = applyOverrides(config, overrides);

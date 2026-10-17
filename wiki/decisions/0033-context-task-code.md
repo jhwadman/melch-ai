@@ -30,6 +30,8 @@ The owner's audit of what ADK 2.2 ships and the framework does not use listed, a
 
 > **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)), and it runs all three keys itself: `code_execution: gemini` through the Gemini adapter, `context:` compaction ported from ADK's compactor ([ADR 0078](/decisions/0078-native-compaction-ports-adk-compactor.md)), and `mode: task` ending a node on `finish_task` ([ADR 0081](/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md)). The ADK classes named above serve only the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
+> **Note (2026-10-17):** Decision 1's last sentence is superseded: model-written code may now run locally, in a QuickJS wasm sandbox on a worker thread that reaches no network, host or key, as the registry tool `run_code`, off until the operator sets `MELCHIZEDEK_CODE_SANDBOX=on`. The rejected alternative below, an approval prompt over generated code, is unneeded because the sandbox grants nothing, see [ADR 0137](/decisions/0137-script-orchestration-and-sandboxed-code.md).
+
 ## Alternatives considered
 
 - **Local code execution behind an approval** (as skill scripts are). Rejected for now: a skill script is code the operator installed and can read; a model's code is written fresh each time, so an approval prompt would ask a person to review generated code under time pressure.

@@ -56,6 +56,15 @@ export type {
 export type { CompileOptions } from './compile.ts';
 export { isWorkflowSyndicate, describeInput } from './workflow.ts';
 export type { WorkflowConfig, WorkflowNodeYaml, EdgeElement, PendingInput } from './workflow.ts';
+// SCRIPT orchestration and the code sandbox (ADR 0137).
+export { isScriptSyndicate } from './script/config.ts';
+export type { ScriptConfig } from './script/config.ts';
+export { runScript, ScriptFatal, SCRIPT_CALL_LIMIT } from './script/run.ts';
+export type { ScriptHost, ScriptRunInput, ScriptRunOutcome } from './script/run.ts';
+export { CODE_SANDBOX_ENV, CodeSandboxOffError, DEFAULT_SANDBOX_LIMITS, SandboxHalt, codeSandboxEnabled, runInSandbox } from './sandbox/sandbox.ts';
+export type { SandboxLimits, SandboxResult, SandboxRunOptions } from './sandbox/sandbox.ts';
+export { RUN_CODE, runCodeTool } from './tools/runCodeTool.ts';
+export type { CodeRun, RunCodeOutput } from './tools/runCodeTool.ts';
 
 // ── Serve it over A2A, or call a remote A2A agent ───────────────────────────
 export { createA2AApp, compileAgentCard, currentRequestContext } from './a2a/app.ts';

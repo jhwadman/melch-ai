@@ -31,6 +31,7 @@ import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from './tools/taskTools.ts';
 import { askUserTool } from './runtime/questions.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
+import { runCodeTool } from './tools/runCodeTool.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
 // can never drift from the definitions. The agentic composites
@@ -96,6 +97,9 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // Both reach the run's memory service, pinned to the root namespace.
   load_memory: asTool(loadMemoryTool),
   preload_memory: preloadMemoryTool,
+  // JavaScript in the engine's QuickJS sandbox (lib/tools/runCodeTool.ts,
+  // ADR 0137): any provider; runs only under MELCHIZEDEK_CODE_SANDBOX=on.
+  run_code: runCodeTool,
 };
 
 // Null-prototype copy (as GUARD_MAP is): resolution and registration go

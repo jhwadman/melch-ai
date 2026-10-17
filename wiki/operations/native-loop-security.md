@@ -156,6 +156,8 @@ What does not stop it: a `{key}` placeholder puts state, which a tool or a model
 | root `max_concurrency` (default 4, at most 32) | subagent runs one orchestrator step starts at once; each level bounds its own ([ADR 0116](/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md)) | `tests/parallelDelegation.test.ts` |
 | `MAX_VALUE_DEPTH` (64) | nesting of a call's arguments and a tool's result | `tests/nativeFuzz.test.ts` |
 | 16 levels | a `yaml_reference` chain | `tests/compile.test.ts` |
+| the code sandbox: 64 MB, 1 MB stack, 5 s of compute, a worker per run, `MELCHIZEDEK_CODE_SANDBOX_WORKERS` (16) at once | a `run_code` call and a `script:` run; off unless `MELCHIZEDEK_CODE_SANDBOX=on` ([ADR 0137](/decisions/0137-script-orchestration-and-sandboxed-code.md), [Run code](/tools/run-code.md)) | `tests/codeSandbox.test.ts` |
+| `SCRIPT_CALL_LIMIT` (1,000) | the calls one script run journals | `tests/scriptOrchestration.test.ts` |
 
 ## Findings
 

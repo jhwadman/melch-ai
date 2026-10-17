@@ -489,6 +489,27 @@ export function approvalAnswer(rawParts: unknown[], pending: PendingApproval): {
   return undefined;
 }
 
+/** The `code_runs` artifact: one `code_run` data part per run an attaching agent made (ADR 0137 item 3). */
+function publishCodeRuns(eventBus: ExecutionEventBus, taskId: string, contextId: string, runs: ReadonlyArray<object>): void {
+  eventBus.publish(
+    AgentEvent.artifactUpdate({
+      taskId,
+      contextId,
+      artifact: {
+        artifactId: 'code_runs',
+        name: 'code_runs',
+        description: 'The code the answer rests on, and what it returned',
+        parts: runs.map((run): Part => ({ content: { $case: 'data', value: run }, metadata: undefined, filename: '', mediaType: 'application/json' })),
+        metadata: undefined,
+        extensions: [],
+      },
+      append: false,
+      lastChunk: true,
+      metadata: undefined,
+    }),
+  );
+}
+
 function publishFinal(eventBus: ExecutionEventBus, taskId: string, contextId: string, state: FinalState, text?: string): void {
   eventBus.publish(
     AgentEvent.statusUpdate({
@@ -822,6 +843,8 @@ export class SyndicateExecutor implements AgentExecutor {
       }
 
       log(`✓ Task ${short} complete — ${result.text.length.toLocaleString()} chars, ${spent}`);
+      // run_code's attach (ADR 0137): the code an answer rests on, and its result, as data parts beside it.
+      if (result.codeRuns?.length) publishCodeRuns(eventBus, taskId, contextId, result.codeRuns);
       publishFinal(eventBus, taskId, contextId, 'completed', result.text || undefined);
       await report(ctx, 'completed', undefined, u);
 

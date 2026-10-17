@@ -943,6 +943,17 @@
           "type": "string",
           "const": "gemini"
         },
+        "run_code": {
+          "description": "How this agent's run_code tool behaves (ADR 0137). Needs run_code in `tools`.",
+          "type": "object",
+          "properties": {
+            "attach": {
+              "description": "Put each run's code and result on the reply as a code_run data part. Default false.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
         "context": {
           "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
           "type": "object",
@@ -1967,6 +1978,17 @@
             "type": "string",
             "const": "gemini"
           },
+          "run_code": {
+            "description": "How this agent's run_code tool behaves (ADR 0137). Needs run_code in `tools`.",
+            "type": "object",
+            "properties": {
+              "attach": {
+                "description": "Put each run's code and result on the reply as a code_run data part. Default false.",
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
           "context": {
             "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
             "type": "object",
@@ -2301,6 +2323,39 @@
       ],
       "additionalProperties": false,
       "description": "Opts into a WORKFLOW: the syndicate as a graph (lib/workflow.ts). Cannot be combined with dispatch."
+    },
+    "script": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "description": "One JavaScript module whose default export is an async function of { message, variables, agent, tool, askUser, parallel, now, random, log }: the orchestration. Its return value is the answer. {{token}} interpolation does not touch it; it reads `variables`."
+        },
+        "models": {
+          "description": "The models agent(name, input, { model }) may move a call to; each agent is compiled and checked on every one at load.",
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tools": {
+          "description": "The registry tools tool(name, args) may run; the only path from the script to the network or the host.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false,
+      "description": "Opts into SCRIPT orchestration (lib/script/): the syndicate's logic as code run in the engine's sandbox. Needs MELCHIZEDEK_CODE_SANDBOX=on. Cannot be combined with dispatch or workflow."
     },
     "retries": {
       "description": "Self-correction on model and tool errors: the engine's reflect-and-retry. On by default.",

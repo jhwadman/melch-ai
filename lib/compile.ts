@@ -39,6 +39,7 @@ import { relative } from 'node:path';
 
 import { isDispatchSyndicate } from './dispatch.ts';
 import { isWorkflowSyndicate, nodeKind } from './workflowConfig.ts';
+import { isScriptSyndicate } from './script/config.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
 import type { ReasoningSetting, SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
@@ -494,7 +495,10 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
  */
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
-  return (opts.loadNested ?? loadSyndicate)(ref);
+  const nested = (opts.loadNested ?? loadSyndicate)(ref);
+  // A script syndicate runs as its script, which nothing nested runs yet (ADR 0137 item 15): refused, never compiled as its orchestrator alone.
+  if (isScriptSyndicate(nested)) throw new Error(`${ref}: a script syndicate cannot be nested yet (ADR 0137 item 15); call its agents from the outer syndicate, or make the outer syndicate a script that calls them.`);
+  return nested;
 }
 
 /**

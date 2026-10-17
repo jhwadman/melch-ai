@@ -2,29 +2,29 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-16"
+    "at": "2026-10-17"
   },
   "stats": {
-    "nodes": 1005,
-    "edges": 4203,
+    "nodes": 1018,
+    "edges": 4266,
     "byKind": {
-      "doc": 204,
+      "doc": 207,
       "provider": 6,
-      "env": 111,
+      "env": 112,
       "model": 10,
-      "tool": 34,
-      "file": 224,
+      "tool": 35,
+      "file": 226,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 19,
-      "module": 200,
+      "module": 206,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 989,
-      "requires_env": 170,
+      "links_to": 1001,
+      "requires_env": 171,
       "routes_to": 10,
       "defined_in": 81,
       "documents": 59,
@@ -33,22 +33,22 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 903,
+      "imports": 926,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1151,
+      "derives_from": 1177,
       "constrains": 255,
-      "supersedes": 21,
+      "supersedes": 22,
       "depends_on": 148,
       "explains": 54,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3720,
-      "inferred": 483
+      "extracted": 3782,
+      "inferred": 484
     },
-    "isolated": 4
+    "isolated": 5
   },
   "nodes": [
     {
@@ -840,7 +840,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 587
+        "words": 649
       }
     },
     {
@@ -2044,6 +2044,18 @@
       }
     },
     {
+      "id": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "kind": "doc",
+      "label": "ADR 0137: A syndicate may orchestrate with a script run in a QuickJS sandbox, resumed by replaying a journal of its calls, and agents get a provider-neutral run_code tool in the same sandbox",
+      "source": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 4670
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2268,7 +2280,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 3476
+        "words": 3528
       }
     },
     {
@@ -2304,7 +2316,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 516
+        "words": 536
       }
     },
     {
@@ -2329,6 +2341,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 8729
+      }
+    },
+    {
+      "id": "/overview/script-orchestration.md",
+      "kind": "doc",
+      "label": "Script orchestration",
+      "source": "/overview/script-orchestration.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 827
       }
     },
     {
@@ -2437,6 +2461,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 889
+      }
+    },
+    {
+      "id": "/tools/run-code.md",
+      "kind": "doc",
+      "label": "Run code",
+      "source": "/tools/run-code.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 520
       }
     },
     {
@@ -3841,6 +3877,12 @@
       "attrs": {}
     },
     {
+      "id": "env:MELCHIZEDEK_CODE_SANDBOX_WORKERS",
+      "kind": "env",
+      "label": "MELCHIZEDEK_CODE_SANDBOX_WORKERS",
+      "source": "lib/sandbox/sandbox.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_DB_SCHEMA",
       "kind": "env",
       "label": "MELCHIZEDEK_DB_SCHEMA",
@@ -5009,6 +5051,13 @@
       "source": "tests/claudeVision.test.ts"
     },
     {
+      "id": "file:tests/codeSandbox.test.ts",
+      "kind": "file",
+      "label": "codeSandbox.test.ts",
+      "source": "tests/codeSandbox.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/compaction.test.ts",
       "kind": "file",
       "label": "compaction.test.ts",
@@ -5512,6 +5561,13 @@
       "source": "tests/rlsStatus.test.ts"
     },
     {
+      "id": "file:tests/scriptOrchestration.test.ts",
+      "kind": "file",
+      "label": "scriptOrchestration.test.ts",
+      "source": "tests/scriptOrchestration.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/selfCorrection.test.ts",
       "kind": "file",
       "label": "selfCorrection.test.ts",
@@ -5856,7 +5912,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 878
+        "lines": 901
       }
     },
     {
@@ -5973,7 +6029,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 722
+        "lines": 726
       }
     },
     {
@@ -6045,7 +6101,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 135
+        "lines": 144
       }
     },
     {
@@ -6063,7 +6119,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 791
+        "lines": 812
       }
     },
     {
@@ -6657,7 +6713,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 139
+        "lines": 143
       }
     },
     {
@@ -6693,7 +6749,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1579
+        "lines": 1828
       }
     },
     {
@@ -6712,6 +6768,51 @@
       "source": "lib/runtime/valueDepth.ts",
       "attrs": {
         "lines": 40
+      }
+    },
+    {
+      "id": "module:lib/sandbox/sandbox.ts",
+      "kind": "module",
+      "label": "lib/sandbox/sandbox.ts",
+      "source": "lib/sandbox/sandbox.ts",
+      "attrs": {
+        "lines": 339
+      }
+    },
+    {
+      "id": "module:lib/sandbox/worker.ts",
+      "kind": "module",
+      "label": "lib/sandbox/worker.ts",
+      "source": "lib/sandbox/worker.ts",
+      "attrs": {
+        "lines": 301
+      }
+    },
+    {
+      "id": "module:lib/script/config.ts",
+      "kind": "module",
+      "label": "lib/script/config.ts",
+      "source": "lib/script/config.ts",
+      "attrs": {
+        "lines": 35
+      }
+    },
+    {
+      "id": "module:lib/script/journal.ts",
+      "kind": "module",
+      "label": "lib/script/journal.ts",
+      "source": "lib/script/journal.ts",
+      "attrs": {
+        "lines": 166
+      }
+    },
+    {
+      "id": "module:lib/script/run.ts",
+      "kind": "module",
+      "label": "lib/script/run.ts",
+      "source": "lib/script/run.ts",
+      "attrs": {
+        "lines": 254
       }
     },
     {
@@ -6828,7 +6929,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1356
+        "lines": 1433
       }
     },
     {
@@ -6837,7 +6938,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 206
+        "lines": 210
       }
     },
     {
@@ -7027,6 +7128,15 @@
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
         "lines": 296
+      }
+    },
+    {
+      "id": "module:lib/tools/runCodeTool.ts",
+      "kind": "module",
+      "label": "lib/tools/runCodeTool.ts",
+      "source": "lib/tools/runCodeTool.ts",
+      "attrs": {
+        "lines": 81
       }
     },
     {
@@ -8735,6 +8845,12 @@
       "attrs": {
         "description": "Resolve ONE identifier to its record: an NCT number, a DOI, a PMID or a PMCID."
       }
+    },
+    {
+      "id": "tool:run_code",
+      "kind": "tool",
+      "label": "run_code",
+      "source": "lib/toolRegistry.ts"
     },
     {
       "id": "tool:search_literature",
@@ -11135,6 +11251,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0033-context-task-code.md:31"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:33"
     },
     {
       "from": "/decisions/0034-self-correction.md",
@@ -18473,6 +18596,125 @@
       "evidence": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md:24"
     },
     {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "file:tests/codeSandbox.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "file:tests/scriptOrchestration.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/sandbox/worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/script/journal.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/script/run.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/tools/runCodeTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md:56"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21071,6 +21313,13 @@
     },
     {
       "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:159"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21082,6 +21331,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/native-loop-security.md:34"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/tools/run-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:159"
     },
     {
       "from": "/operations/parity-harness.md",
@@ -21456,6 +21712,13 @@
     },
     {
       "from": "/overview/architecture.md",
+      "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21478,6 +21741,13 @@
     {
       "from": "/overview/architecture.md",
       "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/overview/script-orchestration.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:27"
@@ -22216,6 +22486,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:76"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "file:tests/scriptOrchestration.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "module:lib/script/config.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "module:lib/script/journal.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "module:lib/script/run.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md frontmatter"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md:23"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
+      "to": "/tools/run-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md:23"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -23567,6 +23893,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md:49"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "file:tests/codeSandbox.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md frontmatter"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md frontmatter"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "module:lib/sandbox/worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md frontmatter"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "module:lib/tools/runCodeTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md frontmatter"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md:21"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "/decisions/0132-local-mcp-servers-over-stdio.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md:31"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md:31"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "/overview/script-orchestration.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md:39"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -26174,6 +26556,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/script/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26622,6 +27011,27 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/script/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/script/run.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/storage/postgres/index.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26637,6 +27047,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/tools/runCodeTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -26700,6 +27117,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/script/config.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -29303,6 +29727,13 @@
     },
     {
       "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
       "to": "module:lib/tools/auth.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29513,7 +29944,35 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/script/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/script/journal.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/script/run.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/session/transcript.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/toolRegistry.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -29528,6 +29987,20 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/tools/runCodeTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -29587,6 +30060,55 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/turnControl.ts"
+    },
+    {
+      "from": "module:lib/sandbox/sandbox.ts",
+      "to": "env:MELCHIZEDEK_CODE_SANDBOX_WORKERS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/sandbox/sandbox.ts"
+    },
+    {
+      "from": "module:lib/script/journal.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/journal.ts"
+    },
+    {
+      "from": "module:lib/script/journal.ts",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/journal.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/script/journal.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
     },
     {
       "from": "module:lib/session/supabaseSessionService.ts",
@@ -29920,6 +30442,13 @@
     {
       "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/nativeTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/runCodeTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
@@ -30427,6 +30956,27 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/runCodeTool.ts",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/runCodeTool.ts"
+    },
+    {
+      "from": "module:lib/tools/runCodeTool.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/runCodeTool.ts"
+    },
+    {
+      "from": "module:lib/tools/runCodeTool.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/runCodeTool.ts"
     },
     {
       "from": "module:lib/tools/science/corrections.ts",

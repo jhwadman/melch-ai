@@ -452,6 +452,12 @@ const agentFields = {
     .literal('gemini')
     .optional()
     .describe('"gemini": the model writes and runs Python in Gemini\'s server-side sandbox; nothing runs on this host. Gemini models only.'),
+  run_code: z
+    .strictObject({
+      attach: z.boolean().optional().describe('Put each run\'s code and result on the reply as a code_run data part. Default false.'),
+    })
+    .optional()
+    .describe('How this agent\'s run_code tool behaves (ADR 0137). Needs run_code in `tools`.'),
   context: z
     .strictObject({
       compact_after_tokens: z.number().int().min(1000).describe('Compact when the last request\'s prompt passed this many tokens.'),
@@ -591,6 +597,30 @@ const workflowSchema = z
   })
   .describe('Opts into a WORKFLOW: the syndicate as a graph (lib/workflow.ts). Cannot be combined with dispatch.');
 
+// ── Script (ADR 0137) ────────────────────────────────────────────────────────
+
+/** The largest `script.source` a syndicate may carry. */
+export const MAX_SCRIPT_SOURCE_CHARS = 64 * 1024;
+
+const scriptSchema = z
+  .strictObject({
+    source: z
+      .string()
+      .min(1)
+      .max(MAX_SCRIPT_SOURCE_CHARS)
+      .describe('One JavaScript module whose default export is an async function of { message, variables, agent, tool, askUser, parallel, now, random, log }: the orchestration. Its return value is the answer. {{token}} interpolation does not touch it; it reads `variables`.'),
+    models: z
+      .array(z.string().min(1))
+      .max(16)
+      .optional()
+      .describe('The models agent(name, input, { model }) may move a call to; each agent is compiled and checked on every one at load.'),
+    tools: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('The registry tools tool(name, args) may run; the only path from the script to the network or the host.'),
+  })
+  .describe('Opts into SCRIPT orchestration (lib/script/): the syndicate\'s logic as code run in the engine\'s sandbox. Needs MELCHIZEDEK_CODE_SANDBOX=on. Cannot be combined with dispatch or workflow.');
+
 // ── Syndicate ────────────────────────────────────────────────────────────────
 
 export const syndicateSchema = z
@@ -603,6 +633,7 @@ export const syndicateSchema = z
       .describe('The orchestrator\'s team. Omit it (or write `subagents: []`) for a single-agent syndicate.'),
     dispatch: dispatchSchema.optional(),
     workflow: workflowSchema.optional(),
+    script: scriptSchema.optional(),
     retries: z
       .strictObject({
         model_errors: z.number().int().min(0).max(5).optional().describe('Retries of a malformed model reply. Default 2; 0 off.'),
@@ -736,6 +767,8 @@ function knownKeysAt(p: Path): readonly string[] {
       return Object.keys(dispatchSchema.shape);
     case 'dispatch/route_overrides/#':
       return Object.keys(routeOverride.shape);
+    case 'script':
+      return Object.keys(scriptSchema.shape);
     case 'orchestrator/orchestration':
     case 'subagents/#/orchestration':
       return ['role', 'delegates'];
@@ -966,14 +999,22 @@ function crossFieldProblems(raw: unknown): Problem[] {
     if (agent.code_execution !== undefined && model && !/^gemini-/.test(model)) {
       out.push({ path: [...path, 'code_execution'], message: `code_execution: gemini needs a gemini-* model (this agent's is ${model})` });
     }
-    if (agent.context !== undefined && (!isOrchestrator || isObj(raw.dispatch) || isObj(raw.workflow))) {
+    if (agent.context !== undefined && (!isOrchestrator || isObj(raw.dispatch) || isObj(raw.workflow) || isObj(raw.script))) {
       out.push({
         path: [...path, 'context'],
-        message: 'context compaction applies to the orchestrator of a delegate syndicate: a dispatch route reads a bounded projection, a workflow node sees only its input, and a subagent starts fresh on every call',
+        message: 'context compaction applies to the orchestrator of a delegate syndicate: a dispatch route reads a bounded projection, a workflow node sees only its input, a script\'s agent() call starts fresh, and a subagent starts fresh on every call',
       });
     }
-    if (agent.mode !== undefined && !isObj(raw.workflow)) {
-      out.push({ path: [...path, 'mode'], message: 'mode: task applies to workflow nodes, whose output is the finish_task arguments' });
+    if (agent.mode !== undefined && !isObj(raw.workflow) && !isObj(raw.script)) {
+      out.push({ path: [...path, 'mode'], message: 'mode: task applies to workflow nodes and script agents, whose output is the finish_task arguments' });
+    }
+    // run_code (ADR 0137): the key configures the tool, so the tool must be listed; a nested or remote agent sets its own.
+    if (agent.run_code !== undefined) {
+      if (typeof agent.yaml_reference === 'string' || typeof agent.a2a_agent_url === 'string') {
+        out.push({ path: [...path, 'run_code'], message: 'applies to an inline agent; a nested syndicate (yaml_reference) or a remote agent (a2a_agent_url) sets its own' });
+      } else if (!(Array.isArray(agent.tools) && agent.tools.includes('run_code'))) {
+        out.push({ path: [...path, 'run_code'], message: 'configures the run_code tool, which this agent\'s tools do not list; add run_code to tools' });
+      }
     }
     if (agent.mcp_tools !== undefined && typeof agent.mcp_server_url !== 'string') {
       out.push({ path: [...path, 'mcp_tools'], message: 'mcp_tools chooses among an MCP server\'s tools; it needs mcp_server_url' });
@@ -991,12 +1032,14 @@ function crossFieldProblems(raw: unknown): Problem[] {
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);
   // max_concurrency bounds an orchestrator's delegated calls (ADR 0116): a workflow bounds its nodes under workflow:, and a dispatch classifier delegates nothing.
-  if (raw.max_concurrency !== undefined && (isObj(raw.workflow) || isObj(raw.dispatch))) {
+  if (raw.max_concurrency !== undefined && (isObj(raw.workflow) || isObj(raw.dispatch) || isObj(raw.script))) {
     out.push({
       path: ['max_concurrency'],
       message: isObj(raw.workflow)
         ? 'max_concurrency at the root bounds a delegate orchestrator\'s subagent calls; a workflow bounds its nodes with workflow.max_concurrency'
-        : 'max_concurrency bounds a delegate orchestrator\'s subagent calls; a dispatch syndicate\'s classifier delegates nothing (set it in a route\'s own syndicate file)',
+        : isObj(raw.script)
+          ? 'max_concurrency at the root bounds a delegate orchestrator\'s subagent calls; a script bounds its own with parallel(thunks, { max })'
+          : 'max_concurrency bounds a delegate orchestrator\'s subagent calls; a dispatch syndicate\'s classifier delegates nothing (set it in a route\'s own syndicate file)',
     });
   }
   for (const [i, sub] of (Array.isArray(raw.subagents) ? raw.subagents : []).entries()) if (isObj(sub)) executionProblems(sub, ['subagents', i], false);
@@ -1077,6 +1120,7 @@ function crossFieldProblems(raw: unknown): Problem[] {
   });
 
   if (isObj(raw.workflow)) out.push(...workflowProblems(raw, subs));
+  if (isObj(raw.script)) out.push(...scriptProblems(raw, subs));
 
   // Names must be unique across the tree this file declares: two AgentTools
   // with one name collide, and dispatch routes by name.
@@ -1249,6 +1293,39 @@ function workflowProblems(raw: Record<string, unknown>, subs: unknown[]): Proble
 }
 
 /** Where an agent declares an authorization_code grant (mcp_auth, mcp_servers[].auth, openapi[].auth), by its path below the agent. */
+/**
+ * The rules a `script:` syndicate keeps (ADR 0137), which a JSON Schema
+ * cannot say: it is one orchestration method, not three; a pause inside a
+ * called agent cannot be replayed in this version (item 12), so the gates,
+ * the ask_user tool, skill scripts and per-user OAuth consent are refused on
+ * its agents by name, and the script's own askUser is its pause; and an
+ * agent that runs Gemini's code execution can be moved only to Gemini models.
+ */
+function scriptProblems(raw: Record<string, unknown>, subs: unknown[]): Problem[] {
+  const out: Problem[] = [];
+  const script = raw.script as Record<string, unknown>;
+  if (isObj(raw.dispatch)) out.push({ path: ['script'], message: 'a syndicate orchestrates with a script or a plan-dispatch router, not both; remove `dispatch` (the script can route)' });
+  if (isObj(raw.workflow)) out.push({ path: ['script'], message: 'a syndicate orchestrates with a script or a workflow graph, not both; remove `workflow`' });
+  const models = Array.isArray(script.models) ? script.models.filter((m): m is string => typeof m === 'string') : [];
+  const agents: Array<[Path, Record<string, unknown>]> = [];
+  if (isObj(raw.orchestrator)) agents.push([['orchestrator'], raw.orchestrator]);
+  subs.forEach((sub, i) => isObj(sub) && agents.push([['subagents', i], sub]));
+  const pausesInside = 'a pause inside an agent a script calls cannot be resumed in this version (ADR 0137 item 12); pause in the script with askUser';
+  for (const [path, agent] of agents) {
+    if (agent.require_approval !== undefined) out.push({ path: [...path, 'require_approval'], message: pausesInside });
+    const tools = Array.isArray(agent.tools) ? agent.tools : [];
+    const asks = tools.indexOf('ask_user');
+    if (asks !== -1) out.push({ path: [...path, 'tools', asks], message: pausesInside });
+    if (isObj(agent.skills) && agent.skills.scripts === 'local') out.push({ path: [...path, 'skills', 'scripts'], message: `skill scripts pause for approval; ${pausesInside}` });
+    for (const grant of authorizationCodeGrants(agent)) out.push({ path: [...path, ...grant], message: `an authorization_code grant pauses for the person's consent; ${pausesInside}` });
+    if (agent.code_execution !== undefined) {
+      const other = models.find((m) => !/^gemini-/.test(m));
+      if (other) out.push({ path: [...path, 'code_execution'], message: `code_execution: gemini needs a gemini-* model, and script.models lets agent() move this agent to ${other}` });
+    }
+  }
+  return out;
+}
+
 function authorizationCodeGrants(agent: Record<string, unknown>): Path[] {
   const out: Path[] = [];
   const isCode = (auth: unknown): boolean => isObj(auth) && isObj(auth.oauth2) && auth.oauth2.grant === 'authorization_code';
