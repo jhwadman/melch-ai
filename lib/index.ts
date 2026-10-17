@@ -59,8 +59,8 @@ export type { WorkflowConfig, WorkflowNodeYaml, EdgeElement, PendingInput } from
 // SCRIPT orchestration and the code sandbox (ADR 0137).
 export { isScriptSyndicate } from './script/config.ts';
 export type { ScriptConfig } from './script/config.ts';
-export { runScript, ScriptFatal, SCRIPT_CALL_LIMIT } from './script/run.ts';
-export type { ScriptHost, ScriptRunInput, ScriptRunOutcome } from './script/run.ts';
+export { openRun, runScript, ScriptFatal, SCRIPT_CALL_LIMIT } from './script/run.ts';
+export type { JournalEntry, OpenRun, ScriptCallSite, ScriptHost, ScriptPauseRecord, ScriptPinRecord, ScriptRunInput, ScriptRunOutcome } from './script/run.ts';
 export { CODE_SANDBOX_ENV, CodeSandboxOffError, DEFAULT_SANDBOX_LIMITS, SandboxHalt, codeSandboxEnabled, runInSandbox } from './sandbox/sandbox.ts';
 export type { SandboxLimits, SandboxResult, SandboxRunOptions } from './sandbox/sandbox.ts';
 export { RUN_CODE, runCodeTool } from './tools/runCodeTool.ts';

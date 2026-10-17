@@ -66,6 +66,10 @@ import type { PendingInput } from '../workflowConfig.ts';
 import { approvalEvent, callEvent, callHash, endEvent, pauseEvent, sourceHash } from './journal.ts';
 import type { JournalEntry, ScriptCallKind, ScriptCallOutcome, ScriptCallRecord, ScriptPinRecord } from './journal.ts';
 
+// A paused run's journal, for a client that shows it (melch-app's journal view): the reader and its shapes.
+export { openRun, scriptPauseIn, SCRIPT_CALL, SCRIPT_PAUSE, SCRIPT_RUN } from './journal.ts';
+export type { JournalEntry, OpenRun, ScriptCallKind, ScriptCallOutcome, ScriptCallRecord, ScriptPauseRecord, ScriptPinRecord } from './journal.ts';
+
 /** The most calls one run may journal (item 13), as a walk has NODE_RUN_LIMIT. */
 export const SCRIPT_CALL_LIMIT = 1_000;
 

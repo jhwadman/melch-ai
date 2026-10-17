@@ -70,12 +70,16 @@ does not.
   runs. A syndicate with a script or a `run_code` agent is refused with
   `CodeSandboxOffError` when a turn starts while the switch is off.
 - **Package surface.** New subpaths `melchizedek-agents/script`
-  (`runScript`, `ScriptFatal`, `SCRIPT_CALL_LIMIT`) and
+  (`runScript`, `ScriptFatal`, `SCRIPT_CALL_LIMIT`, and the journal reader
+  `openRun` / `scriptPauseIn` with the `SCRIPT_*` marker keys and the
+  `JournalEntry`, `OpenRun`, `ScriptCallRecord`, `ScriptPauseRecord`,
+  `ScriptPinRecord` types) and
   `melchizedek-agents/sandbox` (`runInSandbox`, `codeSandboxEnabled`,
   `refuseWithoutSandbox`, `CodeSandboxOffError`, `SandboxHalt`,
   `DEFAULT_SANDBOX_LIMITS`). The barrel adds those plus
-  `isScriptSyndicate`, `runCodeTool`, `RUN_CODE` and the types
-  `ScriptConfig`, `ScriptHost`, `ScriptRunInput`, `ScriptRunOutcome`,
+  `isScriptSyndicate`, `openRun`, `runCodeTool`, `RUN_CODE` and the types
+  `ScriptConfig`, `ScriptHost`, `ScriptCallSite`, `JournalEntry`, `OpenRun`,
+  `ScriptPauseRecord`, `ScriptPinRecord`, `ScriptRunInput`, `ScriptRunOutcome`,
   `SandboxLimits`, `SandboxResult`, `SandboxRunOptions`, `CodeRun`,
   `RunCodeOutput`.
 
