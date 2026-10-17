@@ -109,7 +109,10 @@ import { RUN_CODE } from '../tools/runCodeTool.ts';
 import { resolveTools } from '../toolRegistry.ts';
 import { capResult, createToolContext, toolOf } from '../tools/tool.ts';
 import { isScriptSyndicate } from '../script/config.ts';
-import { openRun } from '../script/journal.ts';
+import { journalsEveryCall, openRun } from '../script/journal.ts';
+import type { JournalEntry } from '../script/journal.ts';
+import type { ScriptCallSite } from '../script/run.ts';
+import { toEngineAgent } from '../agentDialect.ts';
 import { ScriptFatal, runScript } from '../script/run.ts';
 import type { CodeRun } from '../tools/runCodeTool.ts';
 export type { CodeRun } from '../tools/runCodeTool.ts';
@@ -989,6 +992,10 @@ async function runTurnInner(
     errorPolicy?: 'fail' | 'collect';
     /** Neither its events nor its text reach the caller's onEvent and onTextDelta (a script's fresh agent() call). Default: only the classifier is quiet. */
     quiet?: boolean;
+    /** A script's agent() call: its events also reach events.onAgentEvent under this branch (ADR 0135). */
+    branch?: AgentBranch;
+    /** Added to the run's root span (a script's run and call, ADR 0137 item 16). */
+    traceAttributes?: Record<string, string | number | boolean>;
   }): Promise<DrainedRun> => {
     let stream: AsyncIterable<TurnEvent>;
     if (params.agent.runtime === 'native-workflow') {
@@ -1046,7 +1053,7 @@ async function runTurnInner(
         taskId: trace.taskId,
         stage: params.stage,
         configHash: trace.configHash,
-        attributes: trace.attributes,
+        attributes: params.traceAttributes ? { ...trace.attributes, ...params.traceAttributes } : trace.attributes,
         onSpanStart: trace.onSpanStart,
         traceparent: trace.traceparent,
         onEnd: () => ({
@@ -1055,6 +1062,22 @@ async function runTurnInner(
           'syndicate.llm_calls': control.llmCalls,
         }),
       });
+    }
+    // A script's agent() call reports live, as a delegated run does (ADR 0135); an observer that throws is ignored.
+    const sink = params.branch ? control.agentEvents : undefined;
+    if (sink && params.branch) {
+      const source = stream;
+      const branch = params.branch;
+      stream = (async function* tap() {
+        for await (const event of source) {
+          try {
+            sink(event, branch);
+          } catch {
+            // ignored
+          }
+          yield event;
+        }
+      })();
     }
     try {
       const quiet = params.quiet ?? params.stage === 'classify';
@@ -1231,8 +1254,8 @@ async function runTurnInner(
    * A script syndicate's turn (ADR 0137 Part B). The host side of
    * lib/script/run.ts: what agent() and tool() do, where the journal goes,
    * and what the conversation keeps. Returns the finished result when the
-   * turn ends here (paused or failed); otherwise result.text and
-   * result.answer are set and the guards run on them.
+   * turn ends here (paused, waiting for an approval, or failed); otherwise
+   * result.text and result.answer are set and the guards run on them.
    *
    * agent(name, input, opts) runs a declared agent on its own throwaway
    * session seeing only `input` (text, or JSON sent as its text; null sends
@@ -1240,40 +1263,82 @@ async function runTurnInner(
    * it runs as a dispatch route runs, on the conversation through the
    * projection, its input and answer stored there, its reply streamed.
    * `model` (one of script.models), `reasoning` and `temperature` change the
-   * call's agent, compiled once per turn per combination. It returns the
-   * parsed JSON when the agent has an output schema, else its text; a run
-   * that failed throws into the script, which may catch it (fail-static).
+   * call's agent, compiled once per turn per combination, every pairing
+   * checked before the run starts (item 7). It returns the parsed JSON when
+   * the agent has an output schema, else its text; a run that failed throws
+   * into the script, which may catch it (fail-static). A `yaml_reference` to
+   * a workflow, dispatch or script syndicate runs as a turn or walk of its
+   * own on a throwaway lane, and a pause inside it fails the turn by name
+   * (item 12). Its events reach events.onAgentEvent with the branch path
+   * [<script>, <agent>] (ADR 0135).
    */
   const runScriptTurn = async (): Promise<SyndicateTurnResult | undefined> => {
     const script = (config as SyndicateYamlConfig & { script: NonNullable<SyndicateYamlConfig['script']> }).script;
     const scriptName = config.syndicate_name || config.orchestrator.name;
     const key = { appName, userId, sessionId };
     const before = existing?.events ?? [];
-    const open = openRun(before, scriptName);
-    const resume = open ? { run: open.pause.run, entries: open.entries, answer: messageText } : undefined;
-    const runMessage = open ? open.pause.message : messageText;
-    const transcript = open ? open.pause.transcript : renderTranscriptDigest(before);
-    const declared = new Map<string, SubagentYamlConfig>();
-    declared.set(config.orchestrator.name, { description: '', ...config.orchestrator } as SubagentYamlConfig);
-    for (const sub of config.subagents ?? []) declared.set(sub.name, sub);
-    const models = new Set(script.models ?? []);
-    const allowedTools = new Set(script.tools ?? []);
-    const compiled = new Map<string, Promise<{ agent: TurnAgent; outputSchema: boolean }>>();
-    const aggregate = emptyRun();
-    let conversationAnswer: string | undefined;
-    let userRecorded = false;
     const invocationId = `e-${randomUUID()}`;
     const appendHere = async (event: TurnEvent) => {
       const session = await sessionService.get(key);
       if (!session) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
       await sessionService.append(session, event);
     };
+    let userRecorded = false;
     /** The person's message, once, unless a conversation call stored it. */
     const recordUser = async () => {
       if (userRecorded) return;
       userRecorded = true;
       await appendHere(createTurnEvent({ invocationId, author: 'user', content: { role: 'user', parts } as any }));
     };
+    // A durable run (ADR 0113) stores the message first and each call as it ends, so a restored checkpoint holds the
+    // run's journal; the restore answers that first append with the stored events, so the run is read after it.
+    const durable = journalsEveryCall(sessionService);
+    if (durable) await recordUser();
+    const stored = durable ? ((await sessionService.get(key))?.events ?? before) : before;
+    const found = openRun(stored, scriptName);
+    // A run left mid-way resumes only under the durable store, whose retry is the same message; elsewhere the message is new.
+    const open = found && (found.state === 'paused' || durable) ? found : undefined;
+    const declared = new Map<string, SubagentYamlConfig>();
+    declared.set(config.orchestrator.name, { description: '', ...config.orchestrator } as SubagentYamlConfig);
+    for (const sub of config.subagents ?? []) declared.set(sub.name, sub);
+    const models = new Set(script.models ?? []);
+    const allowedTools = new Set(script.tools ?? []);
+    const gatedTools = new Set(script.require_approval ?? []);
+
+    // Every agent × model pairing a call may ask for, checked before anything runs (item 7).
+    for (const model of models) {
+      try {
+        (compileOpts.resolveModel ?? ((m) => m))(model);
+        for (const yaml of declared.values()) {
+          if (yaml.yaml_reference || yaml.a2a_agent_url) continue;
+          withReasoning(toEngineAgent(yaml) as { name: string; reasoning?: SubagentYamlConfig['reasoning']; generateContentConfig?: object }, model);
+        }
+      } catch (err) {
+        result.status = 'failed';
+        result.failedStage = 'script';
+        result.error = { code: 'SCRIPT_MODEL_INVALID', message: `script.models: ${model}: ${err instanceof Error ? err.message : String(err)}` };
+        return finish();
+      }
+    }
+
+    // What the open run waits on decides what this message is (lib/script/journal.ts openRun).
+    let resume: { run: string; entries: JournalEntry[]; answer?: string; decision?: { approved: boolean } } | undefined;
+    if (open?.state === 'paused' && open.pause?.kind === 'approval') {
+      const waiting = pendingApproval(before);
+      // A message that is not the decision repeats the request; nothing runs, as a workflow's gated node answers it.
+      if (!decision) return waiting ? pause(waiting) : undefined;
+      resume = { run: open.pin.run, entries: open.entries, decision: { approved: decision.approved } };
+    } else if (open?.state === 'paused') {
+      resume = { run: open.pin.run, entries: open.entries, answer: messageText };
+    } else if (open) {
+      resume = { run: open.pin.run, entries: open.entries };
+    }
+    const runMessage = open ? open.pin.message : messageText;
+    const transcript = open ? open.pin.transcript : renderTranscriptDigest(before);
+
+    const compiled = new Map<string, Promise<{ agent: TurnAgent; outputSchema: boolean } | { own: DispatchSpec }>>();
+    const aggregate = emptyRun();
+    let conversationAnswer: string | undefined;
     const textOf = (value: unknown): string => (value === null || value === undefined ? runMessage : typeof value === 'string' ? value : JSON.stringify(value));
     const unfenced = (raw: string): string => {
       const fence = raw.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -1301,36 +1366,52 @@ async function runTurnInner(
     const stopped = () => {
       if (control.stopReason) throw new ScriptFatal(stopCode(control.stopReason), stopMessage(control.stopReason, control));
     };
-    const OPTIONS = new Set(['model', 'reasoning', 'temperature', 'conversation']);
+    const OPTIONS = new Set(['model', 'reasoning', 'temperature', 'sampling', 'conversation']);
     /** A called agent's failed run, thrown into the script; uncaught, the turn fails with the run's own code. */
     const runFailed = (name: string, error: { code: string; message: string }): Error => {
       const err = new Error(`${name} failed [${error.code}]: ${error.message}`);
       err.name = 'AgentRunError';
       return err;
     };
+    const pausedInside = (name: string) =>
+      new ScriptFatal('PAUSE_INSIDE_AGENT', `${name} paused for a person inside an agent() call, which a script cannot resume in this version (ADR 0137 item 12); pause in the script with askUser.`);
+    /** A throwaway lane for one call: it sees only its input, and its journal entry is its record. */
+    const lane = async (site: ScriptCallSite): Promise<{ sid: string; sessions: SessionService }> => {
+      const sid = `${sessionId}::script:${site.run}.${site.seq}`;
+      const sessions = new InProcessSessionService();
+      await sessions.create({ appName, userId, sessionId: sid });
+      return { sid, sessions };
+    };
 
     const outcome = await runScript(
-      { source: open ? open.pause.source : script.source, message: runMessage, transcript, variables: script.variables ?? {}, ...(resume ? { resume } : {}) },
+      { source: open ? open.pin.source : script.source, message: runMessage, transcript, variables: script.variables ?? {}, ...(resume ? { resume } : {}) },
       {
         script: scriptName,
         invocationId,
+        sessionId,
         signal: control.signal,
+        journalEveryCall: durable,
+        gated: (name) => gatedTools.has(name),
         log: (text) => {
           ev.log?.(`⇢ ${scriptName}: ${text.length.toLocaleString()} chars of progress`);
           ev.onProgress?.(text);
         },
         append: appendHere,
         beforePause: recordUser,
-        agent: async (name, input, o, seq) => {
+        agent: async (name, input, o, site) => {
           stopped();
           const yaml = declared.get(name);
           if (!yaml) throw new Error(`agent: '${name}' is not an agent of this syndicate (declared: ${[...declared.keys()].join(', ')})`);
-          for (const k of Object.keys(o)) if (!OPTIONS.has(k)) throw new Error(`agent(${name}): unknown option '${k}' (model, reasoning, temperature, conversation)`);
+          for (const k of Object.keys(o)) if (!OPTIONS.has(k)) throw new Error(`agent(${name}): unknown option '${k}' (model, reasoning, temperature or sampling.temperature, conversation)`);
+          const sampling = o.sampling as Record<string, unknown> | undefined;
+          if (sampling !== undefined && (typeof sampling !== 'object' || sampling === null || Object.keys(sampling).some((k) => k !== 'temperature'))) {
+            throw new Error(`agent(${name}): sampling takes temperature only`);
+          }
           const model = o.model;
           if (model !== undefined && (typeof model !== 'string' || (!models.has(model) && model !== yaml.model))) {
             throw new Error(`agent(${name}): the model '${String(model)}' is not in script.models (${[...models].join(', ') || 'none listed'})`);
           }
-          const temperature = o.temperature;
+          const temperature = o.temperature ?? sampling?.temperature;
           if (temperature !== undefined && typeof temperature !== 'number') throw new Error(`agent(${name}): temperature must be a number`);
           const reasoning = o.reasoning as SubagentYamlConfig['reasoning'] | undefined;
           const conversation = o.conversation === true;
@@ -1352,7 +1433,8 @@ async function runTurnInner(
               let spec: AgentSpec;
               if (yaml.yaml_reference) {
                 const built = await compileEntrySpec(yaml, compileOpts);
-                if (built.kind !== 'agent') throw new Error(`agent(${name}): ${yaml.yaml_reference} is a ${built.kind} syndicate, which a script cannot call in this version; call its agents, or make it a script`);
+                if (built.kind === 'workflow') return { agent: nativeWorkflowAgent(built.workflow, compileOpts), outputSchema: false };
+                if (built.kind === 'dispatch') return { own: built.dispatch };
                 spec = built.spec;
               } else {
                 spec = await compileSubagentSpec({ ...yaml, ...(typeof model === 'string' ? { model } : {}) } as SubagentYamlConfig, compileOpts);
@@ -1363,7 +1445,26 @@ async function runTurnInner(
             })();
             compiled.set(cacheKey, entry);
           }
-          const { agent, outputSchema } = await entry;
+          const built = await entry;
+          const branch: AgentBranch = { agent: name, path: [scriptName, name], callId: `${site.run}.${site.seq}` };
+          const traceAttributes = { 'script.name': scriptName, 'script.run': site.run, 'script.call.seq': site.seq };
+
+          // A nested dispatch or script syndicate: its own turn, on a throwaway conversation (ADR 0120, item 15).
+          if ('own' in built) {
+            if (conversation) throw new Error(`agent(${name}): conversation: true applies to an agent; ${yaml.yaml_reference} runs as a syndicate of its own`);
+            if (!control.nestedDispatch) throw new Error(`agent(${name}): nested syndicates need the turn's controls`);
+            const { sid, sessions } = await lane(site);
+            const end = await control.nestedDispatch({ config: built.own.config, compile: built.own.compile, name, sessions, appName, userId, sessionId: sid, parts: [{ text: textOf(input) }] });
+            stopped();
+            aggregate.agents.add(name);
+            if (end.status === 'input-required') throw pausedInside(name);
+            if (end.status === 'failed' || end.status === 'canceled') throw runFailed(name, end.error ?? { code: 'ROUTE_FAILED', message: `${name} failed.` });
+            return end.text;
+          }
+
+          const { agent, outputSchema } = built;
+          const workflow = agent.runtime === 'native-workflow';
+          if (workflow && conversation) throw new Error(`agent(${name}): conversation: true applies to an agent; ${yaml.yaml_reference} runs as a workflow of its own`);
           const userParts = conversation && input === null && !open ? parts : [{ text: textOf(input) }];
           let sid = sessionId;
           let sessions: SessionService;
@@ -1372,15 +1473,22 @@ async function runTurnInner(
             sessions = new ProjectedSessionService(sessionService, name, {});
             userRecorded = true;
           } else {
-            // A fresh lane, as the classifier's: the call sees only its input, and its journal entry is the record.
-            sid = `${sessionId}::script:${seq}`;
-            sessions = new InProcessSessionService();
-            await sessions.create({ appName, userId, sessionId: sid });
+            ({ sid, sessions } = await lane(site));
           }
-          const drained = await runAgent({ agent, sid, userParts, sessions, stage: 'script', publishToolStatus: true, quiet: !conversation });
+          let drained: DrainedRun;
+          try {
+            drained = await runAgent({ agent, sid, userParts, sessions, stage: 'script', publishToolStatus: true, quiet: !conversation, branch, traceAttributes, ...(workflow ? { errorPolicy: 'collect' as const } : {}) });
+          } catch (err) {
+            if (control.stopReason) throw new ScriptFatal(stopCode(control.stopReason), stopMessage(control.stopReason, control));
+            // A workflow node that gave up ends its walk by throwing, as at the top.
+            throw runFailed(name, { code: err instanceof NodeRunLimitError ? NODE_RUN_LIMIT : 'NODE_FAILED', message: (err as Error).message });
+          }
           stopped();
           merge(drained);
           if (drained.error) throw runFailed(name, drained.error);
+          // A pause inside the call (a gate, a question, a consent request) cannot be replayed in this version (item 12).
+          const after = (await sessions.get({ appName, userId, sessionId: sid }))?.events ?? [];
+          if (drained.inputRequests.length || (!conversation && (pendingApproval(after) || pendingConsent(after)))) throw pausedInside(name);
           if (conversation) conversationAnswer = drained.text;
           if (!outputSchema) return drained.text;
           try {
@@ -1418,6 +1526,7 @@ async function runTurnInner(
       return finish();
     }
     if (outcome.status === 'paused') return question(outcome.input);
+    if (outcome.status === 'approval') return pause(outcome.approval);
     const value = outcome.value;
     result.text = typeof value === 'string' ? value : value === null || value === undefined ? '' : JSON.stringify(value, null, 2);
     if (!result.text) {

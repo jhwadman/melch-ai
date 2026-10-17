@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 1018,
-    "edges": 4266,
+    "edges": 4276,
     "byKind": {
       "doc": 207,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 1001,
+      "links_to": 1002,
       "requires_env": 171,
       "routes_to": 10,
       "defined_in": 81,
@@ -33,7 +33,7 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 926,
+      "imports": 935,
       "reads_table": 28,
       "runs": 74,
       "derives_from": 1177,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3782,
+      "extracted": 3792,
       "inferred": 484
     },
     "isolated": 5
@@ -2052,7 +2052,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 4670
+        "words": 5076
       }
     },
     {
@@ -2352,7 +2352,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 827
+        "words": 1063
       }
     },
     {
@@ -6029,7 +6029,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 726
+        "lines": 728
       }
     },
     {
@@ -6506,7 +6506,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 650
+        "lines": 651
       }
     },
     {
@@ -6614,7 +6614,7 @@
       "label": "lib/runtime/native/checkpoint.ts",
       "source": "lib/runtime/native/checkpoint.ts",
       "attrs": {
-        "lines": 461
+        "lines": 465
       }
     },
     {
@@ -6650,7 +6650,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 870
+        "lines": 878
       }
     },
     {
@@ -6749,7 +6749,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1828
+        "lines": 1937
       }
     },
     {
@@ -6794,7 +6794,7 @@
       "label": "lib/script/config.ts",
       "source": "lib/script/config.ts",
       "attrs": {
-        "lines": 35
+        "lines": 37
       }
     },
     {
@@ -6803,7 +6803,7 @@
       "label": "lib/script/journal.ts",
       "source": "lib/script/journal.ts",
       "attrs": {
-        "lines": 166
+        "lines": 264
       }
     },
     {
@@ -6812,7 +6812,7 @@
       "label": "lib/script/run.ts",
       "source": "lib/script/run.ts",
       "attrs": {
-        "lines": 254
+        "lines": 429
       }
     },
     {
@@ -6929,7 +6929,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1433
+        "lines": 1441
       }
     },
     {
@@ -22531,6 +22531,13 @@
     },
     {
       "from": "/overview/script-orchestration.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/script-orchestration.md:71"
+    },
+    {
+      "from": "/overview/script-orchestration.md",
       "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -29117,6 +29124,13 @@
       "evidence": "lib/runtime/native/checkpoint.ts"
     },
     {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/script/journal.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
       "from": "module:lib/runtime/native/compaction.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -29301,6 +29315,13 @@
     {
       "from": "module:lib/runtime/native/interrupts.ts",
       "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/script/journal.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/interrupts.ts"
@@ -29790,6 +29811,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/compile.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30070,6 +30098,13 @@
     },
     {
       "from": "module:lib/script/journal.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/journal.ts"
+    },
+    {
+      "from": "module:lib/script/journal.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30081,6 +30116,34 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/script/journal.ts"
+    },
+    {
+      "from": "module:lib/script/journal.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/journal.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
     },
     {
       "from": "module:lib/script/run.ts",
@@ -30099,6 +30162,13 @@
     {
       "from": "module:lib/script/run.ts",
       "to": "module:lib/script/journal.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/script/run.ts"
+    },
+    {
+      "from": "module:lib/script/run.ts",
+      "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/script/run.ts"

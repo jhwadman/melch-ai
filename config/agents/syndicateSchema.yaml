@@ -206,7 +206,9 @@ dispatch:
 #     schema, else its text, and throws when the run fails. With
 #     `conversation: true` it answers in the conversation, as a dispatch
 #     route does. `model` must be in script.models.
-#   - tool(name, args) runs a registry tool listed in script.tools.
+#   - tool(name, args) runs a registry tool listed in script.tools; one
+#     also in script.require_approval waits for a person to approve the
+#     exact call (refused, the script gets { error }).
 #   - askUser(id, question, { payload?, schema? }) pauses the turn
 #     input-required; the next message resumes it, returning
 #     { reply, input }. The run replays its journal from the top, so a
@@ -217,9 +219,12 @@ dispatch:
 #     authorization_code grants are refused on a script's agents in this
 #     version (a pause inside a called agent cannot be replayed).
 #   - {{token}} interpolation does not touch `source`; read `variables`.
+#   - A yaml_reference to a script syndicate runs its whole script as a
+#     subagent, a route or a node, its pauses reaching the turn.
 # script:
 #   models: ["gemini-3.8-flash", "claude-opus-5-5"]
-#   tools: ["web_extract"]
+#   tools: ["web_extract", "publish"]
+#   require_approval: ["publish"]
 #   source: |
 #     export default async ({ message, agent, askUser, log }) => {
 #       const triage = await agent("OrchestratorName", message);

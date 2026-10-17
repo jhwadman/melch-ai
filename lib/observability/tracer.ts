@@ -403,10 +403,10 @@ function nonRecordingSpan(): Span {
  * the engine opens inside a turn goes through here or checks turnUntraced
  * itself.
  */
-export function startEngineSpan(tracerName: string, name: string, options?: SpanOptions): Span {
+export function startEngineSpan(tracerName: string, name: string, options?: SpanOptions, parent?: Context): Span {
   if (turnUntraced()) return nonRecordingSpan();
   initializeTracing();
-  return trace.getTracer(tracerName).startSpan(name, options);
+  return trace.getTracer(tracerName).startSpan(name, options, parent);
 }
 
 /** Turn identity by trace id, so llm.request children can carry it too. */

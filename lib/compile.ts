@@ -179,7 +179,7 @@ function gateTools(tools: unknown[], names: string[] | undefined, agentName: str
 
 /** True when any agent of a syndicate may pause for approval: a gated tool, or skill scripts. */
 export function declaresApprovals(config: SyndicateYamlConfig): boolean {
-  return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s));
+  return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s)) || !!config.script?.require_approval?.length;
 }
 
 export type { ExampleConfig };
@@ -316,9 +316,10 @@ export type SpecTool =
   | { kind: 'dispatch'; dispatch: DispatchSpec };
 
 /**
- * A nested dispatch (plan-dispatch) syndicate (ADR 0120): it runs as it
- * runs at the top, as a turn of its own on its own conversation (its
- * classifier picks a route, the route answers), so what it compiles to is
+ * A nested dispatch (plan-dispatch) syndicate (ADR 0120), or a nested
+ * script syndicate (ADR 0137 item 15): it runs as it runs at the top, as a
+ * turn of its own on its own conversation (its classifier picks a route and
+ * the route answers, or its script runs), so what it compiles to is
  * the file and the options its turn loads its routes with. The turn runner
  * runs it (lib/runtime/syndicateTurn.ts, TurnControl.nestedDispatch), as a
  * delegated call, a dispatch route or a workflow node.
@@ -495,10 +496,7 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
  */
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
-  const nested = (opts.loadNested ?? loadSyndicate)(ref);
-  // A script syndicate runs as its script, which nothing nested runs yet (ADR 0137 item 15): refused, never compiled as its orchestrator alone.
-  if (isScriptSyndicate(nested)) throw new Error(`${ref}: a script syndicate cannot be nested yet (ADR 0137 item 15); call its agents from the outer syndicate, or make the outer syndicate a script that calls them.`);
-  return nested;
+  return (opts.loadNested ?? loadSyndicate)(ref);
 }
 
 /**
@@ -606,8 +604,9 @@ export async function compileEntrySpec(subCfg: SubagentYamlConfig, opts: Compile
     if (isWorkflowSyndicate(nested)) {
       return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, nestedOpts, subCfg.name, subCfg.description, subCfg.yaml_reference, delegated) };
     }
-    // A nested dispatch syndicate classifies and routes as at the top (ADR 0120), wherever it runs.
-    if (isDispatchSyndicate(nested)) return { kind: 'dispatch', dispatch: compileDispatchEntry(subCfg, nested, nestedOpts) };
+    // A nested dispatch syndicate classifies and routes as at the top (ADR 0120), wherever it runs; a nested script
+    // syndicate runs its whole script the same way, as a turn of its own (ADR 0137 item 15).
+    if (isDispatchSyndicate(nested) || isScriptSyndicate(nested)) return { kind: 'dispatch', dispatch: compileDispatchEntry(subCfg, nested, nestedOpts) };
     return { kind: 'agent', spec: await compileSpec(nested, nestedOpts, subCfg.name, subCfg.description) };
   }
   return { kind: 'agent', spec: await compileSubagentSpec(subCfg, opts) };
@@ -645,6 +644,9 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     }
     if (isDispatchSyndicate(nested)) {
       throw new Error(`${subCfg.yaml_reference}: '${subCfg.name}' is a dispatch syndicate, which runs as its own turn (its classifier, then a route), not as one agent; compile the entry with compileEntrySpec (ADR 0120).`);
+    }
+    if (isScriptSyndicate(nested)) {
+      throw new Error(`${subCfg.yaml_reference}: '${subCfg.name}' is a script syndicate, which runs as its own turn (its script), not as one agent; compile the entry with compileEntrySpec (ADR 0137).`);
     }
     return compileSpec(nested, nestedOpts, subCfg.name, subCfg.description);
   }

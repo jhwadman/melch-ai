@@ -19,6 +19,8 @@ export interface ScriptConfig {
   models?: string[];
   /** The registry tools tool(name, args) may run. */
   tools?: string[];
+  /** Tools from `tools` whose every call waits for a person's approval. */
+  require_approval?: string[];
   /**
    * The syndicate's `variables`, bound as the loader bound them (the YAML's
    * defaults, then the caller's bindings): what the script reads as

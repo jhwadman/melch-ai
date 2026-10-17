@@ -24,7 +24,14 @@ import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { CodeSandboxOffError } from '../lib/sandbox/sandbox.ts';
 import { SCRIPT_CALL, openRun } from '../lib/script/journal.ts';
 import { runScript } from '../lib/script/run.ts';
-import { ScriptedModel, answer, requestTexts, shimResolver } from './helpers/scriptedModel.ts';
+import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
+import { z } from 'zod';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { approvalResponsePart } from '../lib/runtime/approvals.ts';
+import { runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
+import type { RunCheckpoint } from '../lib/runtime/native/checkpoint.ts';
+import { onSpanEnd } from '../lib/observability/tracer.ts';
 
 const APP = 'desk';
 const USER = 'u1';
@@ -161,7 +168,7 @@ test('script: askUser pauses the turn input-required; the answer resumes it by r
   assert.deepEqual(paused.input?.payload, { draft: 'analysis of: a risky question' });
   const events = (await sessions.get({ appName: APP, userId: USER, sessionId: 's1' }))!.events;
   const open = openRun(events, 'Desk');
-  assert.ok(open?.pause.source.includes('confirm-send'));
+  assert.ok(open?.pin.source.includes('confirm-send'));
   // The paused run stored its journal: one content-less event per call, then the pause.
   const journal = events.filter((e) => e.actions.agentState?.[SCRIPT_CALL]);
   assert.deepEqual(journal.map((e) => (e.actions.agentState![SCRIPT_CALL] as { kind: string }).kind), ['now', 'agent', 'agent', 'askUser']);
@@ -201,7 +208,7 @@ test('script: a resume whose recorded calls no longer match fails SCRIPT_DIVERGE
   // The recorded Triage call's argument hash, as a non-deterministic script would leave it.
   const entries = open.entries.map((e) => (e.name === 'Triage' ? { ...e, hash: 'tampered' } : e));
   const host = { script: 'Desk', invocationId: 'i', signal: new AbortController().signal, log: () => {}, append: async () => {}, agent: async () => ({ route: 'Analyst', risky: true }), tool: async () => null };
-  const r = await runScript({ source: open.pause.source, message: open.pause.message, transcript: '', variables: {}, resume: { run: open.pause.run, entries, answer: 'yes' } }, host);
+  const r = await runScript({ source: open.pin.source, message: open.pin.message, transcript: '', variables: {}, resume: { run: open.pin.run, entries, answer: 'yes' } }, host);
   assert.equal(r.status, 'failed');
   assert.equal(r.status === 'failed' && r.error.code, 'SCRIPT_DIVERGED');
   assert.match(r.status === 'failed' ? r.error.message : '', /agent\("Triage"\)/);
@@ -280,25 +287,225 @@ test('switch: a script syndicate is refused before any model call while the sand
   }
 });
 
-test('nesting: a yaml_reference to a script syndicate is refused by name, never run as its orchestrator alone', async () => {
-  const inner = deskConfig(ROUTER);
+// ── The rest of the ADR: nesting, gates, durability, spans, live events ──────
+
+let published = 0;
+registerTool(
+  'script_test_publish',
+  defineTool({
+    name: 'script_test_publish',
+    description: 'Publishes a draft (test).',
+    schema: z.object({ draft: z.string() }),
+    execute: async ({ draft }) => {
+      published++;
+      return `published: ${draft}`;
+    },
+  }),
+);
+
+const PUBLISHER = `export default async ({ message, agent, tool }) => {
+  const draft = await agent('Analyst', message);
+  const out = await tool('script_test_publish', { draft });
+  return typeof out === 'string' ? out : 'refused: ' + out.error;
+};`;
+
+test('gate: a tool in script.require_approval pauses for approval; the decision runs or refuses the pinned call', async () => {
+  const m = models();
+  const config = deskConfig(PUBLISHER, { script: { tools: ['script_test_publish'], require_approval: ['script_test_publish'] } } as Partial<SyndicateYamlConfig>);
+  for (const approved of [true, false]) {
+    published = 0;
+    const sessions = new InProcessSessionService();
+    const sid = `gate-${approved}`;
+    const turn = (parts: unknown[]) => runSyndicateTurn({ config, parts: parts as never, appName: APP, userId: USER, sessionId: sid, sessionService: sessions, compile: { resolveModel: shimResolver(m) }, trace: false });
+    const paused = await turn([{ text: 'write the note' }]);
+    assert.equal(paused.status, 'input-required', JSON.stringify(paused.error));
+    assert.equal(paused.approval?.tool, 'script_test_publish');
+    assert.deepEqual(paused.approval?.args, { draft: 'analysis of: write the note' });
+    assert.equal(published, 0);
+    // A message that is not the decision repeats the request; nothing runs.
+    const again = await turn([{ text: 'hello?' }]);
+    assert.equal(again.approval?.id, paused.approval?.id);
+    const done = await turn([approvalResponsePart(paused.approval!.id, approved)]);
+    assert.equal(done.status, 'completed', JSON.stringify(done.error));
+    assert.equal(done.text, approved ? 'published: analysis of: write the note' : 'refused: This tool call is rejected.');
+    assert.equal(published, approved ? 1 : 0);
+  }
+  assert.throws(() => validateSyndicateConfig({ syndicate_name: 'S', script: { source: 'export default () => 1', tools: ['a'], require_approval: ['b'] }, orchestrator: { name: 'A', model: 'm', instruction: 'x' } }), /'b' is not in script\.tools/);
+});
+
+test('nesting: a script syndicate runs whole as a delegated subagent, and its askUser pauses and resumes the turn', async () => {
+  const inner = deskConfig(CONFIRM);
+  const boss = new ScriptedModel('boss', (req, n) => (n === 1 ? toolCall('Desk', { request: 'a risky question' }) : answer(`boss relays: ${JSON.stringify(lastToolResult(req) ?? null).slice(0, 200)}`)));
+  const m = models({ boss } as Record<string, ScriptedModel>);
   const outer = validateSyndicateConfig({
     syndicate_name: 'Outer',
-    orchestrator: { name: 'Boss', model: 'scripted/triage', instruction: 'Delegate.' },
+    orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Desk.' },
     subagents: [{ name: 'Desk', description: 'the desk', yaml_reference: 'desk.yaml' }],
   });
+  const sessions = new InProcessSessionService();
+  const turn = (text: string) => runSyndicateTurn({ config: outer, parts: [{ text }], appName: APP, userId: USER, sessionId: 'nest', sessionService: sessions, compile: { resolveModel: shimResolver(m), loadNested: () => inner }, trace: false });
+  const paused = await turn('ask the desk');
+  assert.equal(paused.status, 'input-required', JSON.stringify(paused.error));
+  assert.equal(paused.input?.message, 'Send this reply?');
+  const done = await turn('yes');
+  assert.equal(done.status, 'completed', JSON.stringify(done.error));
+  assert.match(done.text, /analysis of: a risky question/);
+  assert.equal(m.triage!.calls, 1);
+});
+
+test('nesting: agent() runs a nested script syndicate as its own turn; a pause inside it fails PAUSE_INSIDE_AGENT', async () => {
   const m = models();
-  await assert.rejects(
-    runSyndicateTurn({
-      config: outer,
-      parts: [{ text: 'hi' }],
+  const inner = deskConfig(ROUTER);
+  const confirming = deskConfig(CONFIRM);
+  const outerOf = (ref: string) =>
+    validateSyndicateConfig({
+      syndicate_name: 'Outer',
+      script: { source: `export default async ({ agent }) => 'outer got: ' + await agent('Desk', 'risky: what is 2+2?')` },
+      orchestrator: { name: 'Boss', model: 'scripted/triage', instruction: 'unused' },
+      subagents: [{ name: 'Desk', description: 'the desk', yaml_reference: ref }],
+    });
+  const run = (ref: string, loaded: SyndicateYamlConfig) =>
+    runSyndicateTurn({ config: outerOf(ref), parts: [{ text: 'go' }], appName: APP, userId: USER, sessionId: `own-${ref}`, sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(m), loadNested: () => loaded }, trace: false });
+  const ok = await run('router.yaml', inner);
+  assert.equal(ok.status, 'completed', JSON.stringify(ok.error));
+  assert.equal(ok.text, 'outer got: analysis of: risky: what is 2+2?');
+  const failed = await run('confirm.yaml', confirming);
+  assert.equal(failed.status, 'failed');
+  assert.equal(failed.error?.code, 'PAUSE_INSIDE_AGENT');
+});
+
+test('durable: a worker stopped mid-script resumes from its last journaled call, paying for nothing twice', async () => {
+  const slowAnalyst = new ScriptedModel('analyst', () => answer('the analysis'));
+  let editorCalls = 0;
+  const m = models({ analyst: slowAnalyst });
+  const source = `export default async ({ message, agent }) => {
+    const triage = await agent('Triage', message);
+    const draft = await agent('Analyst', message);
+    return agent('Editor', { draft, route: triage.route });
+  };`;
+  const config = deskConfig(source);
+  let saved: RunCheckpoint | null = null;
+  const crash = new AbortController();
+  m.editor = new ScriptedModel('editor', async (_req, _n, signal) => {
+    editorCalls++;
+    if (editorCalls === 1) {
+      crash.abort();
+      return untilAborted(signal);
+    }
+    return answer('edited once');
+  });
+  const attempt = (signal?: AbortSignal) =>
+    runDurableTurn({
+      config,
+      parts: [{ text: 'a question' }],
+      runId: 'job-1',
       appName: APP,
       userId: USER,
-      sessionId: 'nest',
-      sessionService: new InProcessSessionService(),
-      compile: { resolveModel: shimResolver(m), loadNested: () => inner },
+      checkpoints: { load: async () => saved, save: async (cp) => ((saved = cp), true) },
+      compile: { resolveModel: shimResolver(m) },
       trace: false,
-    }),
-    /a script syndicate cannot be nested yet \(ADR 0137 item 15\)/,
-  );
+      ...(signal ? { signal } : {}),
+    });
+  const first = await attempt(crash.signal);
+  assert.equal(first.status, 'canceled');
+  assert.ok(saved, 'journal appends were checkpoint boundaries');
+  const second = await attempt();
+  assert.equal(second.status, 'completed', JSON.stringify(second.error));
+  assert.equal(second.text, 'edited once');
+  assert.ok(second.resumedFromStep > 0);
+  assert.equal(m.triage!.calls, 1, 'Triage replayed from the journal');
+  assert.equal(slowAnalyst.calls, 1, 'Analyst replayed from the journal');
+});
+
+test('spans: script.invoke and script.call in their own trace; agent() turn spans carry the run and the call', async () => {
+  const spans: Array<{ name: string; attributes: Record<string, unknown>; traceId: string }> = [];
+  const off = onSpanEnd((span) => spans.push({ name: span.name, attributes: span.attributes as Record<string, unknown>, traceId: span.spanContext().traceId }));
+  try {
+    const m = models();
+    const r = await runSyndicateTurn({ config: deskConfig(ROUTER), parts: [{ text: 'what is 2+2?' }], appName: APP, userId: USER, sessionId: 'spans', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(m) } });
+    assert.equal(r.status, 'completed');
+  } finally {
+    off();
+  }
+  const invoke = spans.find((s) => s.name === 'script.invoke Desk');
+  assert.ok(invoke, spans.map((s) => s.name).join(', '));
+  assert.equal(invoke.attributes['script.status'], 'completed');
+  assert.equal(invoke.attributes['script.calls'], 2);
+  const calls = spans.filter((s) => s.name.startsWith('script.call '));
+  assert.deepEqual(calls.map((s) => s.name), ['script.call agent:Triage', 'script.call agent:Analyst']);
+  assert.ok(calls.every((s) => s.traceId === invoke.traceId && s.attributes['script.call.status'] === 'completed'));
+  const turns = spans.filter((s) => s.name === 'Syndicate Execution: Desk');
+  assert.deepEqual(turns.map((s) => s.attributes['script.call.seq']), [1, 2]);
+  assert.ok(turns.every((s) => s.attributes['script.run'] === invoke.attributes['script.run'] && s.traceId !== invoke.traceId));
+  // Nothing of the person's text or the answers rides on a script span.
+  assert.ok(![invoke, ...calls].some((s) => JSON.stringify(s.attributes).includes('2+2')));
+});
+
+test('live events: agent() calls report through onAgentEvent with the path [script, agent]', async () => {
+  const seen: Array<{ agent: string; path: string }> = [];
+  const m = models();
+  await runSyndicateTurn({
+    config: deskConfig(ROUTER), parts: [{ text: 'what is 2+2?' }], appName: APP, userId: USER, sessionId: 'live', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(m) }, trace: false,
+    events: { onAgentEvent: (_e, b) => seen.push({ agent: b.agent, path: b.path.join('/') }) },
+  });
+  assert.ok(seen.some((s) => s.agent === 'Triage' && s.path === 'Desk/Triage'));
+  assert.ok(seen.some((s) => s.agent === 'Analyst' && s.path === 'Desk/Analyst'));
+});
+
+test('askUser: with a schema a JSON reply is parsed, plain text passes as is; script.models are checked before any call', async () => {
+  const m = models();
+  const source = `export default async ({ askUser }) => { const a = await askUser('pick', 'Pick?', { schema: { type: 'object' } }); return { reply: a.reply } };`;
+  for (const [answerText, expected] of [['{"n": 2}', { n: 2 }], ['two please', 'two please']] as const) {
+    const { run } = turner(deskConfig(source), m);
+    assert.equal((await run('go', `schema-${answerText}`)).status, 'input-required');
+    const done = await run(answerText, `schema-${answerText}`);
+    assert.deepEqual(JSON.parse(done.text), { reply: expected });
+  }
+  const bad = await turner(deskConfig(ROUTER, { script: { models: ['scripted/nowhere'] } } as Partial<SyndicateYamlConfig>), m).run('hi');
+  assert.equal(bad.status, 'failed');
+  assert.equal(bad.error?.code, 'SCRIPT_MODEL_INVALID');
+  assert.equal(m.triage!.calls, 0);
+});
+
+test('nesting: a script syndicate as a dispatch route pauses the turn on its askUser, and the answer resumes it without classifying', async () => {
+  const inner = deskConfig(CONFIRM);
+  const router = new ScriptedModel('router', () => answer(JSON.stringify({ route: 'Desk' })));
+  const m = models({ router } as Record<string, ScriptedModel>);
+  const outer = validateSyndicateConfig({
+    syndicate_name: 'Front',
+    dispatch: { default_route: 'Desk' },
+    orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Route.', output: { schema: { type: 'object', properties: { route: { type: 'string' } }, required: ['route'] } } },
+    subagents: [{ name: 'Desk', description: 'the desk', yaml_reference: 'desk.yaml' }],
+  });
+  const sessions = new InProcessSessionService();
+  const turn = (text: string) => runSyndicateTurn({ config: outer, parts: [{ text }], appName: APP, userId: USER, sessionId: 'route-nest', sessionService: sessions, compile: { resolveModel: shimResolver(m), loadNested: () => inner }, trace: false });
+  const paused = await turn('a risky question');
+  assert.equal(paused.status, 'input-required', JSON.stringify(paused.error));
+  assert.equal(paused.input?.message, 'Send this reply?');
+  const done = await turn('yes');
+  assert.equal(done.status, 'completed', JSON.stringify(done.error));
+  assert.match(done.text, /^analysis of: a risky question/);
+  assert.equal(router.calls, 1);
+  assert.equal(m.triage!.calls, 1);
+});
+
+test('nesting: a script syndicate as a workflow node runs its whole script, and its askUser pauses the walk', async () => {
+  const m = models();
+  const flow = (inner: SyndicateYamlConfig) =>
+    runSyndicateTurn({
+      config: validateSyndicateConfig({
+        syndicate_name: 'Flow',
+        workflow: { edges: [['START', 'Prep', 'Desk']] },
+        orchestrator: { name: 'Prep', model: 'scripted/chat', instruction: 'Prepare.' },
+        subagents: [{ name: 'Desk', description: 'the desk', yaml_reference: 'desk.yaml' }],
+      }),
+      parts: [{ text: 'hello there' }], appName: APP, userId: USER, sessionId: `flow-${inner.script!.source.length}`, sessionService: new InProcessSessionService(),
+      compile: { resolveModel: shimResolver(m), loadNested: () => inner }, trace: false,
+    });
+  const ran = await flow(deskConfig(`export default async ({ message, agent }) => 'desk saw: ' + message`));
+  assert.equal(ran.status, 'completed', JSON.stringify(ran.error));
+  assert.match(ran.text, /^desk saw: hi! \(/);
+  const asked = await flow(deskConfig(`export default async ({ askUser }) => (await askUser('q', 'Which one?')).reply`));
+  assert.equal(asked.status, 'input-required', JSON.stringify(asked.error));
+  assert.equal(asked.input?.message, 'Which one?');
 });

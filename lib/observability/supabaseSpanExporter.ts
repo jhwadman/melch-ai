@@ -197,7 +197,8 @@ export function payloadDecision(
 // ── Span → row mapping (pure; tested offline) ───────────────────────────────
 
 const ROOT_PREFIX = 'Syndicate Execution: ';
-const EXPORTED_SPAN_NAMES = /^(llm\.request$|Syndicate Execution: )/;
+// A script's own spans (ADR 0137 item 16) carry its run, its calls' kinds, names, sequence and status, never an argument or a result.
+const EXPORTED_SPAN_NAMES = /^(llm\.request$|Syndicate Execution: |script\.(invoke|call) )/;
 
 function attrsOf(span: ReadableSpan): Record<string, unknown> {
   return span.attributes as Record<string, unknown>;

@@ -2349,6 +2349,14 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "require_approval": {
+          "description": "Tools from script.tools whose every call waits for a person to approve the exact call (ADR 0028): the turn ends input-required; approved, the pinned arguments run, refused, the script gets { error }.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "required": [

@@ -618,6 +618,10 @@ const scriptSchema = z
       .array(z.string().min(1))
       .optional()
       .describe('The registry tools tool(name, args) may run; the only path from the script to the network or the host.'),
+    require_approval: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('Tools from script.tools whose every call waits for a person to approve the exact call (ADR 0028): the turn ends input-required; approved, the pinned arguments run, refused, the script gets { error }.'),
   })
   .describe('Opts into SCRIPT orchestration (lib/script/): the syndicate\'s logic as code run in the engine\'s sandbox. Needs MELCHIZEDEK_CODE_SANDBOX=on. Cannot be combined with dispatch or workflow.');
 
@@ -1306,6 +1310,10 @@ function scriptProblems(raw: Record<string, unknown>, subs: unknown[]): Problem[
   const script = raw.script as Record<string, unknown>;
   if (isObj(raw.dispatch)) out.push({ path: ['script'], message: 'a syndicate orchestrates with a script or a plan-dispatch router, not both; remove `dispatch` (the script can route)' });
   if (isObj(raw.workflow)) out.push({ path: ['script'], message: 'a syndicate orchestrates with a script or a workflow graph, not both; remove `workflow`' });
+  const allowed = Array.isArray(script.tools) ? script.tools : [];
+  (Array.isArray(script.require_approval) ? script.require_approval : []).forEach((name, j) => {
+    if (typeof name === 'string' && !allowed.includes(name)) out.push({ path: ['script', 'require_approval', j], message: `'${name}' is not in script.tools` });
+  });
   const models = Array.isArray(script.models) ? script.models.filter((m): m is string => typeof m === 'string') : [];
   const agents: Array<[Path, Record<string, unknown>]> = [];
   if (isObj(raw.orchestrator)) agents.push([['orchestrator'], raw.orchestrator]);

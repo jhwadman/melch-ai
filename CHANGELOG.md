@@ -38,9 +38,21 @@ does not.
   The schema refuses `require_approval`, the `ask_user` tool, local skill
   scripts and authorization_code grants on a script's agents (a pause
   inside a called agent cannot be replayed yet), `context:` and root
-  `max_concurrency`; `mode: task` is allowed. `{{token}}` interpolation
-  skips `script.source`; the script reads the bound `variables`. A
-  `yaml_reference` to a script syndicate is refused by name.
+  `max_concurrency`; `mode: task` is allowed (a pause reached inside a
+  called agent anyway fails `PAUSE_INSIDE_AGENT`). `{{token}}`
+  interpolation skips `script.source`; the script reads the bound
+  `variables`. `script.require_approval` gates `tool()` calls with the
+  standard approval request (`result.approval`). Every `script.models`
+  pairing is checked before the run (`SCRIPT_MODEL_INVALID`). Under
+  `runDurableTurn` each call's journal event is a checkpoint boundary, so
+  a stopped worker resumes mid-script. `agent()` calls report through
+  `events.onAgentEvent`; spans `script.invoke` and `script.call`
+  (exported to `adk_telemetry`, no arguments or results) trace a run, and
+  each agent call's turn span carries `script.run` and `script.call.seq`.
+  A `yaml_reference` to a script syndicate runs its whole script as a
+  subagent, route or node, its pauses reaching the turn; `agent()` may
+  call nested workflow, dispatch and script syndicates.
+  `startEngineSpan` takes an optional parent context.
   `TurnStage` gains `'script'`; `SyndicateTurnResult.failedStage` may be
   `'script'`.
 - **`run_code` (ADR 0137 Part A).** A registry tool: `{ code, input? }`,
