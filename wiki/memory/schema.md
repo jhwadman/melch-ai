@@ -37,6 +37,10 @@ The generated sections below are the db/ files verbatim: the numbered migrations
 
 One table the server can read is not created here: `adk_agent_registry`, which `registry:<id>` and `A2A_REGISTRY_AGENTS` load agent configs from. db/ ships no DDL for it; the hardening locks it down when it exists.
 
+## Token counts in the ledger
+
+Every adapter's final is charged and stored through one function, `usageToMetadata` (`lib/models/genaiMapping.ts`), so the ledger's token columns mean the same on every provider: `output_tokens` (and `llm.tokens.output`, the turn's output charge) exclude thinking, and `thinking_tokens` (`llm.tokens.thinking`) carry it, so output plus thinking is the provider's own output count. The split comes from the contract's `thinkingTokens`: Gemini's `thoughtsTokenCount`, the Responses `output_tokens_details.reasoning_tokens` (GPT, Grok) and the chat-completions `completion_tokens_details.reasoning_tokens` (Kimi, the gateways). Anthropic and Ollama report no split, so their whole output is `output_tokens` and `thinking_tokens` is 0. For example, a Kimi call of 40 completion tokens, 25 of them reasoning, records 15 and 25. Rows written before 0.20.0 for GPT, Grok, Kimi and the gateways count the reasoning inside `output_tokens` too; a query comparing output across that boundary subtracts `thinking_tokens` from those rows. `tests/nativeLedgerCounts.test.ts` pins the counts per provider family.
+
 <!-- wiki:generated section="migration-0001_base" source="db/migrations/0001_base.sql" -->
 ## Migration 0001_base
 

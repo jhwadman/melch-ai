@@ -27,8 +27,25 @@ the decision records.
    with evidence through `wiki_relate` into `wiki/.graph/relations.json`.
 
 4. **Record the judgment call.** A choice between real alternatives gets an
-   ADR in `wiki/decisions/`, in the same change. Supersede by **adding** a
-   newer record, never by editing an old one.
+   ADR in `wiki/decisions/`, in the same change, as short as this:
+
+   ```markdown
+   # ADR NNNN: <the decision, ~12 words>
+
+   **Decided (YYYY-MM-DD):** <1–3 sentences: the choice, not how it works>
+
+   **Instead of:** <rejected alternatives, a few words each>
+   **Supersedes:** [ADR NNNN](/decisions/NNNN-….md) (<which part>)
+   **Open:** <what is deliberately left open>
+
+   How it works: [<subsystem doc>](/<dir>/<doc>.md)
+   ```
+
+   Facts, defaults, env vars, algorithms and file paths go in the subsystem
+   doc (step 1), never in the ADR; if a doc already says it, the ADR does not.
+   A later choice is a **new** record; the earlier one gains only a
+   `**Superseded by:**` line (and `status: deprecated` when replaced
+   entirely). Remove an `Open:` item in the change that closes it.
 
 5. **Keep the other copies of a fact in step.** The SQL schema has one home
    (`db/migrations/`); the prose docs point to it. The package surface is

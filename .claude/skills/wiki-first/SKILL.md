@@ -31,7 +31,7 @@ about to violate.
    | memory, embeddings, supersession | `wiki/memory/` |
    | MCP or A2A interop | `wiki/protocols/` |
    | deployment, failure modes | `wiki/operations/` |
-   | why something is the way it is | `wiki/decisions/` (ADRs) |
+   | why something is the way it is, what is still open | `wiki/decisions/` (ADRs: the choice only; the design is in the subsystem doc) |
 
 4. **Before designing, answer in writing:**
    - Which of the repo's invariants does the change touch?

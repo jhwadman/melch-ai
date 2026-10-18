@@ -1,42 +1,25 @@
 ---
 type: decision
-title: 'ADR 0007: The engine ships as an npm package, published from the export'
-description: Publish lib/ as the melchizedek-agents package built inside the sanitized public mirror by the existing export pipeline — rather than restructuring the private repo into a workspace monorepo.
+title: "ADR 0007: The engine ships as the melchizedek-agents npm package"
+description: "lib/ is published as the melchizedek-agents package with an exports map as its semver boundary, rather than restructuring into a workspace monorepo."
 tags:
   - decision
   - packaging
 status: stable
 generated:
-  by: claude-code/claude-fable-5
-  at: 2026-08-19
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-18
 sources:
   - resource: package.json
   - resource: tsconfig.build.json
   - resource: lib/loadSyndicate.ts
 ---
 
-# ADR 0007: The engine ships as an npm package, published from the export
+# ADR 0007: The engine ships as the melchizedek-agents npm package
 
-## Context
+**Decided (2026-08-19):** The engine is published as `melchizedek-agents`; it is location-independent, compiled only for the package, proven by a pack-and-consume check, and its exports map is the semver boundary.
 
-[ADR 0006](/decisions/0006-starter-pack-split.md) separated the starter pack from live configuration, but a consumer's syndicate still had to live inside a clone of the framework. One sibling repo already consumed the engine the way a package consumer would — importing `lib/` modules by fragile relative path and reimplementing the YAML loader because the path-jail refused to read outside the repo. The demand was proven; the delivery mechanism was missing.
+**Instead of:** npm workspaces monorepo with `packages/engine`, consumers importing `lib/` by relative path
+**Superseded by:** [ADR 0022](/decisions/0022-public-source-of-truth.md) (publishing from the export mirror: this repository is now the source and publishes)
 
-Two shapes were considered: restructure the private repo into npm workspaces with a `packages/engine`, or teach the existing export pipeline to produce a publishable package inside the sanitized public mirror.
-
-## Decision
-
-Publish from the export. The private repo keeps its layout and remains the source of truth; `melchizedek-agents` — the public repo — carries the package manifest in its overlay and is what `npm publish` runs in. This reuses the sanitization machinery wholesale: the allowlist, the overlay, the patches, and the forbidden-term and secret scans all run upstream of packaging, so the package cannot contain what the mirror may not.
-
-> **Note (2026-10-01):** Superseded on where the package is published from: this public repository is now the source of truth and `npm publish` runs in it, with no private source, overlay, export pipeline or mirror, see [ADR 0022](/decisions/0022-public-source-of-truth.md).
-
-Three mechanics follow:
-
-- **The engine is location-independent.** `loadSyndicate` resolves its jail root as option → `MELCHIZEDEK_AGENTS_DIR` → `<cwd>/config/agents`; the wiki root defaults to `<cwd>/wiki` under `WIKI_ROOT`; image tools honor `OUTPUTS_DIR`. Nothing in `lib/` derives paths from its own file location any more.
-- **The package compiles; the repo does not.** Node refuses to strip types under `node_modules`, so the overlay carries a `tsconfig.build.json` (`rewriteRelativeImportExtensions`, declarations, `dist/`) — the project's first and only build step, confined to the mirror. Clones keep running `.ts` sources directly.
-- **Every export proves the package.** The pipeline builds `dist/`, packs the tarball, installs it into a throwaway consumer, and loads a starter-pack syndicate through the installed package before committing. The exports map in the overlay manifest is the semver boundary; publishing itself stays a human act, like pushing.
-
-> **Note (2026-10-01):** `tsconfig.build.json` now sits at the repository root (`npm run build`, also run by `prepack`), and the pack-and-consume check runs in CI (`.github/workflows/ci.yml`) rather than in an export. The root `package.json` exports map is the semver boundary, see [ADR 0022](/decisions/0022-public-source-of-truth.md).
-
-## Consequences
-
-The framework has an enforced public API for the first time — what the barrel and subpath exports expose is a versioned contract, and the mirror map gains a step: API-affecting `lib/` changes end in a version bump. The private repo intentionally does not consume the package (it is the source); the sibling that imports `lib/` by relative path migrates to the package after first publish. Divergence between the source-run and compiled-run engine is the standing risk, held down by `isolatedModules` and the pack-and-consume gate in every export.
+How it works: [Setup paths](/operations/setup.md)

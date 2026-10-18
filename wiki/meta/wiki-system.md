@@ -22,11 +22,13 @@ This directory is an **Open Knowledge Format v0.2 bundle** ([ADR 0001](/decision
 - `type` is the only required key. Vocabulary: overview, subsystem, syndicate, tool, model-provider, schema, protocol, runbook, guide, decision, doctrine, reference, meta.
 - Optional keys that matter: `title`, `description`, `tags`, `status` (draft|stable|deprecated), `stale_after`, `sources` (what a doc derives from), `generated {by, at}`, `verified [{by, at}]`.
 - Actors: `human:<id>` | `process:<id>` | `<producer>/<model>`. Trust derives from `verified`: none → unverified; machines only → machine-confirmed; any `human:` → human-reviewed. Most of this bundle is machine-produced — treat trust tiers accordingly, and add `verified` entries as you review.
+- Links are standard markdown links, bundle-absolute preferred. `[[wikilink]]` syntax is a lint error (`wikilink-syntax`), so plain markdown tooling never meets a link it cannot follow.
 - `/private/` is the annex a published copy leaves out ([ADR 0003](/decisions/0003-path-based-visibility.md)). It keeps its own `log.md`: an entry that would NAME a private document or entity goes there, because the root log is a published file and a summary line is text like any other.
+- Lint enforces the annex (`lib/wiki/lint.ts`): a document outside `/private/` that links into it is an error (`private-closure`), so a copy without the subtree is link-closed. When a deployment supplies `scripts/wiki/build.private.ts`, its forbidden patterns make a public document that mentions a private name an error too (`forbidden-term`). The root index does not list `/private/`.
 
 ## Ownership: who writes what
 
-Documents interleave three regions. `wiki:generated` markers hold machine-owned sections rebuilt from repo truth (`npm run wiki:build` — syndicate compositions from the YAMLs, tool tables from the contracts, DDL from db/). `wiki:fill` markers hold prose slots an LLM fills once (`wiki:build -- --fill`) and rebuilds preserve. Everything outside markers is ordinary prose, edited by whoever ([ADR 0002](/decisions/0002-zero-dep-structural-engine.md) is why rebuilds can't damage it).
+Documents interleave three regions. `wiki:generated` markers hold machine-owned sections rebuilt from repo truth (`npm run wiki:build` — syndicate compositions from the YAMLs, tool tables from the contracts, DDL from db/). `wiki:fill` markers hold prose slots an LLM fills once (`wiki:build -- --fill`) and rebuilds preserve. Everything outside markers is ordinary prose, edited by whoever ([ADR 0002](/decisions/0002-zero-dep-structural-engine.md) is why rebuilds can't damage it). A rebuild splices only the line ranges between markers (`lib/wiki/markdown.ts`); nothing on the edit path reserializes a whole document, so prose outside markers is never reflowed. `generated.at` is bumped only when a document's content actually changed, which is what makes `wiki:build` safe to run at any time.
 
 ## The toolchain
 
