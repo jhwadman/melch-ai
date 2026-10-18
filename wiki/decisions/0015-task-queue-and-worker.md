@@ -1,7 +1,7 @@
 ---
 type: decision
-title: 'ADR 0015: Background work is a queue the tools write and a separate worker drains, not a tool that runs agents'
-description: The starter pack's generic Assistant queues long work with a tool that only writes a record to a local store; a plain process claims each record, runs it through one agent compiled from YAML, and writes the result back — rather than a tool that runs a subagent asynchronously, or an in-process job runner inside the server.
+title: "ADR 0015: Background work is a queue tools write and a worker drains"
+description: "`task_queue` only writes a record; a separate worker process claims it, runs it through one YAML-declared agent and writes the result back."
 tags:
   - decision
   - tools
@@ -9,32 +9,19 @@ tags:
 status: stable
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-09-25
+  at: 2026-10-18
 sources:
   - resource: lib/tools/taskTools.ts
   - resource: scripts/assistant_worker.ts
   - resource: config/agents/examples/assistant.yaml
 ---
 
-# ADR 0015: Background work is a queue the tools write and a separate worker drains, not a tool that runs agents
+# ADR 0015: Background work is a queue tools write and a worker drains
 
-## Context
+**Decided (2026-09-25):** Long work is a queued record with a self-contained instruction; `melchizedek-worker` claims it, runs one fresh turn through a YAML-declared agent, and writes the result for `task_get`.
 
-The starter pack taught specimens (a tutor, a council, a news synthesis) but had no generic assistant to start from: nothing that converses, summarizes, keeps a to-do list between conversations, and hands off work that should not block the conversation. The first three are a prompt, a subagent with `web_extract`, and a small store. The fourth needs something to run the work after the turn that asked for it has ended, and three shapes were considered: a tool that starts a subagent asynchronously and returns a job id; a job runner inside the process that serves the conversation; a queue that tools write and a separate process drains.
+**Instead of:** a tool that runs a subagent asynchronously, an in-process job runner inside the server
+**Superseded by:** [ADR 0021](/decisions/0021-postgres-first-storage.md) (on Postgres the queue is per-caller with locked claims); [ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md) (jobs checkpoint and resume)
+**Open:** the default JSON-file store is single-user and one-worker, stated but not enforced in code
 
-## Decision
-
-The queue. [The task tools](/tools/task-tools.md) keep to-dos and jobs in one local JSON store, and `task_queue` only writes a record with a self-contained instruction. `scripts/assistant_worker.ts` is a plain process (a bin in the package, `melchizedek-worker`) that claims the oldest queued record, runs its instruction as a fresh single turn through one agent compiled by `lib/compile.ts` — by default the [Assistant](/agents/assistant.md)'s Worker, but any syndicate and any agent in it — and writes the result or the error back, where `task_get` reads it in a later turn.
-
-A tool that runs a subagent is the composite the [tool contract](/tools/tool-contracts.md) refuses (the `wiki_query`/`wiki_garden` rule): it hides an agent behind a function, so the agent's model, tools and cost stop being visible in the YAML that authorizes them. An in-process runner ties a job's life to the conversation's process and, inside the A2A server, to a multi-tenant host with no caller identity. The queue keeps the tools primitive, keeps the worker's agent declared in YAML, survives either process restarting, and lets each side be swapped: `--once` under cron, or any syndicate as the worker.
-
-## Consequences
-
-- The store is single-user. Neither it nor the A2A server knows who is asking, so a syndicate carrying the task tools must not be served on a shared endpoint. This is stated in the tool file, the YAML header, and the documentation; it is not enforced in code.
-- One worker per store: the claim is a read-modify-write, not a lock. A second worker could claim the same job in a narrow race.
-
-> **Note (2026-10-02):** Both limits hold only for the default JSON file. On Postgres (migration `0009_task_queue.sql`, `postgresStorage().taskQueue`) each tool call is filed under its caller's scope key, which tool calls now carry (`ToolCallContext`), and workers claim jobs with `FOR UPDATE SKIP LOCKED` under a renewed lease, so a shared endpoint and several workers are both supported, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
-
-> **Note (2026-10-09):** A job no longer starts over when its worker stops. The worker checkpoints the run's sessions beside the job at every step boundary (migration `0014_durable_runs.sql`), a re-claimed job resumes from its last checkpoint, SIGTERM re-queues the job instead of failing it, and a running job can be cancelled, see [ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md).
-- The worker never sees the conversation. `task_queue`'s description and the Assistant's instruction both demand a self-contained instruction, and a job that needed context the Assistant left out produces a weaker result rather than an error.
-- The package gains a fifth bin and five registered tools, a versioned surface ([ADR 0007](/decisions/0007-engine-as-package.md)).
+How it works: [Task tools](/tools/task-tools.md)

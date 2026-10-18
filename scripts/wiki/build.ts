@@ -500,6 +500,14 @@ function assertUniquePartIds(specs: DocSpec[]): void {
 
 // ── Source: db/*.sql → schema doc ────────────────────────────────────────────
 
+/** `0001_base` to `0015_model_pricing`: the first and last migration, by name. */
+function migrationRange(files: string[]): string {
+  const name = (f: string): string => f.replace(/\.sql$/, '');
+  if (files.length === 0) return 'none yet';
+  if (files.length === 1) return name(files[0]);
+  return `${name(files[0])} to ${name(files[files.length - 1])}`;
+}
+
 function schemaSpec(): DocSpec {
   const sqlFence = (file: string): string =>
     `\`\`\`sql\n${readFileSync(join(repoRoot, 'db', file), 'utf-8').trim()}\n\`\`\``;
@@ -513,8 +521,9 @@ function schemaSpec(): DocSpec {
     fm: {
       type: 'schema',
       title: 'Memory & telemetry schema',
-      description:
-        'The Postgres DDL shipped in db/, verbatim and in install order: the numbered migrations (sessions, memory facts, erase, the direct-Postgres tables, usage counters), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade.',
+      // Counted from db/migrations/, never listed by hand, so a new migration
+      // cannot leave the description short of the install.
+      description: `The Postgres DDL shipped in db/, verbatim and in install order: the ${migrations.length} numbered migrations (${migrationRange(migrations)}), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade.`,
       tags: ['schema', 'postgres', 'supabase', 'memory'],
       sources: [
         ...migrations.map((f) => ({ resource: `db/migrations/${f}` })),

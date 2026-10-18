@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Memory & telemetry schema
-description: "The Postgres DDL shipped in db/, verbatim and in install order: the numbered migrations (sessions, memory facts, erase, the direct-Postgres tables, usage counters), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
+description: "The Postgres DDL shipped in db/, verbatim and in install order: the 15 numbered migrations (0001_base to 0015_model_pricing), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
 tags:
   - schema
   - postgres
@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-10-16
+  at: 2026-10-18
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -35,7 +35,11 @@ sources:
 
 The generated sections below are the db/ files verbatim: the numbered migrations in `db/migrations/`, the optional telemetry ledger, the hardening, and a legacy upgrade script. `npm run db -- apply` (the `melchizedek-db` bin; `print` emits the same SQL for the Supabase SQL Editor) runs the migrations in order, then `db/hardening.sql`; with `--telemetry`, `db/telemetry.sql` and the hardening again. Every migration is idempotent and records itself in `melchizedek_schema_version`. The same SQL runs on Supabase or on any Postgres with pgvector ([ADR 0021](/decisions/0021-postgres-first-storage.md)).
 
-One table the server can read is not created here: `adk_agent_registry`, which `registry:<id>` and `A2A_REGISTRY_AGENTS` load agent configs from. db/ ships no DDL for it; the hardening locks it down when it exists.
+`adk_agent_registry`, which `registry:<id>` and `A2A_REGISTRY_AGENTS` load agent configs from, is created by migration `0005_agent_registry` together with its append-only `adk_agent_registry_versions` history; the hardening locks it down like every other table.
+
+## Token counts in the ledger
+
+Every adapter's final is charged and stored through one function, `usageToMetadata` (`lib/models/genaiMapping.ts`), so the ledger's token columns mean the same on every provider: `output_tokens` (and `llm.tokens.output`, the turn's output charge) exclude thinking, and `thinking_tokens` (`llm.tokens.thinking`) carry it, so output plus thinking is the provider's own output count. The split comes from the contract's `thinkingTokens`: Gemini's `thoughtsTokenCount`, the Responses `output_tokens_details.reasoning_tokens` (GPT, Grok) and the chat-completions `completion_tokens_details.reasoning_tokens` (Kimi, the gateways). Anthropic and Ollama report no split, so their whole output is `output_tokens` and `thinking_tokens` is 0. For example, a Kimi call of 40 completion tokens, 25 of them reasoning, records 15 and 25. Rows written before 0.20.0 for GPT, Grok, Kimi and the gateways count the reasoning inside `output_tokens` too; a query comparing output across that boundary subtracts `thinking_tokens` from those rows. `tests/nativeLedgerCounts.test.ts` pins the counts per provider family.
 
 <!-- wiki:generated section="migration-0001_base" source="db/migrations/0001_base.sql" -->
 ## Migration 0001_base

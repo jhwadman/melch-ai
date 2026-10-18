@@ -44,5 +44,10 @@ reading for a change that opens a new surface.
   prose go through `wiki_relate` into `wiki/.graph/relations.json`, which the
   build never touches.
 - A choice between real alternatives gets an ADR in `wiki/decisions/`, in the
-  same change. Supersede by adding a newer record, never by editing an old one.
+  same change: the choice, what was rejected, what it supersedes and what is
+  still open, in a few lines (`sync-wiki` has the shape). How the thing works
+  goes in the subsystem doc the ADR links to, never in the ADR. A later choice
+  is a new record; the earlier one only gains its `Superseded by:` line (and
+  `status: deprecated` when replaced entirely), and an `Open:` item is removed
+  when it closes.
 - `npm publish` and pushing to `main` are human acts.
