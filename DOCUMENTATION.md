@@ -1610,22 +1610,27 @@ subclass), and register it behind a model-id prefix.
 subagent. `scripts/demo_mcp_server.ts` is a complete server to copy —
 tool definitions, SSE wiring, and persistent state in ~250 lines.
 
-**Teach your coding agent the framework**: `skills/` holds six Agent
+**Teach your coding agent the framework**: `skills/` holds eleven Agent
 Skills (the open SKILL.md standard — a directory per skill, `name` and
 `description` frontmatter) that give Claude Code, Codex, Cursor,
 OpenCode or Gemini CLI the catalog of syndicates and the procedures in
 this document: `melchizedek` (find and run, delegate a task),
 `melchizedek-author`, `melchizedek-serve`, `melchizedek-memory`,
-`melchizedek-models`, `melchizedek-scribe`. `npx melchizedek-skills
+`melchizedek-models`, `melchizedek-scribe`, and five onboarding skills
+that route a person by the credentials they have — `melchizedek-onboard`
+(the triage) and `melchizedek-onboard-local`, `-keys`, `-cloud` and
+`-serve` (the authentication levels each owns). `npx melchizedek-skills
 install` copies them into `.claude/skills/` and `.agents/skills/` of the
 current project (`--for claude,codex,cursor,opencode,gemini,agents,all`,
 `--global`, `--dir <path>`, `--only <names>`, `--force`, `--dry-run`;
 `npm run skills:install` in a clone). The installer (`lib/skills.ts`)
 copies only from the package's own `skills/` directory, follows no
-symlinks, and never overwrites a differing file without `--force`. Each
-SKILL.md body was written by the Scribe syndicate
-(`config/agents/examples/scribe.yaml`) from a brief of facts and reviewed
-by a person; `skills/README.md` records the procedure.
+symlinks, and never overwrites a differing file without `--force`. The
+onboarding skills are short procedures written by hand that print their
+facts from `melchizedek-setup --level <id>`; every other SKILL.md body was
+written by the Scribe syndicate (`config/agents/examples/scribe.yaml`)
+from a brief of facts and reviewed by a person; `skills/README.md`
+records the procedure.
 
 ## 8. Security notes
 

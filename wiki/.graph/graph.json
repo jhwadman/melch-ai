@@ -5,10 +5,10 @@
     "at": "2026-10-18"
   },
   "stats": {
-    "nodes": 1018,
-    "edges": 4078,
+    "nodes": 1016,
+    "edges": 4058,
     "byKind": {
-      "doc": 207,
+      "doc": 205,
       "provider": 6,
       "env": 112,
       "model": 10,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 804,
+      "links_to": 790,
       "requires_env": 171,
       "routes_to": 10,
       "defined_in": 81,
@@ -36,7 +36,7 @@
       "imports": 935,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1177,
+      "derives_from": 1171,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3594,
+      "extracted": 3574,
       "inferred": 484
     },
     "isolated": 5
@@ -2076,7 +2076,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 15170
+        "words": 15166
       }
     },
     {
@@ -2137,30 +2137,6 @@
         "status": "stable",
         "trust": "unverified",
         "words": 707
-      }
-    },
-    {
-      "id": "/models/adk-gemini-adapter.md",
-      "kind": "doc",
-      "label": "Gemini wrapper over ADK",
-      "source": "/models/adk-gemini-adapter.md",
-      "attrs": {
-        "type": "model-provider",
-        "status": "deprecated",
-        "trust": "unverified",
-        "words": 91
-      }
-    },
-    {
-      "id": "/models/adk-shim.md",
-      "kind": "doc",
-      "label": "ADK shim",
-      "source": "/models/adk-shim.md",
-      "attrs": {
-        "type": "subsystem",
-        "status": "deprecated",
-        "trust": "unverified",
-        "words": 148
       }
     },
     {
@@ -2232,7 +2208,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5504
+        "words": 5542
       }
     },
     {
@@ -7712,7 +7688,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1345
+        "lines": 1354
       }
     },
     {
@@ -18085,146 +18061,6 @@
       "evidence": "/meta/wiki-system.md:36"
     },
     {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "module:lib/models/adapterResolver.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md frontmatter"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "module:lib/models/geminiAdapter.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md frontmatter"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "module:lib/models/registry.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md frontmatter"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "/decisions/0107-release-1-0-0-removes-adk.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md:21"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "/models/gemini-adapter.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md:23"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md:23"
-    },
-    {
-      "from": "/models/adk-gemini-adapter.md",
-      "to": "/operations/failure-modes.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-gemini-adapter.md:23"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "module:lib/compileNative.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md frontmatter"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "module:lib/models/contract.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md frontmatter"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "module:lib/runtime/native/step.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md frontmatter"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/decisions/0107-release-1-0-0-removes-adk.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:21"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/models/chat-completions-adapters.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/models/claude-adapter.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/models/gemini-adapter.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/models/model-contract.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/models/responses-adapters.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/operations/failure-modes.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:28"
-    },
-    {
-      "from": "/models/adk-shim.md",
-      "to": "/overview/native-loop.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
-    },
-    {
       "from": "/models/chat-completions-adapters.md",
       "to": "file:tests/chatCompletionsAdapter.test.ts",
       "rel": "derives_from",
@@ -19286,7 +19122,7 @@
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:22"
+      "evidence": "/models/provider-routing.md:20"
     },
     {
       "from": "/models/provider-routing.md",

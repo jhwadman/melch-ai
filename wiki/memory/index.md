@@ -2,6 +2,6 @@
 
 <!-- wiki:generated section="listing" source="directory contents" -->
 - [Memory architecture](/memory/architecture.md) — Session transcripts distilled into typed, supersedable facts with hybrid vector recall — siloed per user, erasable per scope across every store, resilient to malformed extractions.
-- [Memory & telemetry schema](/memory/schema.md) — The Postgres DDL shipped in db/, verbatim and in install order: the numbered migrations (sessions, memory facts, erase, the direct-Postgres tables, usage counters), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade.
+- [Memory & telemetry schema](/memory/schema.md) — The Postgres DDL shipped in db/, verbatim and in install order: the 15 numbered migrations (0001_base to 0015_model_pricing), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade.
 - [Sessions and events](/memory/sessions.md) — The engine's own types for what a session stores and how a store is reached (lib/runtime/events.ts, sessions.ts, memoryService.ts): TurnEvent as the stored Event JSON in ADK's shape, the parse that carries every field, reading and making events with the semantics ADK had, SessionService with one meaning across stores, the in-process store, the durable stores and the projection, and MemoryService.
 <!-- /wiki:generated -->
