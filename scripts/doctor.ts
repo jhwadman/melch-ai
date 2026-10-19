@@ -35,6 +35,7 @@ import { loadEnv } from '../lib/loadEnv.ts';
 import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import { renderCapabilityMatrix } from '../lib/models/capabilities.ts';
 import { assignMemoryNamespace, LEGACY_MEMORY_APP_NAME } from '../lib/memory/namespace.ts';
+import { resolveAgentsDir } from '../lib/project.ts';
 
 loadEnv();
 
@@ -57,7 +58,7 @@ function packageScripts(): Record<string, string> | undefined {
 if (fixAt !== -1) {
   // ADR 0020: give each named long-term syndicate its own memory namespace.
   // Only the files named are touched; with none named, list the candidates.
-  const agentsDir = path.resolve(process.env.MELCHIZEDEK_AGENTS_DIR ?? path.join(process.cwd(), 'config', 'agents'));
+  const agentsDir = resolveAgentsDir();
   const files = args.slice(fixAt + 1).filter((a) => !a.startsWith('--'));
   if (files.length === 0) {
     const pending = runDoctor({ agentsDir }).syndicates.filter((s) => s.memory && !s.memory.declared && !s.file.includes('/'));

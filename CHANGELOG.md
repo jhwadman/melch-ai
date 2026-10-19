@@ -6,6 +6,36 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.8.0 — 2026-10-18
+
+A minor release that gives a repository a manifest (ADR 0138). A
+`melchizedek.json` at the root names the agents folder, the exact engine
+version the project is written for, and how each syndicate ships; the
+bins find it on their own, `melchizedek-doctor` checks the pin, and the
+desktop app opens a repository through it. Nothing changes for a
+deployment that sets `MELCHIZEDEK_AGENTS_DIR`.
+
+### Added
+
+- **The project manifest, `melchizedek.json` (ADR 0138).** A JSON file at
+  a repository's root naming its agents folder (`agents`), the engine
+  version it is written for (`engine`, an exact pin), an `ignore` list,
+  a `tests` folder, the env variable *names* it needs, and per-file
+  shipping records (`syndicates.<file>.deliverable`,
+  `publish: { kind: "registry", id }`). New subpath
+  `melchizedek-agents/project` and barrel exports: `findProject`,
+  `loadProject`, `parseProjectManifest`, `resolveAgentsDir`,
+  `listProjectSyndicates`, `checkProject`, `projectManifestSchema`.
+- **The agents directory reads the manifest.** Every loader and bin
+  resolves it as: explicit option, `MELCHIZEDEK_AGENTS_DIR`, the nearest
+  manifest's `agents` (not above the repository root), then
+  `<cwd>/config/agents`. A deployment that sets the variable is
+  unchanged.
+- **`melchizedek-doctor` reports the project**: the engine pin against
+  the running engine, a missing agents or tests folder, `ignore`
+  patterns that match nothing, unset env names, and `syndicates` keys
+  with no file. A pin mismatch or a missing folder fails `--check`.
+
 ## 1.7.0 — 2026-10-17
 
 A minor release that lets a syndicate hold code (ADR 0137). A `script:`

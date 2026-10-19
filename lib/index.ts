@@ -141,3 +141,20 @@ export { loadEnv } from './loadEnv.ts';
 // Where credentials are read, by environment variable name (ADR 0133).
 export { setCredentialSource, credentialValue } from './models/credentialSource.ts';
 export type { CredentialSource } from './models/credentialSource.ts';
+
+// Project manifest, melchizedek.json (ADR 0138).
+export {
+  PROJECT_MANIFEST,
+  projectManifestSchema,
+  ProjectManifestError,
+  findProject,
+  findProjectRoot,
+  loadProject,
+  parseProjectManifest,
+  resolveAgentsDir,
+  listProjectSyndicates,
+  checkProject,
+  type Project,
+  type ProjectManifest,
+  type ProjectCheck,
+} from './project.ts';

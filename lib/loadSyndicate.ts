@@ -21,6 +21,7 @@ import type { ReasoningSetting } from './models/contract.ts';
 export type { WorkflowConfig } from './workflowConfig.ts';
 export type { ScriptConfig } from './script/config.ts';
 import type { ScriptConfig } from './script/config.ts';
+import { resolveAgentsDir } from './project.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -667,12 +668,8 @@ export function readSyndicateFile(
   // Security: confine reads to the agents root. `filename` can originate from
   // a network-controlled path segment (see a2a_server dynamic routes), so we
   // must reject any value that resolves outside that root (e.g. "../../.env").
-  // The root itself is trusted configuration: option → env → cwd default.
-  const agentsDir = path.resolve(
-    options.agentsDir ??
-      process.env.MELCHIZEDEK_AGENTS_DIR ??
-      path.join(process.cwd(), 'config', 'agents'),
-  );
+  // The root itself is trusted configuration: option → env → project manifest → cwd default (lib/project.ts).
+  const agentsDir = resolveAgentsDir(options.agentsDir);
   let filePath = path.resolve(agentsDir, filename);
   if (filePath !== agentsDir && !filePath.startsWith(agentsDir + path.sep)) {
     throw new Error(`Invalid syndicate path: '${filename}' resolves outside the agents directory`);

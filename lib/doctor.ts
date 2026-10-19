@@ -56,6 +56,7 @@ import { CREDENTIAL_HOSTS_ENV, credentialHosts } from './tools/credentialHosts.t
 import { syndicateCredentialUses } from './tools/credentialUses.ts';
 import { credentialHostEnvProblems, unboundCredentialWarning } from './a2a/oauthSetup.ts';
 import type { RuntimeName, RuntimeSource } from './runtime/runtimeFlag.ts';
+import { checkProject, findProject, isIgnored, ProjectManifestError, resolveAgentsDir, type Project, type ProjectCheck } from './project.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,7 +199,12 @@ export interface DoctorResult {
   serving?: DoctorServing;
   /** A stored Sign in with ChatGPT credential (ADR 0126), when one is present or its variables are set. */
   chatgpt?: DoctorChatGpt;
+  /** The project manifest (ADR 0138) found from the working directory, when there is one. */
+  project?: DoctorProject;
 }
+
+/** A `melchizedek.json` at or above the working directory: its checks, or why it does not load. */
+export type DoctorProject = ProjectCheck | { root: string; error: string; problems: string[]; warnings: string[] };
 
 /**
  * A Sign in with ChatGPT credential (ADR 0126): where it is, whether it is
@@ -696,12 +702,13 @@ export function runDoctor(options: {
   agentsDir?: string;
   scripts?: Record<string, string>;
 } = {}): DoctorResult {
-  const agentsDir = path.resolve(
-    options.agentsDir ??
-      process.env.MELCHIZEDEK_AGENTS_DIR ??
-      path.join(process.cwd(), 'config', 'agents'),
+  const agentsDir = resolveAgentsDir(options.agentsDir);
+  const { project, report: projectReport } = projectFromCwd();
+  // The manifest's ignore list applies when the doctor reads the project's own folder.
+  const listed = listSyndicateFiles(agentsDir).filter(
+    (f) => !project || agentsDir !== project.agentsDir || !isIgnored(project, path.relative(project.root, path.join(agentsDir, f))),
   );
-  const syndicates = listSyndicateFiles(agentsDir).map((f) =>
+  const syndicates = listed.map((f) =>
     diagnoseSyndicate(f, agentsDir, options.scripts),
   );
 
@@ -786,7 +793,20 @@ export function runDoctor(options: {
     providers: providerPaths(),
     ...(serving ? { serving } : {}),
     ...(chatgpt ? { chatgpt } : {}),
+    ...(projectReport ? { project: projectReport } : {}),
   };
+}
+
+/** The project at or above the working directory, checked; a broken manifest becomes a problem, not a throw. */
+function projectFromCwd(): { project?: Project; report?: DoctorProject } {
+  try {
+    const project = findProject();
+    return project ? { project, report: checkProject(project) } : {};
+  } catch (e) {
+    if (!(e instanceof ProjectManifestError)) throw e;
+    const problem = `melchizedek.json: ${e.issues.join('; ')}`;
+    return { report: { root: path.dirname(e.file), error: problem, problems: [problem], warnings: [] } };
+  }
 }
 
 /**
@@ -858,6 +878,7 @@ export function checkProblems(result: DoctorResult): string[] {
   for (const p of result.oauth?.problems ?? []) problems.push(`oauth: ${p}`);
   for (const p of result.credentials?.problems ?? []) problems.push(`credentials: ${p}`);
   for (const p of result.chatgpt?.problems ?? []) problems.push(`chatgpt: ${p}`);
+  for (const p of result.project?.problems ?? []) problems.push(`project: ${p}`);
   for (const s of result.syndicates) {
     for (const g of s.grants ?? []) for (const p of g.hostProblems ?? []) problems.push(`${s.file}: ${g.agent} · ${g.provider}: ${p}`);
   }
@@ -882,6 +903,15 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
 
   lines.push(`${c.bold}melchizedek doctor${c.reset} ${c.dim}· ${result.agentsDir}${c.reset}`);
   lines.push('');
+
+  // The project manifest (ADR 0138): the engine pin, and what in it is stale.
+  if (result.project) {
+    const p = result.project;
+    const pin = 'engine' in p ? `${p.engine.matches ? c.green + '✓' : c.red + '✗'}${c.reset} engine ${p.engine.pinned}${p.engine.matches ? '' : `${c.red}, ${p.engine.running} running${c.reset}`} · ${p.syndicates.length} syndicate(s) ` : '';
+    lines.push(`project     ${pin}${c.dim}${p.root}${c.reset}`);
+    for (const x of p.problems) if (!x.startsWith('engine:')) lines.push(`            ${c.red}✗ ${x}${c.reset}`);
+    for (const x of p.warnings) lines.push(`            ${c.yellow}! ${x}${c.reset}`);
+  }
 
   // The runtime a turn would run on, and where that came from (ADR 0107).
   if (result.runtime) {

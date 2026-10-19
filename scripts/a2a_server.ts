@@ -125,6 +125,7 @@ import { setOAuthHosts } from '../lib/tools/oauthHosts.ts';
 import { setCredentialHosts } from '../lib/tools/credentialHosts.ts';
 import type { AuditSink } from '../lib/observability/audit.ts';
 import type { CredentialRows } from '../lib/tools/credentialStore.ts';
+import { resolveAgentsDir } from '../lib/project.ts';
 
 // Re-exported for existing importers (tests/failNarration.test.ts).
 export { describeTurnError } from '../lib/a2a/executor.ts';
@@ -209,7 +210,7 @@ export function servedFileSyndicates(
   if (servedAgents) {
     for (const id of servedAgents) add(id);
   } else {
-    const agentsDir = path.resolve(process.env.MELCHIZEDEK_AGENTS_DIR ?? path.join(process.cwd(), 'config', 'agents'));
+    const agentsDir = resolveAgentsDir();
     let names: string[] = [];
     try {
       names = readdirSync(agentsDir);
@@ -656,7 +657,7 @@ if (invokedAsMain) {
       console.error(
         `[A2A] Syndicate not found: ${arg || 'syndicate.yaml'}.\n`
         + '      Pass your syndicate: melchizedek-serve <name>.yaml\n'
-        + '      (agents directory: MELCHIZEDEK_AGENTS_DIR, or <cwd>/config/agents)',
+        + '      (agents directory: MELCHIZEDEK_AGENTS_DIR, else the agents folder in melchizedek.json, else <cwd>/config/agents)',
       );
       process.exit(1);
     }
