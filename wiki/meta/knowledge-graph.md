@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-18
+  at: 2026-10-19
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,9 +28,9 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 226 | a repo file that is not a source module (DDL, config, prose) |
-| `module` | `module:<name>` | 206 | one source module |
-| `doc` | `/dir/doc.md` | 205 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 227 | a repo file that is not a source module (DDL, config, prose) |
+| `doc` | `/dir/doc.md` | 207 | a concept document in the bundle — identity is its bundle path |
+| `module` | `module:<name>` | 207 | one source module |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 93 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 51 | an npm script entrypoint |
@@ -50,10 +50,10 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1171 | declared in the document’s `sources:` frontmatter |
-| `imports` | extracted | A imports B | 935 | a static import edge between source files |
-| `links_to` | extracted | A links to B | 790 | a resolved markdown link between documents |
-| `requires_env` | extracted | A requires B | 171 | this environment variable must be set for the node to work |
+| `derives_from` | extracted | A derives from B | 1181 | declared in the document’s `sources:` frontmatter |
+| `imports` | extracted | A imports B | 942 | a static import edge between source files |
+| `links_to` | extracted | A links to B | 795 | a resolved markdown link between documents |
+| `requires_env` | extracted | A requires B | 168 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 93 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 93 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 81 | where the thing is declared in source |

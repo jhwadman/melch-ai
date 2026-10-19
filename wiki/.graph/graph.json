@@ -2,29 +2,29 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-18"
+    "at": "2026-10-19"
   },
   "stats": {
-    "nodes": 1016,
-    "edges": 4058,
+    "nodes": 1020,
+    "edges": 4077,
     "byKind": {
-      "doc": 205,
+      "doc": 207,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 226,
+      "file": 227,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 19,
-      "module": 206,
+      "module": 207,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 790,
-      "requires_env": 171,
+      "links_to": 795,
+      "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
       "documents": 59,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 935,
+      "imports": 942,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1171,
+      "derives_from": 1181,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3574,
+      "extracted": 3593,
       "inferred": 484
     },
     "isolated": 5
@@ -2056,6 +2056,18 @@
       }
     },
     {
+      "id": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "kind": "doc",
+      "label": "ADR 0138: A project manifest, melchizedek.json, joins the agents-directory chain",
+      "source": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 158
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2272,6 +2284,18 @@
       }
     },
     {
+      "id": "/operations/projects.md",
+      "kind": "doc",
+      "label": "Projects and melchizedek.json",
+      "source": "/operations/projects.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 542
+      }
+    },
+    {
       "id": "/operations/setup.md",
       "kind": "doc",
       "label": "Setup paths",
@@ -2280,7 +2304,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2381
+        "words": 2386
       }
     },
     {
@@ -2292,7 +2316,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 588
+        "words": 595
       }
     },
     {
@@ -2388,7 +2412,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 995
+        "words": 999
       }
     },
     {
@@ -5459,6 +5483,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/project.test.ts",
+      "kind": "file",
+      "label": "project.test.ts",
+      "source": "tests/project.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/publicPosture.test.ts",
       "kind": "file",
       "label": "publicPosture.test.ts",
@@ -6041,7 +6072,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 1079
+        "lines": 1109
       }
     },
     {
@@ -6077,7 +6108,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 144
+        "lines": 161
       }
     },
     {
@@ -6095,7 +6126,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 812
+        "lines": 809
       }
     },
     {
@@ -6519,6 +6550,15 @@
       "source": "lib/persistence/supabaseProvider.ts",
       "attrs": {
         "lines": 134
+      }
+    },
+    {
+      "id": "module:lib/project.ts",
+      "kind": "module",
+      "label": "lib/project.ts",
+      "source": "lib/project.ts",
+      "attrs": {
+        "lines": 297
       }
     },
     {
@@ -7508,7 +7548,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 667
+        "lines": 668
       }
     },
     {
@@ -7562,7 +7602,7 @@
       "label": "scripts/doctor.ts",
       "source": "scripts/doctor.ts",
       "attrs": {
-        "lines": 109
+        "lines": 110
       }
     },
     {
@@ -7598,7 +7638,7 @@
       "label": "scripts/mcp_server.ts",
       "source": "scripts/mcp_server.ts",
       "attrs": {
-        "lines": 337
+        "lines": 338
       }
     },
     {
@@ -17305,6 +17345,34 @@
       "evidence": "/decisions/0137-script-orchestration-and-sandboxed-code.md:41"
     },
     {
+      "from": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "to": "file:tests/project.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0138-project-manifest-melchizedek-json.md frontmatter"
+    },
+    {
+      "from": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0138-project-manifest-melchizedek-json.md frontmatter"
+    },
+    {
+      "from": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "to": "module:lib/project.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0138-project-manifest-melchizedek-json.md frontmatter"
+    },
+    {
+      "from": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "to": "/operations/projects.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0138-project-manifest-melchizedek-json.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19853,6 +19921,62 @@
       "evidence": "/operations/parity-harness.md:36"
     },
     {
+      "from": "/operations/projects.md",
+      "to": "file:tests/project.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:lib/project.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:scripts/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "module:scripts/mcp_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md frontmatter"
+    },
+    {
+      "from": "/operations/projects.md",
+      "to": "/decisions/0138-project-manifest-melchizedek-json.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/projects.md:24"
+    },
+    {
       "from": "/operations/setup.md",
       "to": "file:.env.example",
       "rel": "derives_from",
@@ -20085,6 +20209,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/operations/projects.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:72"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -20187,6 +20318,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:26"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/operations/projects.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:24"
     },
     {
       "from": "/overview/architecture.md",
@@ -21839,6 +21977,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp-server.md:20"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/operations/projects.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:27"
     },
     {
       "from": "/protocols/mcp-server.md",
@@ -25230,6 +25375,13 @@
     },
     {
       "from": "module:lib/doctor.ts",
+      "to": "module:lib/project.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
       "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25287,13 +25439,6 @@
     {
       "from": "module:lib/doctor.ts",
       "to": "env:A2A_KEY_MODE",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/doctor.ts"
-    },
-    {
-      "from": "module:lib/doctor.ts",
-      "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
@@ -25427,6 +25572,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/project.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -25580,6 +25732,13 @@
     },
     {
       "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/project.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/script/config.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25645,13 +25804,6 @@
       "from": "module:lib/loadSyndicate.ts",
       "to": "table:adk_agent_registry_versions",
       "rel": "reads_table",
-      "tier": "extracted",
-      "evidence": "lib/loadSyndicate.ts"
-    },
-    {
-      "from": "module:lib/loadSyndicate.ts",
-      "to": "env:MELCHIZEDEK_AGENTS_DIR",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
     },
@@ -27334,6 +27486,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/persistence/supabaseProvider.ts"
+    },
+    {
+      "from": "module:lib/project.ts",
+      "to": "module:lib/paths.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/project.ts"
+    },
+    {
+      "from": "module:lib/project.ts",
+      "to": "env:MELCHIZEDEK_AGENTS_DIR",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/project.ts"
     },
     {
       "from": "module:lib/registry.ts",
@@ -30641,6 +30807,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/project.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/runtime/logging.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30866,13 +31039,6 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:HOST",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "scripts/a2a_server.ts"
-    },
-    {
-      "from": "module:scripts/a2a_server.ts",
-      "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
@@ -31222,8 +31388,8 @@
     },
     {
       "from": "module:scripts/doctor.ts",
-      "to": "env:MELCHIZEDEK_AGENTS_DIR",
-      "rel": "requires_env",
+      "to": "module:lib/project.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/doctor.ts"
     },
@@ -31391,6 +31557,13 @@
     {
       "from": "module:scripts/mcp_server.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/project.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/mcp_server.ts"

@@ -33,6 +33,7 @@
     "./a2a/limits": "./dist/lib/a2a/redisLimits.js",
     "./mcp": "./dist/lib/mcp/server.js",
     "./registry": "./dist/lib/registry.js",
+    "./project": "./dist/lib/project.js",
     "./server": "./dist/scripts/a2a_server.js",
     "./guards": "./dist/lib/guards/index.js",
     "./storage/postgres": "./dist/lib/storage/postgres/index.js",

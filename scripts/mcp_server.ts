@@ -38,6 +38,7 @@
 import { readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { resolveAgentsDir } from '../lib/project.ts';
 
 export interface McpCliArgs {
   syndicates: string[];
@@ -156,7 +157,7 @@ export async function startMcpServer(argv: string[] = process.argv.slice(2)): Pr
   const bindings = () => ({
     current_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
   });
-  const agentsDir = path.resolve(process.env.MELCHIZEDEK_AGENTS_DIR ?? path.join(process.cwd(), 'config', 'agents'));
+  const agentsDir = resolveAgentsDir();
   let files = args.syndicates.map((id) => (id.endsWith('.yaml') || id.endsWith('.yml') ? id : `${id}.yaml`));
   const named = files.length > 0;
   if (!named) {
