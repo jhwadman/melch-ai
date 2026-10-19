@@ -6,6 +6,15 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.8.0 — 2026-10-18
+
+A minor release that gives a repository a manifest (ADR 0138). A
+`melchizedek.json` at the root names the agents folder, the exact engine
+version the project is written for, and how each syndicate ships; the
+bins find it on their own, `melchizedek-doctor` checks the pin, and the
+desktop app opens a repository through it. Nothing changes for a
+deployment that sets `MELCHIZEDEK_AGENTS_DIR`.
+
 ### Added
 
 - **The project manifest, `melchizedek.json` (ADR 0138).** A JSON file at
