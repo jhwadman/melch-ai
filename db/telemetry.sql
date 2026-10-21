@@ -22,10 +22,14 @@
 --                  resolved syndicate that ran) and engine_version. Kept
 --                  indefinitely; full-text searchable. Eval runs land here
 --                  too, tagged eval_* so production views exclude them.
---   adk_telemetry  ONE ROW PER SPAN — the raw llm.request and root spans as
---                  before (v1 shape, now with the identity columns). Per-call
---                  tokens, latency and the agent that made the call. Small;
---                  kept indefinitely.
+--   adk_telemetry  ONE ROW PER SPAN the ledger keeps — the turn's root, each
+--                  agent run, model step (model.call) and provider call
+--                  (llm.request), tool call, script run and call, workflow
+--                  walk and node run — with its parent among them and its
+--                  kind, so the turn's span tree is stored (ADR 0139). Per-call
+--                  tokens, latency and the agent that made the call; a tool
+--                  call's arguments and the start of its result. Small; kept
+--                  indefinitely.
 --   adk_payloads   FULL REQUEST/RESPONSE PER MODEL CALL — the assembled
 --                  prompt (system instruction, history, tool schemas) and the
 --                  raw response. 10-100x the size of a turn row and repeats
@@ -47,7 +51,7 @@ CREATE TABLE IF NOT EXISTS adk_telemetry (
   ts              TIMESTAMPTZ NOT NULL DEFAULT now(),
   trace_id        TEXT NOT NULL,
   span_id         TEXT NOT NULL,
-  span_name       TEXT NOT NULL,          -- 'llm.request' | 'Syndicate Execution: <name>'
+  span_name       TEXT NOT NULL,          -- 'llm.request' | 'Syndicate Execution: <name>' | 'agent.invoke <name>' | ...
   syndicate       TEXT,                   -- syndicate name, when known
   agent           TEXT,                   -- the agent that made the call / answered the turn
   provider        TEXT,                   -- 'gemini' | 'anthropic' | 'openai' | 'xai' | 'ollama'
@@ -67,6 +71,23 @@ ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS schema_version SMALLINT NOT N
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_ts      ON adk_telemetry (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_trace   ON adk_telemetry (trace_id);
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_session ON adk_telemetry (session_id);
+
+-- The span tree (migration 0016_span_tree, ADR 0139), for a fresh install;
+-- 0016 adds the same columns to a ledger that already exists:
+--   parent_span_id      the nearest ancestor span the ledger keeps; NULL for a root
+--   kind                turn | agent | model | tool | script | node
+--   error               the span failed (status, error code, a tool's error response)
+--   cache_read_tokens   parts of input_tokens read from / written to the
+--   cache_write_tokens  provider's prompt cache: one call's, or a root's sum
+-- All NULL on rows written before 0016. Tokens and cost sit on llm.request
+-- rows (and a root's on the root): a model.call row carries neither, so a
+-- trace's rows sum without counting a call twice.
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS parent_span_id     TEXT;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS kind               TEXT;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS error              BOOLEAN;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
+CREATE INDEX IF NOT EXISTS idx_adk_telemetry_parent ON adk_telemetry (trace_id, parent_span_id);
 
 -- ── adk_turns: one row per turn — the system of record ───────────────────
 CREATE TABLE IF NOT EXISTS adk_turns (
@@ -123,6 +144,10 @@ CREATE TABLE IF NOT EXISTS adk_turns (
   UNIQUE (trace_id, span_id)
 );
 
+-- Cache tokens summed over the turn's calls (migration 0016, ADR 0139).
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_adk_turns_ts        ON adk_turns (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_trace     ON adk_turns (trace_id);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_session   ON adk_turns (session_id, ts);
@@ -167,8 +192,10 @@ CREATE INDEX IF NOT EXISTS idx_adk_turns_surface_user
 -- cost_usd is filled at write time by the trigger below from model_pricing
 -- (db/migrations/0015_model_pricing.sql), so both sinks and a replayed
 -- dead-letter spool get it, and the price table is the one source:
---   adk_telemetry  an llm.request row: its model and tokens. A root row: the
---                  turn's per-model usage on the span (syndicate.usage).
+--   adk_telemetry  an llm.request row: its model and tokens, cache reads and
+--                  writes at their own rates (migration 0017). A root row: the
+--                  turn's per-model usage on the span (syndicate.usage). Any
+--                  other row (an agent run, a model step, a tool call): NULL.
 --   adk_turns      the turn's per-model usage (attributes->'syndicate.usage',
 --                  the tracer sums each model's calls), so a turn that used
 --                  two models is priced per model, input summed per call.
@@ -225,7 +252,8 @@ BEGIN
     RETURN NEW;
   END IF;
   IF NEW.model IS NOT NULL THEN
-    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens);
+    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens,
+                                         NEW.cache_read_tokens::bigint, NEW.cache_write_tokens::bigint);
   ELSE
     NEW.cost_usd := melchizedek_usage_text_cost(NEW.span->'attributes'->>'syndicate.usage');
   END IF;
