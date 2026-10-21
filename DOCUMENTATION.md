@@ -626,8 +626,14 @@ row per turn with input, output, the responding agent, the plan-dispatch
 route, errors, tokens, model-vs-tool latency, the tool calls with their
 responses, the ids that join it to `adk_sessions` (`session_id`,
 `invocation_id`), provenance (`config_hash`, `engine_version`) and a
-full-text `search` column; `adk_telemetry` — one row per `llm.request` /
-root span; and `adk_payloads` — full prompts and responses per model call,
+full-text `search` column; `adk_telemetry` — one row per span of the
+turn's tree (the root, `agent.invoke`, `model.call`, `llm.request`,
+`tool.execute`, script and workflow spans), each with `parent_span_id`
+(the nearest ancestor that has a row), `kind` (`turn | agent | model |
+tool | script | node`) and `error` (migration 0016, ADR 0139); a tool
+span carries `tool.args` and `tool.result` (redacted, then cut at 8 KB),
+and tokens sit on the `llm.request` rows and the root, never on a
+`model.call` row; and `adk_payloads` — full prompts and responses per model call,
 kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `TELEMETRY_PAYLOAD_SAMPLE`, `TELEMETRY_PAYLOAD_TTL_DAYS`) and expired by
 `melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
@@ -648,6 +654,14 @@ input summed per call), thinking at the output rate unless the row sets
 never a partial sum; `ollama/*` costs zero. Add or change a rate with an
 `INSERT … ON CONFLICT (model) DO UPDATE` on `model_pricing`; rows already
 written keep the rate in force when they were written (ADR 0136).
+Prompt-cache tokens are parts of the input: each `llm.request` records
+`llm.tokens.cache_read` / `llm.tokens.cache_write` (and
+`llm.finish_reason`), `adk_telemetry` and `adk_turns` carry
+`cache_read_tokens` / `cache_write_tokens` (the turn's summed over its
+calls), and `syndicate.usage` carries `cache_read` / `cache_write` per
+model. `model_pricing.cache_read_per_mtok` / `cache_write_per_mtok` price
+them (migration 0017; NULL prices them as input), seeded for Anthropic and
+OpenAI from their price lists (ADR 0139).
 Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
