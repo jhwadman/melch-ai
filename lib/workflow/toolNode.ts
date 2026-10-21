@@ -77,7 +77,7 @@ export interface ToolNodeContext extends Pick<ToolContextInit, 'appName' | 'user
    * it; the turn runner passes the engine's tool span
    * (lib/runtime/native/telemetry.ts). Default: a plain call.
    */
-  traceCall?: (call: { id: string; name: string }, tool: unknown, run: () => Promise<unknown>) => Promise<unknown>;
+  traceCall?: (call: { id: string; name: string; args?: unknown }, tool: unknown, run: () => Promise<unknown>) => Promise<unknown>;
 }
 
 // ── 1. Input to arguments ────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ export async function runToolNode(node: ToolNode, run: NodeRun, context: ToolNod
   let error: unknown;
   const invoke = (): Promise<unknown> => runOwnTool(resolved.own, args, call);
   try {
-    response = await (context.traceCall ? context.traceCall({ id: functionCallId, name: resolved.name }, resolved.own, invoke) : invoke());
+    response = await (context.traceCall ? context.traceCall({ id: functionCallId, name: resolved.name, args }, resolved.own, invoke) : invoke());
   } catch (e) {
     // handleFunctionCallList: an Error's message, any other throw as it is.
     error = e instanceof Error ? e.message : e;

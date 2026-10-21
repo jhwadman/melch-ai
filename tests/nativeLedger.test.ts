@@ -43,6 +43,7 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { adkReferences } from './helpers/adkReference.ts';
+import { adkEraRow, withoutSpanTree } from './helpers/adkEraLedger.ts';
 
 // ADK's ledger rows for each case, as ADK 2.2 recorded them (tests/fixtures/adk-reference/nativeledger).
 const reference = adkReferences('nativeLedger');
@@ -195,7 +196,8 @@ const TIMING_ATTRIBUTES = ['syndicate.latency.model_ms', 'syndicate.latency.tool
 
 /** A row with its ids, times and durations replaced; what must match. */
 function comparable(row: Record<string, any>): Record<string, any> {
-  const out: Record<string, any> = { ...row, ts: '<ts>', trace_id: '<trace>', span_id: '<span>' };
+  // What the engine records beyond ADK's rows (ADR 0139) is set aside; the tool-call case checks the tree's values.
+  const out: Record<string, any> = { ...withoutSpanTree(row), ts: '<ts>', trace_id: '<trace>', span_id: '<span>' };
   for (const key of ['latency_ms', 'model_ms', 'tool_ms']) if (key in out) out[key] = '<ms>';
   if ('engine_version' in out) out.engine_version = '<engine>'; // the version and commit change with every release
   if ('expires_at' in out) out.expires_at = '<expires>';
@@ -253,7 +255,7 @@ async function assertSameLedger(name: string, config: SyndicateYamlConfig, scrip
   const isNativeStep = stepRow(nativeRun);
 
   assert.deepEqual(native.adk_turns.map(comparable), adk.adk_turns, 'adk_turns');
-  assert.deepEqual(native.adk_telemetry.map(comparable), adk.adk_telemetry, 'adk_telemetry');
+  assert.deepEqual(native.adk_telemetry.filter(adkEraRow).map(comparable), adk.adk_telemetry, 'adk_telemetry');
 
   // adk_payloads: a model step's own row differs in the three columns the header names.
   assert.deepEqual(native.adk_payloads.map(isNativeStep), adk.steps, 'payload rows: step rows and failed-call rows in the same order');
@@ -301,7 +303,7 @@ test('a tool call, then the answer: the same turn, telemetry and payload rows as
   assert.equal(turn.output, 'alpha is found');
   assert.equal(turn.agent, 'Solo');
   assert.ok(turn.tool_ms >= TOOL_MS - 5, `tool time counts the tool.execute span (${turn.tool_ms} ms)`);
-  assert.deepEqual(native.adk_telemetry.map((r) => [r.span_name, r.agent]), [
+  assert.deepEqual(native.adk_telemetry.filter(adkEraRow).map((r) => [r.span_name, r.agent]), [
     ['llm.request', 'Solo'],
     ['llm.request', 'Solo'],
     [`Syndicate Execution: ${APP}`, 'Solo'],
@@ -319,9 +321,34 @@ test('a tool call, then the answer: the same turn, telemetry and payload rows as
   assert.deepEqual(named('tool.execute native_ledger_lookup').map(parentName), ['agent.invoke Solo']);
   const tool = named('tool.execute native_ledger_lookup')[0] as ReadableSpan;
   assert.equal(tool.attributes['gen_ai.tool.call.id'], 'call-1');
-  assert.equal(tool.attributes['tool.args'], undefined, 'a tool span carries no arguments');
+  assert.equal(tool.attributes['tool.args'], '{"key":"alpha"}', 'a tool span carries its arguments (ADR 0139)');
+  assert.equal(tool.attributes['tool.result'], '{"result":"found alpha"}', 'and its result');
   const agentSpan = named('agent.invoke Solo')[0] as ReadableSpan;
   assert.equal(agentSpan.attributes['agent.end_reason'], 'final');
+
+  // The ledger keeps the tree (ADR 0139): every row names its parent among the rows, and its kind.
+  const rows = native.adk_telemetry;
+  const rowName = new Map(rows.map((r) => [r.span_id, r.span_name]));
+  assert.deepEqual(
+    rows.map((r) => [r.span_name, r.kind, r.parent_span_id === null ? null : rowName.get(r.parent_span_id), r.error]),
+    [
+      ['llm.request', 'model', 'model.call', false],
+      ['model.call', 'model', 'agent.invoke Solo', false],
+      ['tool.execute native_ledger_lookup', 'tool', 'agent.invoke Solo', false],
+      ['llm.request', 'model', 'model.call', false],
+      ['model.call', 'model', 'agent.invoke Solo', false],
+      ['agent.invoke Solo', 'agent', `Syndicate Execution: ${APP}`, false],
+      [`Syndicate Execution: ${APP}`, 'turn', null, false],
+    ],
+  );
+  const stepRows = rows.filter((r) => r.span_name === 'model.call');
+  assert.ok(stepRows.every((r) => r.input_tokens === null && r.model === null), 'a model step row carries no tokens of its own: its llm.request does');
+  assert.ok(stepRows.every((r) => !Object.keys(r.span.attributes).some((k) => k.startsWith('llm.payload.'))), 'nor its payload, which adk_payloads holds');
+  assert.deepEqual(stepRows.map((r) => r.span.attributes['llm.finish_reason']), ['tool_call', 'stop']);
+  assert.deepEqual(rows.filter((r) => r.span_name === 'llm.request').map((r) => r.span.attributes['llm.finish_reason']), ['tool_call', 'stop']);
+  const toolRow = rows.find((r) => r.kind === 'tool');
+  assert.equal(toolRow.span.attributes['tool.args'], '{"key":"alpha"}');
+  assert.equal(toolRow.span.attributes['tool.result'], '{"result":"found alpha"}');
 });
 
 test('a failed call: the same rows, the failed call’s payload from its llm.request as on ADK', async () => {
@@ -455,10 +482,10 @@ test('a workflow writes the ledger rows ADK writes, each model call attributed t
   const native = await ledgerOf(nativeRun.spans, ALL);
 
   assert.deepEqual(native.adk_turns.map(scrubInvocation), adk.ledger.adk_turns, 'adk_turns');
-  assert.deepEqual(native.adk_telemetry.map(scrubInvocation), adk.ledger.adk_telemetry, 'adk_telemetry');
+  assert.deepEqual(native.adk_telemetry.filter(adkEraRow).map(scrubInvocation), adk.ledger.adk_telemetry, 'adk_telemetry');
 
   // Per-node attribution: every model call's row names the agent of the node that made it.
-  assert.deepEqual(native.adk_telemetry.map((r) => [r.span_name, r.agent, r.model]), [
+  assert.deepEqual(native.adk_telemetry.filter(adkEraRow).map((r) => [r.span_name, r.agent, r.model]), [
     ['llm.request', 'Triage', 'scripted/triage'],
     ['llm.request', 'Lister', 'scripted/lister'],
     ['llm.request', 'Summarizer', 'scripted/summarizer'],

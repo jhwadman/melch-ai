@@ -305,7 +305,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   }
 
   async function readResponses(): Promise<ModelStepResult> {
-    for await (const traced of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
+    for await (const traced of traceLlmGeneration({ provider: adapter.provider, model: request.model, request, source: (r) => sources.get(r) }, inner())) {
       if (signal?.aborted) return { ...result, stopped: stopOf() };
       const source = sources.get(traced);
       if (!source) {
