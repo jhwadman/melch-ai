@@ -5,15 +5,15 @@
     "at": "2026-10-21"
   },
   "stats": {
-    "nodes": 1032,
-    "edges": 4129,
+    "nodes": 1034,
+    "edges": 4134,
     "byKind": {
-      "doc": 210,
+      "doc": 211,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 234,
+      "file": 235,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 810,
+      "links_to": 812,
       "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
@@ -36,7 +36,7 @@
       "imports": 956,
       "reads_table": 29,
       "runs": 74,
-      "derives_from": 1203,
+      "derives_from": 1206,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3645,
+      "extracted": 3650,
       "inferred": 484
     },
     "isolated": 5
@@ -2104,6 +2104,18 @@
       }
     },
     {
+      "id": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "kind": "doc",
+      "label": "ADR 0142: The sandbox worker runs without V8 heap caps",
+      "source": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 189
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2508,7 +2520,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 520
+        "words": 623
       }
     },
     {
@@ -5212,6 +5224,12 @@
       "source": "tests/fixtures/parity.yaml"
     },
     {
+      "id": "file:tests/fixtures/sandbox/exitAfterRuns.ts",
+      "kind": "file",
+      "label": "exitAfterRuns.ts",
+      "source": "tests/fixtures/sandbox/exitAfterRuns.ts"
+    },
+    {
       "id": "file:tests/fixtures/sessions/scenarios.ts",
       "kind": "file",
       "label": "scenarios.ts",
@@ -6892,7 +6910,7 @@
       "label": "lib/sandbox/sandbox.ts",
       "source": "lib/sandbox/sandbox.ts",
       "attrs": {
-        "lines": 339
+        "lines": 341
       }
     },
     {
@@ -17657,6 +17675,34 @@
       "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md:28"
     },
     {
+      "from": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "to": "file:tests/codeSandbox.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0142-sandbox-worker-without-heap-caps.md frontmatter"
+    },
+    {
+      "from": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "to": "file:tests/fixtures/sandbox/exitAfterRuns.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0142-sandbox-worker-without-heap-caps.md frontmatter"
+    },
+    {
+      "from": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "to": "module:lib/sandbox/sandbox.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0142-sandbox-worker-without-heap-caps.md frontmatter"
+    },
+    {
+      "from": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "to": "/tools/run-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0142-sandbox-worker-without-heap-caps.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -22904,21 +22950,28 @@
       "to": "/decisions/0132-local-mcp-servers-over-stdio.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/run-code.md:31"
+      "evidence": "/tools/run-code.md:33"
     },
     {
       "from": "/tools/run-code.md",
       "to": "/decisions/0137-script-orchestration-and-sandboxed-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/run-code.md:31"
+      "evidence": "/tools/run-code.md:33"
+    },
+    {
+      "from": "/tools/run-code.md",
+      "to": "/decisions/0142-sandbox-worker-without-heap-caps.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/run-code.md:29"
     },
     {
       "from": "/tools/run-code.md",
       "to": "/overview/script-orchestration.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/run-code.md:39"
+      "evidence": "/tools/run-code.md:41"
     },
     {
       "from": "/tools/skill-harness.md",
