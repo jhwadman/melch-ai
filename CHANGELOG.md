@@ -4,6 +4,17 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.10.2 — 2026-10-21
+
+A patch release: a process that ran the code sandbox could fail to exit.
+`runInSandbox` (`melchizedek-agents/sandbox`, used by `run_code` and
+`script:`) started each worker with V8 heap caps; with them, a garbage
+collection a background compile job requested while the worker was exiting
+could deadlock Node's task drain (nodejs/node#54918), so that worker never
+exited and its process stayed alive after its work was done. The worker now
+runs without `resourceLimits` (ADR 0142); a run's memory is still bounded by
+its wasm memory limit (default 64 MB). No API changes.
+
 ## 1.10.1 — 2026-10-21
 
 A patch release: `zod` is pinned exactly again (`4.6.7`). 1.10.0 named it

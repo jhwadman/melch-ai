@@ -7,8 +7,13 @@
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert';
+import { spawn } from 'node:child_process';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { CodeSandboxOffError, SandboxHalt, codeSandboxEnabled, refuseWithoutSandbox, runInSandbox } from '../lib/sandbox/sandbox.ts';
 import { runCodeTool } from '../lib/tools/runCodeTool.ts';
@@ -59,6 +64,39 @@ test('sandbox: nothing of the host is reachable, and the clock and randomness ar
   const imported = await runInSandbox({ source: "import fs from 'fs'; export default () => 1" });
   assert.equal(imported.ok, false);
   assert.match(imported.error!.message, /could not load module/);
+});
+
+test('sandbox: a process that ran sandboxes exits on its own (no worker left unable to exit, ADR 0142)', async () => {
+  // With heap caps on the worker, a GC that a background compile job asked for while the
+  // worker was exiting deadlocked Node's task drain: the worker never exited and held its
+  // process open. One process hung about one time in four; eight make a regression loud.
+  // The sandbox runs as .js, as the package ships it: its worker then runs without type
+  // stripping, the case that hung. The copy sits under node_modules so its imports resolve.
+  const fixture = fileURLToPath(new URL('./fixtures/sandbox/exitAfterRuns.ts', import.meta.url));
+  const dir = fileURLToPath(new URL(`../node_modules/.cache/sandbox-exit-${process.pid}/`, import.meta.url));
+  mkdirSync(dir, { recursive: true });
+  for (const name of ['sandbox', 'worker']) {
+    writeFileSync(join(dir, `${name}.js`), stripTypeScriptTypes(readFileSync(new URL(`../lib/sandbox/${name}.ts`, import.meta.url), 'utf8')));
+  }
+  const compiled = pathToFileURL(join(dir, 'sandbox.js')).href;
+  after(() => rmSync(dir, { recursive: true, force: true }));
+  const one = () =>
+    new Promise<string>((resolve) => {
+      const child = spawn(process.execPath, ['--experimental-strip-types', '--disable-warning=ExperimentalWarning', fixture, compiled, '2'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      child.stdout.on('data', (d) => (out += d));
+      child.stderr.on('data', (d) => (out += d));
+      const deadline = setTimeout(() => {
+        child.kill('SIGKILL');
+        resolve(`still running after 45 s: ${out.trim()}`);
+      }, 45_000);
+      child.on('exit', (code) => {
+        clearTimeout(deadline);
+        resolve(code === 0 && out.includes('ran') ? 'exited' : `exit ${code}: ${out.trim()}`);
+      });
+    });
+  const outcomes = await Promise.all(Array.from({ length: 8 }, one));
+  assert.deepEqual(outcomes, Array(8).fill('exited'));
 });
 
 test('sandbox: the CPU budget, the stack limit and a thrown error each end the run by name', async () => {

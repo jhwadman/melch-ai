@@ -226,8 +226,10 @@ export async function runInSandbox(opts: SandboxRunOptions): Promise<SandboxResu
   const worker = new Worker(workerUrl(), {
     // Source runs need type stripping in the worker; the package runs compiled JS.
     execArgv: import.meta.url.endsWith('.ts') ? ['--experimental-strip-types', '--disable-warning=ExperimentalWarning'] : [],
-    // The wasm heap is held by setMemoryLimit; this bounds the JS around it.
-    resourceLimits: { maxOldGenerationSizeMb: 96, maxYoungGenerationSizeMb: 16 },
+    // No resourceLimits: the code's heap is the wasm memory setMemoryLimit holds, outside the V8
+    // heap. Capping the V8 heap made GCs frequent enough that one a background compile job asked
+    // for while the worker was exiting deadlocked Node's task drain, so the worker never exited
+    // and its process never could (ADR 0142).
     stdout: true,
     stderr: true,
   });
