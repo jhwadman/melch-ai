@@ -84,7 +84,8 @@ import {
   deriveUserId,
   requestContextStorage,
 } from './executor.ts';
-import type { A2AContext, SurfaceContext } from './executor.ts';
+import type { A2AContext, SurfaceContext, TaskStateRecord } from './executor.ts';
+import { droppedHeaderWarning, headerMetadata } from '../observability/metadata.ts';
 import { HEADER_VALUE_PATTERN, SCOPE_KEY_PATTERN } from './identity.ts';
 import type { IdentityScheme } from './identity.ts';
 import type { Policy } from './policy.ts';
@@ -290,6 +291,15 @@ export interface A2AAppOptions {
   metricsToken?: string;
   /** One record per task, however it ended (structured logs, your own metrics). */
   onTaskEnd?: (record: TaskRecord) => void;
+  /**
+   * Every state a task enters, as the executor publishes it (ADR 0141):
+   * `submitted` first, `working` with its first progress line, then the
+   * state it ends in (`completed`, `failed`, `canceled`, `rejected`,
+   * `input-required`). A repeat of the same state is not reported again. For
+   * a live view of in-flight work; `tasks/get` answers the same state to a
+   * polling caller. A throwing hook is ignored.
+   */
+  onTaskState?: (record: TaskStateRecord) => void;
   /**
    * Credentials plug point (ADR 0017/0023): how a provider is reached for
    * this request — from a secret manager, per tenant, anywhere. Return an
@@ -863,6 +873,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       agentId,
       policy: options.policy,
       onTaskEnd,
+      ...(options.onTaskState ? { onTaskState: options.onTaskState } : {}),
       onAudit: audit,
       log,
       warn,
@@ -1087,6 +1098,17 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       }
       surface[field] = raw;
     }
+    // X-Melch-Meta-*: per-request metadata, telemetry only (ADR 0141). Refused when malformed, as X-Surface is.
+    const metaHeaders = headerMetadata(req.headers);
+    if (metaHeaders.error) {
+      res.status(400).json({ error: metaHeaders.error });
+      return;
+    }
+    const meta = metaHeaders.meta;
+    // Warned about only once the caller is known: an anonymous request writes no log line.
+    const warnDroppedMeta = () => {
+      for (const key of metaHeaders.dropped ?? []) warn(droppedHeaderWarning(key));
+    };
 
     // The adopter's identity system decides, when one is plugged in.
     if (options.resolveRequest) {
@@ -1118,6 +1140,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
         }
       }
       if (identity.apiKey && !identity.provider) provider = 'google';
+      warnDroppedMeta();
       requestContextStorage.run(
         {
           apiKey,
@@ -1127,7 +1150,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
           caller: identity.caller,
           ownsNested: identity.ownsNested ?? false,
           operator: identity.operator ?? false,
-          sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent),
+          sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent), ...(meta ? { meta } : {}),
         },
         () => next(),
       );
@@ -1156,8 +1179,9 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       // The caller's key funds its provider, and its hash prefixes the scope
       // so no key holder can reach another's data.
       const scopeKey = deriveUserId({ apiKey, siteUserId });
+      warnDroppedMeta();
       requestContextStorage.run(
-        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret, sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent) },
+        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret, sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent), ...(meta ? { meta } : {}) },
         () => next(),
       );
       return;
@@ -1168,6 +1192,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       warnedIgnoredKey = true;
       warn('A caller sent X-API-Key, which server key mode ignores. Set A2A_KEY_MODE=byok (keyMode: \'byok\') if callers fund their own inference — and to keep reaching sessions and memory stored under key-hash silos.');
     }
+    warnDroppedMeta();
     requestContextStorage.run(
       {
         apiKey: '',
@@ -1178,7 +1203,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
         // Everyone holding the secret is one caller; without a secret (loopback) the caller is local.
         caller: options.serverSecret ? 'shared-secret' : 'local',
         operator: !!options.serverSecret,
-        sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent),
+        sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent), ...(meta ? { meta } : {}),
       },
       () => next(),
     );

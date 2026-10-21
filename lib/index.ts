@@ -69,7 +69,7 @@ export type { CodeRun, RunCodeOutput } from './tools/runCodeTool.ts';
 // ── Serve it over A2A, or call a remote A2A agent ───────────────────────────
 export { createA2AApp, compileAgentCard, currentRequestContext } from './a2a/app.ts';
 export type { A2AApp, A2AAppOptions, RequestIdentity } from './a2a/app.ts';
-export type { A2AContext } from './a2a/executor.ts';
+export type { A2AContext, TaskStateName, TaskStateRecord } from './a2a/executor.ts';
 export {
   callerTokens,
   firstOf,
@@ -87,6 +87,7 @@ export { createMetrics } from './observability/metrics.ts';
 export type { Metrics, TaskRecord } from './observability/metrics.ts';
 export { patternRedactor, redactRow, setTelemetryRedactor, telemetryRedactor } from './observability/redact.ts';
 export type { Redactor } from './observability/redact.ts';
+export type { Metadata, MetadataValue } from './observability/metadata.ts';
 export { RemoteA2AAgent, remoteAgentTool } from './a2a/remoteAgent.ts';
 export type { RemoteAnswer } from './a2a/remoteAgent.ts';
 
