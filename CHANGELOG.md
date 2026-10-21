@@ -4,6 +4,12 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.10.1 — 2026-10-21
+
+A patch release: `zod` is pinned exactly again (`4.6.7`). 1.10.0 named it
+as `^4.6.7`, so a consumer could resolve a newer zod than the one the
+engine was tested with; nothing else changes.
+
 ## 1.10.0 — 2026-10-20
 
 A minor release for deployments: a served syndicate takes end-user

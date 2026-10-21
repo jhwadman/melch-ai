@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
@@ -168,7 +168,7 @@
     "pg": "^8.23.1",
     "quickjs-emscripten-core": "0.32.0",
     "yaml": "^2.9.0",
-    "zod": "^4.6.7"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
