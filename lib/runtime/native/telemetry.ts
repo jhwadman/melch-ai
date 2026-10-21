@@ -44,6 +44,7 @@ import type { ModelAdapter } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { RUNTIME_SPAN_SCOPE } from '../../observability/lineage.ts';
 import { payloadPolicyFromEnv } from '../../observability/supabaseSpanExporter.ts';
+import { META_AGENT_PREFIX, metaAttributes } from '../../observability/metadata.ts';
 import { startEngineSpan } from '../../observability/tracer.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
@@ -98,7 +99,7 @@ function failed(span: Span, error: unknown): never {
 
 /** The agent's run as an `agent.invoke <name>` span, opened when the run starts. */
 export async function* traceAgentInvocation(
-  agent: Pick<NativeAgent, 'name' | 'description'>,
+  agent: Pick<NativeAgent, 'name' | 'description' | 'metadata'>,
   ctx: Pick<AgentLoopContext, 'session' | 'invocationId'>,
   run: () => AsyncGenerator<TurnEvent, AgentLoopEnd>,
 ): AsyncGenerator<TurnEvent, AgentLoopEnd> {
@@ -109,6 +110,8 @@ export async function* traceAgentInvocation(
       'gen_ai.agent.description': agent.description ?? '',
       'gen_ai.conversation.id': ctx.session.id,
       'adk.invocation_id': ctx.invocationId,
+      // The YAML's agent metadata (ADR 0141), redacted as every ledger value is.
+      ...metaAttributes(agent.metadata, META_AGENT_PREFIX),
     },
   });
   try {

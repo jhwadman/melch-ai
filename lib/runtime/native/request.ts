@@ -124,6 +124,8 @@ export interface NativeAgent {
   mode?: 'task';
   /** The session-state key the agent's final answer is saved under (the loop writes it, lib/runtime/native/agentLoop.ts). */
   outputKey?: string;
+  /** The YAML's `metadata:` (ADR 0141): `meta.agent.<key>` attributes on the agent's `agent.invoke` span. */
+  metadata?: Record<string, string | number | boolean>;
   /** `fallback_model:`: answers a provider-side failure of the agent's model (ADR 0044). The loop calls it as its own leaf adapter. */
   fallbackModel?: string;
   /** `context:` (ADR 0033): compact the history into a summary past a token threshold. The loop runs it before each step (compaction.ts). */

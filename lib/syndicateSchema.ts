@@ -31,6 +31,7 @@ import { OAUTH_SCOPE, PROVIDER_NAME } from './tools/auth.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 import { V2_AGENT_KEYS, conflictMessage, conflictsOf, toEngineAgent } from './agentDialect.ts';
 import { MCP_TRANSPORTS } from './tools/mcpTransports.ts';
+import { MAX_META_KEYS, MAX_META_VALUE_CHARS, META_KEY } from './observability/metadata.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
 
@@ -376,6 +377,20 @@ const openapiEntry = z
   })
   .describe('An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts).');
 
+// ── Metadata (ADR 0141) ──────────────────────────────────────────────────────
+
+/** Static labels copied onto the turn's spans as `meta.*` attributes (lib/observability/metadata.ts). */
+const metadataSchema = (where: string) =>
+  z
+    .record(
+      z.string().regex(META_KEY, 'a metadata key is letters, digits and _ . : - (at most 64, not starting with . : -)'),
+      z.union([z.string().max(MAX_META_VALUE_CHARS), z.number(), z.boolean()]),
+    )
+    .refine((m) => Object.keys(m).length <= MAX_META_KEYS, { message: `at most ${MAX_META_KEYS} metadata keys` })
+    .describe(
+      `Labels for the ledger: strings (at most ${MAX_META_VALUE_CHARS} characters), numbers or booleans, at most ${MAX_META_KEYS} keys. ${where} A value shaped like a key or token is dropped at load with a warning; string values pass through the telemetry redactor (ADR 0141).`,
+    );
+
 // ── Agents ───────────────────────────────────────────────────────────────────
 
 const agentFields = {
@@ -482,6 +497,7 @@ const agentFields = {
       delegates: z.array(z.string()).optional(),
     })
     .optional(),
+  metadata: metadataSchema('Each becomes `meta.agent.<key>` on this agent\'s agent.invoke span.').optional(),
 };
 
 export const agentSchema = z
@@ -645,6 +661,7 @@ export const syndicateSchema = z
       })
       .optional()
       .describe('Self-correction on model and tool errors: the engine\'s reflect-and-retry. On by default.'),
+    metadata: metadataSchema('Each becomes `meta.<key>` on every turn\'s root span, so on the ledger row (adk_turns.attributes); a key the YAML names cannot be set by an A2A caller.').optional(),
     variables: z
       .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
       .optional()
@@ -1430,6 +1447,10 @@ export function syndicateJsonSchema(): Record<string, unknown> {
       // YAML v2 (ADR 0115): the refinements, where JSON Schema can say them.
       if (ctx.zodSchema === (samplingSchema as unknown) || ctx.zodSchema === (outputSchemaV2 as unknown)) {
         ctx.jsonSchema.minProperties = 1;
+      }
+      // metadata: (ADR 0141): the key-count refinement, which JSON Schema says as maxProperties.
+      if ((ctx.jsonSchema.propertyNames as { pattern?: string } | undefined)?.pattern === META_KEY.source) {
+        ctx.jsonSchema.maxProperties = MAX_META_KEYS;
       }
       if (ctx.zodSchema === (modelOverrideEntry as unknown)) {
         ctx.jsonSchema.oneOf = [{ required: ['instruction'] }, { required: ['instruction_append'] }];
