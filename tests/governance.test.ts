@@ -20,7 +20,7 @@ import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { callerTokens, hashCallerToken, parseCallers } from '../lib/a2a/identity.ts';
 import { budgets, memoryUsageStore, parseBudgets } from '../lib/a2a/policy.ts';
-import type { UsageStore } from '../lib/a2a/policy.ts';
+import type { BudgetState, UsageStore } from '../lib/a2a/policy.ts';
 import { createMetrics } from '../lib/observability/metrics.ts';
 import type { TaskRecord } from '../lib/observability/metrics.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -318,4 +318,85 @@ test('the usage counters name a scope only by its hash', async () => {
   const scope = seen.find((x) => x.startsWith('scope:'))!;
   assert.match(scope, /^scope:[0-9a-f]{24}$/);
   assert.doesNotMatch(scope, /alice/);
+});
+
+// ── Budget hooks (1.10): onBudgetState and hardStop ─────────────────────────
+
+test('onBudgetState mirrors each subject after a task: totals, limits, ok → warn → over, scopes as hashes', async () => {
+  const now = () => new Date('2026-03-01T12:00:00Z');
+  const seen: BudgetState[] = [];
+  const policy = budgets({ perCaller: { tasks: 5 } }, { now, warnAt: 0.6, onBudgetState: (st) => { seen.push(st); } });
+  const run = async () => { await policy.record!(subject, spend); };
+  await run();
+  await run();
+  const caller = () => seen.filter((x) => x.subject === 'caller:alpha');
+  assert.deepEqual(caller().map((x) => x.level), ['ok', 'ok']);
+  await run();
+  assert.equal(caller().at(-1)!.level, 'warn', '3 of 5 tasks is past 60%');
+  await run();
+  await run();
+  const last = caller().at(-1)!;
+  assert.equal(last.level, 'over');
+  assert.equal(last.reached, '5 tasks');
+  assert.deepEqual(last.usage, { tasks: 5, llmCalls: 15, inputTokens: 5000, outputTokens: 1000, thinkingTokens: 0 });
+  assert.deepEqual(last.limits, { tasks: 5 });
+  assert.equal(last.day, '2026-03-01');
+  assert.equal(last.cause, 'record');
+  assert.equal(last.agentId, 'echo');
+  const scope = seen.filter((x) => x.subject.startsWith('scope:'));
+  assert.equal(scope.length, 5, 'the scope is reported too, with no limits of its own');
+  assert.equal(scope[0].limits, undefined);
+  assert.equal(scope[0].level, 'ok');
+  assert.doesNotMatch(JSON.stringify(seen), /silo-1/, 'the scope key never leaves as itself');
+
+  // Admission over the limit reports and refuses.
+  const refused = await policy.admit!(subject);
+  assert.equal(refused.ok, false);
+  const admitState = seen.at(-1)!;
+  assert.deepEqual([admitState.cause, admitState.level, admitState.stopped], ['admit', 'over', true]);
+
+  // A mirror that throws touches nothing.
+  const quiet = budgets({ perCaller: { tasks: 1 } }, { now, onBudgetState: () => { throw new Error('mirror down'); } });
+  await quiet.record!(subject, spend);
+  assert.equal((await quiet.admit!(subject)).ok, false);
+});
+
+test('hardStop: false makes the limits advisory; a function is an outside stop that refuses with its reason', async () => {
+  const now = () => new Date('2026-03-01T12:00:00Z');
+  const seen: BudgetState[] = [];
+  const soft = budgets({ perCaller: { tasks: 1 } }, { now, hardStop: false, onBudgetState: (st) => { seen.push(st); } });
+  await soft.record!(subject, spend);
+  assert.deepEqual(await soft.admit!(subject), { ok: true }, 'over, but admitted');
+  const st = seen.at(-1)!;
+  assert.deepEqual([st.cause, st.level, st.stopped], ['admit', 'over', false]);
+
+  let stop: string | undefined;
+  const asked: string[] = [];
+  const outside = budgets({}, { now, hardStop: (s) => { asked.push(s.agentId); return stop; } });
+  assert.deepEqual(await outside.admit!(subject), { ok: true });
+  stop = "The month's budget 'All spend' ($50.00) is spent.";
+  assert.deepEqual(await outside.admit!(subject), { ok: false, reason: stop });
+  assert.deepEqual(asked, ['echo', 'echo']);
+
+  // The limits still refuse first beside an outside stop.
+  const both = budgets({ perCaller: { tasks: 1 } }, { now, hardStop: () => undefined });
+  await both.record!(subject, spend);
+  assert.equal((await both.admit!(subject)).ok, false);
+});
+
+test('a served task is refused by the outside stop, and the mirror sees the served spend', async () => {
+  let stop: string | undefined;
+  const seen: BudgetState[] = [];
+  const { srv, url } = await serve({ policy: budgets({}, { hardStop: () => stop, onBudgetState: (st) => { seen.push(st); } }) });
+  try {
+    assert.equal((await send(url, ALPHA)).state, 'completed');
+    const mirrored = seen.find((x) => x.subject === 'caller:alpha');
+    assert.deepEqual(mirrored?.usage, { tasks: 1, llmCalls: 1, inputTokens: 100, outputTokens: 20, thinkingTokens: 5 });
+    stop = "Budget 'Local' is spent for March.";
+    const r = await send(url, ALPHA);
+    assert.equal(r.state, 'rejected');
+    assert.equal(r.text, stop);
+  } finally {
+    srv.close();
+  }
 });
