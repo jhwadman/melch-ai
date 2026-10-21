@@ -28,9 +28,9 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 230 | a repo file that is not a source module (DDL, config, prose) |
-| `doc` | `/dir/doc.md` | 208 | a concept document in the bundle — identity is its bundle path |
-| `module` | `module:<name>` | 207 | one source module |
+| `file` | `file:<name>` | 231 | a repo file that is not a source module (DDL, config, prose) |
+| `doc` | `/dir/doc.md` | 209 | a concept document in the bundle — identity is its bundle path |
+| `module` | `module:<name>` | 208 | one source module |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 93 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 51 | an npm script entrypoint |
@@ -50,9 +50,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1190 | declared in the document’s `sources:` frontmatter |
-| `imports` | extracted | A imports B | 943 | a static import edge between source files |
-| `links_to` | extracted | A links to B | 802 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 1196 | declared in the document’s `sources:` frontmatter |
+| `imports` | extracted | A imports B | 951 | a static import edge between source files |
+| `links_to` | extracted | A links to B | 808 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 168 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 93 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 93 | the agent is configured with this model id |

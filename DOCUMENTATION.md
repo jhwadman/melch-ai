@@ -126,6 +126,7 @@ Field reference:
 |---|---|---|
 | `syndicate_name` | root | Display name. On the CLI it also namespaces memory user keys; on the A2A server memory is keyed by the caller's silo across every long-term syndicate that server serves. |
 | `memory_system` | root | `internal-only` (nothing persists — on the server too: its transcripts stay in process memory), `session-only` (transcript persists in Supabase), `long-term` (adds fact distillation + vector recall). |
+| `metadata` | root, any agent | Static labels for the ledger ([ADR 0141](./wiki/decisions/0141-metadata-and-the-task-state-hook.md)): `{ key: value }` with string (at most 256 characters), number or boolean values, at most 32 keys, each key `[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}`. The syndicate's become `meta.<key>` on every root span of a turn, so on its `adk_turns.attributes` (`meta.tags: "a,b"` gives the turn tags); an agent's become `meta.agent.<key>` on its `agent.invoke` span. A value shaped like a key or token is dropped at load with a warning naming the key; string values pass through the telemetry redactor. An A2A caller can add keys of its own (§6, Headers) but never set one named here. |
 | `variables` | root | Key/values bound into `{{placeholders}}` anywhere in instructions. `current_date` is always injected; CLI `--bind key=value` overrides. |
 | `memory_extraction_rules` | root | Domain rules appended to the shared fact-extraction prompt for THIS syndicate only (requires `memory_system: "long-term"`). The extraction prompt is global — anything domain-specific belongs here, never edited into it. Unset, the prompt renders byte-identical to before the slot existed (§4). |
 | `memory_extraction_model` | root | The model that distils this syndicate's turns into memory records (long-term only); any model id. Default: the deployment's `MEMORY_EXTRACTION_MODEL`. |
@@ -769,6 +770,14 @@ or pass your own `resolveRequest`.
   record carries `callerTraceId`. The turn keeps a trace id of its own, since
   ledger attribution and erasure key on it and a caller must not choose it.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
+- **Every state a task enters** (option `onTaskState`): `{ taskId, contextId,
+  state, syndicate, agentId, traceId?, at }` after each new state the server
+  publishes: `submitted`, `working` (with the first progress line), then
+  `completed`, `failed`, `canceled`, `rejected` or `input-required`. A repeat
+  of the state is not reported again; `traceId` is there once the turn's root
+  span started; `at` is ms since the epoch; a throwing hook is ignored. For a
+  live view of work in flight. A caller polling instead reads the same state
+  with `tasks/get` (below).
 - **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
   option `audit`, supplied by `postgresStorage`): one row per failed
   authentication (`auth.failure`), task outcome (`task.end`), erasure
@@ -839,6 +848,7 @@ sending it regulated data.
 | `X-API-Key` | BYOK mode only: the caller's model key (see above) |
 | `X-Provider` | BYOK mode only: which provider `X-API-Key` belongs to (default `google`) |
 | `X-Surface`, `X-Surface-Guild`, `-Channel`, `-User` | optional, telemetry only |
+| `X-Melch-Meta-<key>` | optional, telemetry only: `meta.<key>` (the key lowercased) on the turn's root span, with the limits of the YAML's `metadata:`. A header outside them is refused with 400. The A2A message's own `metadata` object adds its scalar entries the same way (a header wins a key both name; other entries are skipped). At most 32 keys a turn, the YAML's first; a key the YAML declares, or one starting `agent.`, is never taken from a request; a credential-shaped value is dropped ([ADR 0141](./wiki/decisions/0141-metadata-and-the-task-state-hook.md)). |
 
 #### Sessions
 
@@ -854,7 +864,12 @@ transcripts in process memory even when Supabase is configured.
 (Method names below are 0.3's; 1.0 clients use `SendMessage`,
 `GetTask`, `SendStreamingMessage`, `CancelTask` and the 1.0 enum spellings.)
 `message/send` blocks until the turn finishes unless the request sets
-`configuration.blocking: false`; then poll `tasks/get`. `message/stream`
+`configuration.blocking: false`; then poll `tasks/get` with the returned
+task id (`{"jsonrpc":"2.0","id":2,"method":"tasks/get","params":{"id":"<task id>"}}`):
+`result.status.state` is `submitted`, `working`, `input-required` (an
+approval, a question or a consent waits; the status message says which),
+`completed`, `failed`, `canceled` or `rejected`, and once it is final,
+`result.status.message` carries the answer or the reason. `message/stream`
 emits `[STATUS]` progress updates (tool calls, the chosen route, guard
 notes) and the answer as the final status message. With
 `A2A_STREAM_TEXT=true` (`streamText` in code) it also streams the answer as

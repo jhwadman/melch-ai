@@ -42,6 +42,8 @@ import type { ToolCredentials } from '../tools/oauthConsent.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import type { AuditSink } from '../observability/audit.ts';
 import type { Policy } from './policy.ts';
+import { MAX_META_KEYS, metaAttributes, requestMetadata } from '../observability/metadata.ts';
+import type { Metadata } from '../observability/metadata.ts';
 
 /** Per-request caller context, set by the server's identity middleware. */
 export interface A2AContext {
@@ -72,6 +74,8 @@ export interface A2AContext {
   sourceIp?: string;
   /** The caller's W3C traceparent, when well formed: the turn's root span links to it. */
   traceparent?: string;
+  /** The request's `X-Melch-Meta-*` headers, checked (ADR 0141): `meta.<key>` on the turn's root span. Telemetry only. */
+  meta?: Metadata;
 }
 
 export interface SurfaceContext {
@@ -106,6 +110,85 @@ export function surfaceAttributes(ctx: A2AContext | undefined): Record<string, s
   if (s.channel) attrs['surface.channel'] = s.channel;
   if (s.user) attrs['surface.user'] = s.user;
   return attrs;
+}
+
+/**
+ * A request's metadata as root-span attributes (ADR 0141): the
+ * `X-Melch-Meta-*` headers, then the A2A message's `metadata` object (a
+ * header wins a key both name), never a key the YAML's own `metadata:`
+ * declares, and at most as many keys as the YAML leaves of the 32.
+ */
+export function requestMetaAttributes(
+  ctx: Pick<A2AContext, 'meta'> | undefined,
+  messageMetadata: unknown,
+  config: Pick<SyndicateYamlConfig, 'metadata'>,
+  warn?: (message: string) => void,
+): Record<string, string | number | boolean> {
+  const declared = Object.keys(config.metadata ?? {});
+  const meta = requestMetadata([ctx?.meta, messageMetadata], {
+    reserved: new Set(declared),
+    room: MAX_META_KEYS - declared.length,
+    ...(warn ? { warn } : {}),
+  });
+  return metaAttributes(meta);
+}
+
+/** The A2A task states, as the protocol spells them. */
+export type TaskStateName = 'submitted' | 'working' | 'input-required' | 'completed' | 'failed' | 'canceled' | 'rejected' | 'auth-required' | 'unknown';
+
+/** One state a task entered, as the executor published it (A2AAppOptions.onTaskState). */
+export interface TaskStateRecord {
+  taskId: string;
+  contextId: string;
+  state: TaskStateName;
+  /** The syndicate's name, and the agent id the task was sent to (`default` for the one served at /a2a/*). */
+  syndicate: string;
+  agentId: string;
+  /** The turn's trace id, once its root span started (absent on `submitted`, and on a task refused before it ran). */
+  traceId?: string;
+  /** When the state was published, ms since the epoch. */
+  at: number;
+}
+
+const STATE_NAMES: Record<number, TaskStateName> = {
+  [TaskState.TASK_STATE_SUBMITTED]: 'submitted',
+  [TaskState.TASK_STATE_WORKING]: 'working',
+  [TaskState.TASK_STATE_INPUT_REQUIRED]: 'input-required',
+  [TaskState.TASK_STATE_COMPLETED]: 'completed',
+  [TaskState.TASK_STATE_FAILED]: 'failed',
+  [TaskState.TASK_STATE_CANCELED]: 'canceled',
+  [TaskState.TASK_STATE_REJECTED]: 'rejected',
+  [TaskState.TASK_STATE_AUTH_REQUIRED]: 'auth-required',
+};
+
+/**
+ * The bus, with `onState` called after each published event that moves the
+ * task to a new state (the task itself, then each status update whose state
+ * differs from the last: the `[STATUS]` lines of a working task are one
+ * state). A throwing observer never reaches the task.
+ */
+function observeStates(bus: ExecutionEventBus, onState: (state: TaskStateName) => void): ExecutionEventBus {
+  let last: TaskStateName | undefined;
+  const publish = (event: Parameters<ExecutionEventBus['publish']>[0]): void => {
+    bus.publish(event);
+    const raw = event.kind === 'task' ? event.data.status?.state : event.kind === 'statusUpdate' ? event.data.status?.state : undefined;
+    if (raw === undefined) return;
+    const state = STATE_NAMES[raw as number] ?? 'unknown';
+    if (state === last) return;
+    last = state;
+    try {
+      onState(state);
+    } catch {
+      /* an observer must not fail the task */
+    }
+  };
+  return new Proxy(bus, {
+    get(target, prop) {
+      if (prop === 'publish') return publish;
+      const value = Reflect.get(target, prop, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 }
 
 /** One human-readable line naming WHY a turn failed, for the failed task's
@@ -194,6 +277,8 @@ export interface ExecutorOptions {
   policy?: Policy;
   /** One record per task, however it ended: the task log and metrics. */
   onTaskEnd?: (record: TaskRecord) => void;
+  /** Every state the task enters, as it is published (ADR 0141). */
+  onTaskState?: (record: TaskStateRecord) => void;
   /** Receives one `task.end` audit event per task (ADR 0042). */
   onAudit?: AuditSink;
   /**
@@ -589,11 +674,17 @@ export class SyndicateExecutor implements AgentExecutor {
     return this.configHash;
   }
 
-  async execute(requestContext: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
+  async execute(requestContext: RequestContext, published: ExecutionEventBus): Promise<void> {
     const { config, log, warn } = this.opts;
     const message = requestContext.userMessage as any;
     const contextId = requestContext.contextId;
     const taskId = requestContext.taskId;
+    const onTaskState = this.opts.onTaskState;
+    const eventBus = onTaskState
+      ? observeStates(published, (state) =>
+          onTaskState({ taskId, contextId, state, syndicate: config.syndicate_name, agentId: this.opts.agentId ?? '', ...(traceId ? { traceId } : {}), at: Date.now() }),
+        )
+      : published;
     const short = taskId.slice(0, 8);
     let slot: AbortController | undefined;
     let releaseTurn: ReleaseTurnLock | null = null;
@@ -791,7 +882,7 @@ export class SyndicateExecutor implements AgentExecutor {
         trace: {
           taskId,
           configHash: this.configHashFor(),
-          attributes: surfaceAttributes(ctx),
+          attributes: { ...surfaceAttributes(ctx), ...requestMetaAttributes(ctx, message?.metadata, config, warn) },
           traceparent: ctx.traceparent,
           onSpanStart: (ids) => {
             traceId = ids.traceId;

@@ -119,6 +119,7 @@ export type { CodeRun } from '../tools/runCodeTool.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
 import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
 import type { AgentBranch, NestedDispatchEnd, NestedDispatchRun, TurnStopReason } from './turnControl.ts';
+import { metaAttributes } from '../observability/metadata.ts';
 export type { AgentBranch } from './turnControl.ts';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -699,7 +700,10 @@ async function runTurnInner(
   // (a registry version, ADR 0018 item 6), else from files.
   const compileOpts: CompileOptions = { ...opts.compile, loadNested: opts.compile?.loadNested ?? nestedLoader(config) };
   const subagentNames = new Set((config.subagents ?? []).map((s) => s.name));
-  const trace = opts.trace === false ? undefined : opts.trace ?? {};
+  const traced = opts.trace === false ? undefined : opts.trace ?? {};
+  // The YAML's metadata (ADR 0141) as `meta.<key>` on every root span; the caller's own attributes win a clash.
+  const yamlMeta = traced && config.metadata ? metaAttributes(config.metadata) : undefined;
+  const trace = traced && yamlMeta && Object.keys(yamlMeta).length ? { ...traced, attributes: { ...yamlMeta, ...traced.attributes } } : traced;
   let parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
   const messageText = parts.map((p: any) => (typeof p.text === 'string' ? p.text : '')).join('\n');
   // What the runtime does not run fails here, before the session is touched.

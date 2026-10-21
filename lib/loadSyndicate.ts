@@ -22,6 +22,8 @@ export type { WorkflowConfig } from './workflowConfig.ts';
 export type { ScriptConfig } from './script/config.ts';
 import type { ScriptConfig } from './script/config.ts';
 import { resolveAgentsDir } from './project.ts';
+import { dropSecretMetadata } from './observability/metadata.ts';
+import type { Metadata } from './observability/metadata.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -214,6 +216,12 @@ export interface AgentYamlConfig {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];
   };
+  /**
+   * Static labels for the ledger (ADR 0141): each becomes `meta.agent.<key>`
+   * on this agent's `agent.invoke` span. At most 32 keys; a credential-shaped
+   * value is dropped at load with a warning.
+   */
+  metadata?: Metadata;
 }
 
 export interface SubagentYamlConfig extends Partial<AgentYamlConfig> {
@@ -277,6 +285,13 @@ export interface SyndicateYamlConfig {
   script?: ScriptConfig;
   /** Optional default variable definitions for {{token}} interpolation. */
   variables?: VariableMap;
+  /**
+   * Static labels for the ledger (ADR 0141): each becomes `meta.<key>` on
+   * every root span of a turn, so on its adk_turns row. At most 32 keys; a
+   * credential-shaped value is dropped at load with a warning. A key named
+   * here cannot be set by an A2A caller's request metadata.
+   */
+  metadata?: Metadata;
   /** Defines the persistence and semantic memory layer for the syndicate. */
   memory_system?: 'internal-only' | 'session-only' | 'long-term';
   /**
@@ -463,7 +478,7 @@ function resolveAndValidate(
     label,
   );
   const { variables: _stripped, ...clean } = valid;
-  let config = clean as SyndicateYamlConfig;
+  let config = withoutSecretMetadata(clean as SyndicateYamlConfig, label, options.onWarning);
   // The script reads the bound variables (ADR 0137 item 6): the YAML's, then the caller's bindings, as {{token}} resolves them.
   if (config.script) {
     const yamlBound = isPlainObject(interpolated) && isPlainObject(interpolated.variables) ? (interpolated.variables as VariableMap) : {};
@@ -475,6 +490,24 @@ function resolveAndValidate(
   }
 
   return config;
+}
+
+/**
+ * `metadata:` with every credential-shaped value dropped (ADR 0141), on the
+ * syndicate and on each agent, one warning per key naming the file and the
+ * key path, never the value. A `{{token}}` that resolved to a key is caught
+ * too: this runs on the interpolated config.
+ */
+function withoutSecretMetadata(config: SyndicateYamlConfig, label: string, onWarning: (message: string) => void = console.warn): SyndicateYamlConfig {
+  const meta = dropSecretMetadata(config.metadata, `${label}: metadata`, onWarning);
+  const agent = <T extends { name?: string; metadata?: Metadata }>(a: T, path: string): T => {
+    const m = dropSecretMetadata(a.metadata, `${label}: ${path}.metadata`, onWarning);
+    return m === a.metadata ? a : { ...a, metadata: m };
+  };
+  const orchestrator = agent(config.orchestrator, 'orchestrator');
+  const subagents = (config.subagents ?? []).map((s, i) => agent(s, `subagents.${i}`));
+  const changed = meta !== config.metadata || orchestrator !== config.orchestrator || subagents.some((s, i) => s !== config.subagents?.[i]);
+  return changed ? { ...config, ...(meta ? { metadata: meta } : {}), orchestrator, subagents } : config;
 }
 
 /** Labels already warned about, so a server loading one file per request warns once per process. */

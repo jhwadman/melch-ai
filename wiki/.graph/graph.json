@@ -5,25 +5,25 @@
     "at": "2026-10-21"
   },
   "stats": {
-    "nodes": 1024,
-    "edges": 4096,
+    "nodes": 1027,
+    "edges": 4114,
     "byKind": {
-      "doc": 208,
+      "doc": 209,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 230,
+      "file": 231,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 19,
-      "module": 207,
+      "module": 208,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 802,
+      "links_to": 808,
       "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 943,
+      "imports": 951,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1192,
+      "derives_from": 1196,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3612,
+      "extracted": 3630,
       "inferred": 484
     },
     "isolated": 5
@@ -2080,6 +2080,18 @@
       }
     },
     {
+      "id": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "kind": "doc",
+      "label": "ADR 0141: Turn metadata from the YAML and the request, and a task-state hook",
+      "source": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 260
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2352,7 +2364,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9007
+        "words": 9085
       }
     },
     {
@@ -2412,7 +2424,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 3180
+        "words": 3473
       }
     },
     {
@@ -5327,6 +5339,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/metadata.test.ts",
+      "kind": "file",
+      "label": "metadata.test.ts",
+      "source": "tests/metadata.test.ts"
+    },
+    {
       "id": "file:tests/modelContract.test.ts",
       "kind": "file",
       "label": "modelContract.test.ts",
@@ -5942,7 +5960,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1362
+        "lines": 1387
       }
     },
     {
@@ -5951,7 +5969,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 901
+        "lines": 992
       }
     },
     {
@@ -6068,7 +6086,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 728
+        "lines": 732
       }
     },
     {
@@ -6077,7 +6095,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 311
+        "lines": 312
       }
     },
     {
@@ -6140,7 +6158,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 161
+        "lines": 162
       }
     },
     {
@@ -6158,7 +6176,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 809
+        "lines": 842
       }
     },
     {
@@ -6513,6 +6531,15 @@
       }
     },
     {
+      "id": "module:lib/observability/metadata.ts",
+      "kind": "module",
+      "label": "lib/observability/metadata.ts",
+      "source": "lib/observability/metadata.ts",
+      "attrs": {
+        "lines": 155
+      }
+    },
+    {
       "id": "module:lib/observability/metrics.ts",
       "kind": "module",
       "label": "lib/observability/metrics.ts",
@@ -6707,7 +6734,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 738
+        "lines": 740
       }
     },
     {
@@ -6743,7 +6770,7 @@
       "label": "lib/runtime/native/telemetry.ts",
       "source": "lib/runtime/native/telemetry.ts",
       "attrs": {
-        "lines": 352
+        "lines": 355
       }
     },
     {
@@ -6797,7 +6824,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1937
+        "lines": 1941
       }
     },
     {
@@ -6977,7 +7004,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1441
+        "lines": 1462
       }
     },
     {
@@ -17512,6 +17539,48 @@
       "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
     },
     {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "file:tests/metadata.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md:28"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21181,6 +21250,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:393"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21213,6 +21289,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:273"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:397"
     },
     {
       "from": "/overview/native-loop.md",
@@ -21888,6 +21971,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/agents/syndicate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:115"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22035,6 +22125,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:114"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/models/chatgpt-signin.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22045,7 +22142,7 @@
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:120"
+      "evidence": "/protocols/a2a.md:122"
     },
     {
       "from": "/protocols/a2a.md",
@@ -24814,6 +24911,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/observability/metrics.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24941,6 +25045,13 @@
     {
       "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -25731,6 +25842,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/observability/metrics.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25886,6 +26004,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -27340,6 +27465,13 @@
       "evidence": "lib/observability/lineage.ts"
     },
     {
+      "from": "module:lib/observability/metadata.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/metadata.ts"
+    },
+    {
       "from": "module:lib/observability/otlpFilter.ts",
       "to": "module:lib/observability/redact.ts",
       "rel": "imports",
@@ -28398,6 +28530,13 @@
     },
     {
       "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
       "to": "module:lib/observability/redact.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28658,6 +28797,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -29239,6 +29385,13 @@
     {
       "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/syndicateSchema.ts"
