@@ -4,7 +4,12 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.9.0 — 2026-10-20
+
+A minor release for observability: the ledger keeps a turn's span tree
+with cache tokens and their prices (ADR 0139), and a syndicate's YAML
+and an A2A request can label a turn with metadata, with a hook on every
+task state (ADR 0141).
 
 The ledger keeps a turn's span tree, counts prompt-cache tokens, and
 prices them at their own rates (ADR 0139). **Apply the schema before

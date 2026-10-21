@@ -26,7 +26,7 @@ A **project** is a folder with a `melchizedek.json` at its root ([ADR 0138](/dec
 ```json
 {
   "manifest": 1,
-  "engine": "1.8.0",
+  "engine": "1.9.0",
   "agents": "agents",
   "ignore": ["agents/retired/**"],
   "tests": "tests/agents",
