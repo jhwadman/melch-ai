@@ -44,7 +44,7 @@ const syndicateRecord = z
 export const projectManifestSchema = z
   .object({
     manifest: z.number().int().min(1),
-    engine: z.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/, 'must be an exact version, e.g. 1.9.0'),
+    engine: z.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/, 'must be an exact version, e.g. 1.10.0'),
     agents: relPath,
     ignore: z.array(z.string().min(1)).optional(),
     tests: relPath.optional(),

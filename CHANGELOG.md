@@ -4,7 +4,12 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.10.0 — 2026-10-20
+
+A minor release for deployments: a served syndicate takes end-user
+feedback at POST /feedback into the ledger (ADR 0140), budgets report
+their state and can stop on a caller's own rule, and the job queue has a
+read model with a retry.
 
 ### Added
 
