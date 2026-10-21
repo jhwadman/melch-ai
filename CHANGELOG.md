@@ -6,6 +6,41 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **`metadata:` in the syndicate YAML (ADR 0141).** `{ key: value }` on
+  the syndicate and on any agent: strings (at most 256 characters),
+  numbers or booleans, at most 32 keys, each key
+  `[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}`. The syndicate's become
+  `meta.<key>` on every root span of a turn, so on
+  `adk_turns.attributes`; an agent's become `meta.agent.<key>` on its
+  `agent.invoke` span. A value shaped like a key or token is dropped at
+  load with a warning (`LoadSyndicateOptions.onWarning`) naming the key,
+  never the value; string values pass through the telemetry redactor. An
+  attribute an in-process caller passes in `trace.attributes` wins a key
+  both name. `config/agents/syndicate.schema.json` is regenerated.
+- **Per-request metadata over A2A (ADR 0141).** `X-Melch-Meta-<key>`
+  headers and the scalar entries of the A2A message's `metadata` object
+  become `meta.<key>` on the turn's root span, with the YAML's limits and
+  redaction; at most 32 keys a turn, the YAML's first. A header wins a key
+  both name; a key the YAML declares, or one starting `agent.`, is never
+  taken from a request; a credential-shaped value is dropped with a
+  warning. A malformed `X-Melch-Meta-*` header is refused with 400; a
+  message entry that is not metadata is skipped. `A2AContext.meta` holds
+  the checked headers.
+- **`A2AAppOptions.onTaskState(record)` (ADR 0141).** Called after each
+  new state the executor publishes, with
+  `{ taskId, contextId, state, syndicate, agentId, traceId?, at }`:
+  `submitted`, `working` (with the first progress line), then the state
+  the task ends in. Barrel types `TaskStateRecord`, `TaskStateName`,
+  `Metadata`, `MetadataValue`; the helpers are in
+  `melchizedek-agents/observability/metadata`.
+
+### Docs
+
+- `tasks/get` and the states a polling caller reads, in DOCUMENTATION.md
+  §6 and the A2A wiki doc.
+
 ## 1.8.0 — 2026-10-18
 
 A minor release that gives a repository a manifest (ADR 0138). A
