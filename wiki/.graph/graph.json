@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-19"
+    "at": "2026-10-21"
   },
   "stats": {
-    "nodes": 1020,
-    "edges": 4077,
+    "nodes": 1032,
+    "edges": 4129,
     "byKind": {
-      "doc": 207,
+      "doc": 210,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 227,
+      "file": 234,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 19,
-      "module": 207,
+      "module": 209,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 795,
+      "links_to": 810,
       "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 942,
-      "reads_table": 28,
+      "imports": 956,
+      "reads_table": 29,
       "runs": 74,
-      "derives_from": 1181,
+      "derives_from": 1203,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3593,
+      "extracted": 3645,
       "inferred": 484
     },
     "isolated": 5
@@ -1332,7 +1332,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 91
+        "words": 107
       }
     },
     {
@@ -2068,6 +2068,42 @@
       }
     },
     {
+      "id": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "kind": "doc",
+      "label": "ADR 0139: The ledger keeps the span tree",
+      "source": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 265
+      }
+    },
+    {
+      "id": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "kind": "doc",
+      "label": "ADR 0140: End-user feedback is a bearer-guarded A2A route writing adk_labels",
+      "source": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 192
+      }
+    },
+    {
+      "id": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "kind": "doc",
+      "label": "ADR 0141: Turn metadata from the YAML and the request, and a task-state hook",
+      "source": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 260
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2088,7 +2124,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 15166
+        "words": 17471
       }
     },
     {
@@ -2304,7 +2340,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2386
+        "words": 2543
       }
     },
     {
@@ -2340,7 +2376,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 8729
+        "words": 9085
       }
     },
     {
@@ -2400,7 +2436,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 3180
+        "words": 3897
       }
     },
     {
@@ -2496,7 +2532,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 704
+        "words": 803
       }
     },
     {
@@ -4733,6 +4769,27 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0016_span_tree.sql",
+      "kind": "file",
+      "label": "0016_span_tree.sql",
+      "source": "db/migrations/0016_span_tree.sql",
+      "attrs": {}
+    },
+    {
+      "id": "file:db/migrations/0017_cache_pricing.sql",
+      "kind": "file",
+      "label": "0017_cache_pricing.sql",
+      "source": "db/migrations/0017_cache_pricing.sql",
+      "attrs": {}
+    },
+    {
+      "id": "file:db/migrations/0018_queue_view.sql",
+      "kind": "file",
+      "label": "0018_queue_view.sql",
+      "source": "db/migrations/0018_queue_view.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5136,6 +5193,19 @@
       "source": "tests/fallback.test.ts"
     },
     {
+      "id": "file:tests/feedback.test.ts",
+      "kind": "file",
+      "label": "feedback.test.ts",
+      "source": "tests/feedback.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/feedbackPostgres.test.ts",
+      "kind": "file",
+      "label": "feedbackPostgres.test.ts",
+      "source": "tests/feedbackPostgres.test.ts"
+    },
+    {
       "id": "file:tests/fixtures/parity.yaml",
       "kind": "file",
       "label": "parity.yaml",
@@ -5299,6 +5369,12 @@
       "label": "memoryTools.test.ts",
       "source": "tests/memoryTools.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/metadata.test.ts",
+      "kind": "file",
+      "label": "metadata.test.ts",
+      "source": "tests/metadata.test.ts"
     },
     {
       "id": "file:tests/modelContract.test.ts",
@@ -5622,6 +5698,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/spanTree.test.ts",
+      "kind": "file",
+      "label": "spanTree.test.ts",
+      "source": "tests/spanTree.test.ts"
+    },
+    {
       "id": "file:tests/structuredOrchestrator.test.ts",
       "kind": "file",
       "label": "structuredOrchestrator.test.ts",
@@ -5910,7 +5992,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1362
+        "lines": 1417
       }
     },
     {
@@ -5919,7 +6001,16 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 901
+        "lines": 992
+      }
+    },
+    {
+      "id": "module:lib/a2a/feedback.ts",
+      "kind": "module",
+      "label": "lib/a2a/feedback.ts",
+      "source": "lib/a2a/feedback.ts",
+      "attrs": {
+        "lines": 274
       }
     },
     {
@@ -5946,7 +6037,7 @@
       "label": "lib/a2a/policy.ts",
       "source": "lib/a2a/policy.ts",
       "attrs": {
-        "lines": 229
+        "lines": 322
       }
     },
     {
@@ -6036,7 +6127,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 728
+        "lines": 732
       }
     },
     {
@@ -6045,7 +6136,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 311
+        "lines": 312
       }
     },
     {
@@ -6108,7 +6199,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 161
+        "lines": 176
       }
     },
     {
@@ -6126,7 +6217,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 809
+        "lines": 842
       }
     },
     {
@@ -6162,7 +6253,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 347
+        "lines": 352
       }
     },
     {
@@ -6477,7 +6568,16 @@
       "label": "lib/observability/lineage.ts",
       "source": "lib/observability/lineage.ts",
       "attrs": {
-        "lines": 151
+        "lines": 181
+      }
+    },
+    {
+      "id": "module:lib/observability/metadata.ts",
+      "kind": "module",
+      "label": "lib/observability/metadata.ts",
+      "source": "lib/observability/metadata.ts",
+      "attrs": {
+        "lines": 155
       }
     },
     {
@@ -6495,7 +6595,7 @@
       "label": "lib/observability/otlpFilter.ts",
       "source": "lib/observability/otlpFilter.ts",
       "attrs": {
-        "lines": 122
+        "lines": 123
       }
     },
     {
@@ -6513,7 +6613,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 651
+        "lines": 705
       }
     },
     {
@@ -6522,7 +6622,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 901
+        "lines": 967
       }
     },
     {
@@ -6639,7 +6739,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 222
+        "lines": 227
       }
     },
     {
@@ -6675,7 +6775,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 738
+        "lines": 740
       }
     },
     {
@@ -6711,7 +6811,7 @@
       "label": "lib/runtime/native/telemetry.ts",
       "source": "lib/runtime/native/telemetry.ts",
       "attrs": {
-        "lines": 313
+        "lines": 355
       }
     },
     {
@@ -6765,7 +6865,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1937
+        "lines": 1941
       }
     },
     {
@@ -6873,7 +6973,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 310
+        "lines": 325
       }
     },
     {
@@ -6945,7 +7045,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1441
+        "lines": 1462
       }
     },
     {
@@ -7278,7 +7378,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 642
+        "lines": 660
       }
     },
     {
@@ -8716,13 +8816,19 @@
       "id": "table:adk_telemetry",
       "kind": "table",
       "label": "adk_telemetry",
-      "source": "db/telemetry.sql"
+      "source": "db/telemetry.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:adk_turns",
       "kind": "table",
       "label": "adk_turns",
-      "source": "db/telemetry.sql"
+      "source": "db/telemetry.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:adk_verdicts",
@@ -8791,7 +8897,10 @@
       "id": "table:model_pricing",
       "kind": "table",
       "label": "model_pricing",
-      "source": "db/migrations/0015_model_pricing.sql"
+      "source": "db/migrations/0017_cache_pricing.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "tool:ask_user",
@@ -13188,10 +13297,17 @@
     },
     {
       "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:27"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:28"
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:29"
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
@@ -17373,6 +17489,174 @@
       "evidence": "/decisions/0138-project-manifest-melchizedek-json.md:27"
     },
     {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/migrations/0016_span_tree.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/migrations/0017_cache_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/telemetry.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:tests/spanTree.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:31"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:31"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "file:tests/feedback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "file:tests/feedbackPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md:28"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "file:tests/metadata.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md frontmatter"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md:28"
+    },
+    {
+      "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0141-metadata-and-the-task-state-hook.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -17661,6 +17945,27 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0016_span_tree.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
+      "to": "file:db/migrations/0017_cache_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
+      "to": "file:db/migrations/0018_queue_view.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17671,14 +17976,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:36"
+      "evidence": "/memory/schema.md:39"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2776"
+      "evidence": "/memory/schema.md:3110"
     },
     {
       "from": "/memory/sessions.md",
@@ -20174,6 +20479,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:60"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21014,6 +21326,20 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:390"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:393"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21046,6 +21372,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:273"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:397"
     },
     {
       "from": "/overview/native-loop.md",
@@ -21644,6 +21977,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "file:tests/feedback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "file:tests/oauthConsent.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -21666,6 +22006,13 @@
     {
       "from": "/protocols/a2a.md",
       "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "module:lib/a2a/feedback.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md frontmatter"
@@ -21717,189 +22064,210 @@
       "to": "/agents/event_assistant.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:94"
+      "evidence": "/protocols/a2a.md:96"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/agents/syndicate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:118"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:74"
+      "evidence": "/protocols/a2a.md:76"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0018-files-are-the-source-of-truth.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:98"
+      "evidence": "/protocols/a2a.md:100"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:90"
+      "evidence": "/protocols/a2a.md:92"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:74"
+      "evidence": "/protocols/a2a.md:76"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:110"
+      "evidence": "/protocols/a2a.md:112"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0039-public-deployments-state-their-posture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:76"
+      "evidence": "/protocols/a2a.md:78"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:106"
+      "evidence": "/protocols/a2a.md:108"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:39"
+      "evidence": "/protocols/a2a.md:41"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:104"
+      "evidence": "/protocols/a2a.md:106"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:65"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:65"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0129-capstone-starter-in-the-repository.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:94"
+      "evidence": "/protocols/a2a.md:96"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:123"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:117"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/models/chatgpt-signin.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:120"
+      "evidence": "/protocols/a2a.md:131"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:104"
+      "evidence": "/protocols/a2a.md:106"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:39"
+      "evidence": "/protocols/a2a.md:41"
     },
     {
       "from": "/protocols/mcp-server.md",
@@ -24556,6 +24924,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/a2a/identity.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24641,6 +25016,13 @@
     {
       "from": "module:lib/a2a/app.ts",
       "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"
@@ -24780,6 +25162,13 @@
     },
     {
       "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/observability/metrics.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24840,6 +25229,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "table:adk_labels",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
     },
     {
       "from": "module:lib/a2a/identity.ts",
@@ -25473,6 +25883,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/a2a/identity.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25558,6 +25975,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -25719,6 +26143,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -27173,6 +27604,13 @@
       "evidence": "lib/observability/lineage.ts"
     },
     {
+      "from": "module:lib/observability/metadata.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/metadata.ts"
+    },
+    {
       "from": "module:lib/observability/otlpFilter.ts",
       "to": "module:lib/observability/redact.ts",
       "rel": "imports",
@@ -28231,6 +28669,20 @@
     },
     {
       "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
       "to": "module:lib/observability/supabaseSpanExporter.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28484,6 +28936,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -28861,6 +29320,13 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/a2a/turnLock.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29065,6 +29531,13 @@
     {
       "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/syndicateSchema.ts"

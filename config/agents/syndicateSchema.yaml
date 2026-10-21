@@ -53,6 +53,18 @@ syndicate_name: "My Syndicate"
 variables:
   my_variable: "default_value"
 
+# [optional] Static labels for the ledger (ADR 0141): each becomes
+# `meta.<key>` on the turn's root span, so on its adk_turns row; `tags`
+# (comma-separated) gives the turn tags. Strings (at most 256 characters),
+# numbers or booleans; keys [A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}; at most 32.
+# ⚠ A value shaped like a key or token is dropped at load with a warning.
+# An A2A caller's own metadata (X-Melch-Meta-*, Message.metadata) never
+# overrides a key named here.
+# metadata:
+#   environment: "prod"
+#   team: "growth"
+#   tags: "nightly,eu"
+
 # [optional] Self-correction, ON by default: the engine's reflect-and-retry,
 # ported from ADK's plugins (ADR 0034, ADR 0075). model_errors: retries of a model
 # reply the engine marks malformed (default 2). tool_errors: retries of a tool that threw, with
@@ -322,6 +334,11 @@ orchestrator:
   # `secret_env` to pass it deliberately (ADR 0086). A script's stdout and
   # stderr are each cut at 20,000 characters, with a line saying so.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
+
+  # [optional] Labels for this agent's agent.invoke span, each as
+  # `meta.agent.<key>`; the same rules as the syndicate's metadata.
+  # metadata:
+  #   role: "researcher"
 
   # [optional] Few-shot exchanges the engine adds to every request's
   # instruction (lib/tools/examples.ts), in the block ADK's ExampleTool

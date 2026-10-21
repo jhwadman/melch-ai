@@ -106,6 +106,8 @@ console.log(result.status, result.text);
 
 `runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs every syndicate on the engine's own agent loop and, for a workflow, its own scheduler (the `native` runtime, the only one). `MELCHIZEDEK_RUNTIME=adk` is an error that names 1.0.0; `npx melchizedek-doctor` prints the runtime in use (ADR 0107). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`. `events.onEvent` and `events.onTextDelta` follow the answering agent; `events.onAgentEvent(event, branch)` follows every delegated subagent live, its thinking, text and tool calls, with `branch.path` and `branch.callId` saying where it runs (ADR 0135).
 
+A served syndicate also takes end-user ratings at `POST /feedback` (`{ traceId | taskId, score: 'up' | 'down' | 1–5, comment?, userId? }`, into the ledger's `adk_labels`; `melchizedek-agents/a2a/feedback`, ADR 0140), and `budgets(config, { onBudgetState, hardStop })` from `melchizedek-agents/a2a/policy` mirrors each caller's spend and takes an outside stop. On Postgres, `melchizedek_task_queue` (migration 0018) is the job queue's read model and `postgresStorage().retryTask(owner, id)` its Retry.
+
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 
 ### Custom Tools and Guards

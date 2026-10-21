@@ -42,6 +42,7 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { adkReferences } from './helpers/adkReference.ts';
+import { adkEraRow, withoutSpanTree } from './helpers/adkEraLedger.ts';
 
 // ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/compaction).
 const reference = adkReferences('compaction');
@@ -349,7 +350,8 @@ async function ledgerOf(spans: ReadableSpan[]): Promise<{ adk_turns: any[]; adk_
 }
 
 function scrubbed(row: Record<string, any>): Record<string, any> {
-  const out: Record<string, any> = { ...row, ts: '<ts>', trace_id: '<trace>', span_id: '<span>' };
+  // What the engine records beyond ADK's rows (ADR 0139) is set aside.
+  const out: Record<string, any> = { ...withoutSpanTree(row), ts: '<ts>', trace_id: '<trace>', span_id: '<span>' };
   for (const key of ['latency_ms', 'model_ms', 'tool_ms']) if (key in out) out[key] = '<ms>';
   if ('engine_version' in out) out.engine_version = '<engine>'; // the version and commit change with every release
   const scrub = (attrs: Record<string, unknown>) => {
@@ -382,7 +384,7 @@ test('the summarizing call is charged and traced as on ADK: the same turn and te
   const n = await ledgerOf(nativeSpans);
   assert.equal(a.llmCalls, 2, 'the summary is charged against the turn');
   assert.deepEqual(JSON.parse(JSON.stringify(n.adk_turns.map(scrubbed))), a.adk_turns, 'adk_turns');
-  assert.deepEqual(JSON.parse(JSON.stringify(n.adk_telemetry.map(scrubbed))), a.adk_telemetry, 'adk_telemetry');
+  assert.deepEqual(JSON.parse(JSON.stringify(n.adk_telemetry.filter(adkEraRow).map(scrubbed))), a.adk_telemetry, 'adk_telemetry');
   const summaryRow = n.adk_telemetry.find((r) => r.model === 'scripted/sum');
   assert.ok(summaryRow, 'the summary call has its telemetry row');
   assert.equal(summaryRow.agent, 'Chat', 'under the agent that compacted');

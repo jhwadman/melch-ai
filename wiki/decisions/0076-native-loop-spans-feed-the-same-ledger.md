@@ -24,5 +24,6 @@ sources:
 **Decided (2026-10-08):** The loop opens `agent.invoke <name>`, `model.call` and `tool.execute <name>` in scope `melchizedek.runtime`, nested as ADK's spans were and carrying `gen_ai.*` attributes, and `lib/observability/lineage.ts` reads both naming schemes. A step's payload row comes from the engine's own `llm.payload.*` attributes, only for a call that did not fail.
 
 **Instead of:** reusing ADK's span names and scope, recording ADK's request shape, a payload on every model.call, one model.call per leaf call
+**Superseded by:** [ADR 0139](/decisions/0139-the-ledger-keeps-the-span-tree.md) (tool spans now carry their arguments and the start of their result)
 
 How it works: [Native loop](/overview/native-loop.md)

@@ -69,7 +69,7 @@ export type { CodeRun, RunCodeOutput } from './tools/runCodeTool.ts';
 // ── Serve it over A2A, or call a remote A2A agent ───────────────────────────
 export { createA2AApp, compileAgentCard, currentRequestContext } from './a2a/app.ts';
 export type { A2AApp, A2AAppOptions, RequestIdentity } from './a2a/app.ts';
-export type { A2AContext } from './a2a/executor.ts';
+export type { A2AContext, TaskStateName, TaskStateRecord } from './a2a/executor.ts';
 export {
   callerTokens,
   firstOf,
@@ -82,11 +82,26 @@ export {
 } from './a2a/identity.ts';
 export type { Authenticator, CallerEntry, IdentityScheme, JwtIdentityOptions } from './a2a/identity.ts';
 export { budgets, memoryUsageStore, parseBudgets, postgresUsageStore, supabaseUsageStore } from './a2a/policy.ts';
-export type { BudgetConfig, BudgetLimits, DailyUsage, Policy, PolicyDecision, PolicySubject, UsageStore } from './a2a/policy.ts';
+export type {
+  BudgetConfig,
+  BudgetLevel,
+  BudgetLimits,
+  BudgetOptions,
+  BudgetState,
+  DailyUsage,
+  HardStop,
+  Policy,
+  PolicyDecision,
+  PolicySubject,
+  UsageStore,
+} from './a2a/policy.ts';
+export { END_USER_LABELER, feedbackRow, parseFeedback, postgresFeedbackStore } from './a2a/feedback.ts';
+export type { FeedbackRow, FeedbackScore, FeedbackStore, FeedbackTurn } from './a2a/feedback.ts';
 export { createMetrics } from './observability/metrics.ts';
 export type { Metrics, TaskRecord } from './observability/metrics.ts';
 export { patternRedactor, redactRow, setTelemetryRedactor, telemetryRedactor } from './observability/redact.ts';
 export type { Redactor } from './observability/redact.ts';
+export type { Metadata, MetadataValue } from './observability/metadata.ts';
 export { RemoteA2AAgent, remoteAgentTool } from './a2a/remoteAgent.ts';
 export type { RemoteAnswer } from './a2a/remoteAgent.ts';
 

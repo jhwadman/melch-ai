@@ -16,7 +16,8 @@ import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 
-const SHIPPED = readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).length;
+// The highest numbered migration, not the count: numbers are reserved by branches in flight.
+const SHIPPED = Math.max(...readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).map((f) => Number(f.slice(0, 4))));
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 
 test('/readyz: storage outages, recovery, a shared cached check, and markUnready while serving', async () => {

@@ -48,6 +48,7 @@ Everything the records leave open, checked against the code on 2026-10-18. Remov
 - A long-term syndicate without `memory_namespace` still falls back to `melchizedek-a2a`; it becomes an error once deployments are re-keyed ([0020](/decisions/0020-memory-contract.md))
 - No shared `ConsentStates`, so several instances need sticky routing; a client-carried code flow for browsers without an identity ([0085](/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md))
 - The default JSON-file task store is single-user, one worker, not enforced in code ([0015](/decisions/0015-task-queue-and-worker.md))
+- End-user feedback has no supabase-js store, and its per-turn minute is per process ([0140](/decisions/0140-end-user-feedback-into-adk-labels.md))
 
 ## All records
 
@@ -185,4 +186,7 @@ Everything the records leave open, checked against the code on 2026-10-18. Remov
 - [ADR 0136: The ledger records cost at write time from model_pricing](/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md) — A database trigger prices each ledger row at write time from a model_pricing table, using per-model usage the tracer puts on the root span.
 - [ADR 0137: Script orchestration and run_code in a QuickJS sandbox](/decisions/0137-script-orchestration-and-sandboxed-code.md) — Syndicates may orchestrate with a script: function in a QuickJS-wasm sandbox, resumed by replaying a journal of its calls, and agents get a provider-neutral run_code tool in the same sandbox, both off until the operator opts in.
 - [ADR 0138: A project manifest, melchizedek.json, joins the agents-directory chain](/decisions/0138-project-manifest-melchizedek-json.md) — A repository declares its agents folder, exact engine pin and per-file shipping records in a melchizedek.json at its root; the engine finds it without crossing the repository root and reads it after MELCHIZEDEK_AGENTS_DIR, so deployments are unchanged.
+- [ADR 0139: The ledger keeps the span tree](/decisions/0139-the-ledger-keeps-the-span-tree.md) — adk_telemetry keeps a row for every span of a turn's tree (agent runs, model steps, tool calls, script and workflow spans) with its ledger parent, kind and error flag; tool spans carry bounded, redacted arguments and results; cache tokens are counted and priced at their own rates.
+- [ADR 0140: End-user feedback is a bearer-guarded A2A route writing adk_labels](/decisions/0140-end-user-feedback-into-adk-labels.md) — A served syndicate takes a product's thumbs or 1–5 rating of a turn at POST /feedback, behind the same authentication and rate limit as a task, and stores it as an adk_labels row with labeler 'end-user', so every ledger reader sees it beside the turn.
+- [ADR 0141: Turn metadata from the YAML and the request, and a task-state hook](/decisions/0141-metadata-and-the-task-state-hook.md) — Static metadata: in the YAML and per-request metadata over A2A become meta.* span attributes under one set of limits; the operator's keys win over a caller's, a malformed header refuses the request while a message entry that is not metadata is skipped, and onTaskState reports each published task state.
 <!-- /wiki:generated -->

@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "1.8.0",
+  "version": "1.10.0",
   "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
@@ -30,6 +30,7 @@
     "./a2a/remote": "./dist/lib/a2a/remoteAgent.js",
     "./a2a/identity": "./dist/lib/a2a/identity.js",
     "./a2a/policy": "./dist/lib/a2a/policy.js",
+    "./a2a/feedback": "./dist/lib/a2a/feedback.js",
     "./a2a/limits": "./dist/lib/a2a/redisLimits.js",
     "./mcp": "./dist/lib/mcp/server.js",
     "./registry": "./dist/lib/registry.js",

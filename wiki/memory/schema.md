@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Memory & telemetry schema
-description: "The Postgres DDL shipped in db/, verbatim and in install order: the 15 numbered migrations (0001_base to 0015_model_pricing), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
+description: "The Postgres DDL shipped in db/, verbatim and in install order: the 18 numbered migrations (0001_base to 0018_queue_view), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
 tags:
   - schema
   - postgres
@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-10-18
+  at: 2026-10-21
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -26,6 +26,9 @@ sources:
   - resource: db/migrations/0013_tool_credentials.sql
   - resource: db/migrations/0014_durable_runs.sql
   - resource: db/migrations/0015_model_pricing.sql
+  - resource: db/migrations/0016_span_tree.sql
+  - resource: db/migrations/0017_cache_pricing.sql
+  - resource: db/migrations/0018_queue_view.sql
   - resource: db/telemetry.sql
   - resource: db/hardening.sql
   - resource: db/memory_v2.sql
@@ -1958,6 +1961,307 @@ ON CONFLICT (version) DO NOTHING;
 ```
 <!-- /wiki:generated -->
 
+<!-- wiki:generated section="migration-0016_span_tree" source="db/migrations/0016_span_tree.sql" -->
+## Migration 0016_span_tree
+
+```sql
+-- ============================================================================
+-- 0016_span_tree — the ledger keeps a turn's span tree and its cache tokens
+--                  (ADR 0139)
+-- ============================================================================
+-- adk_telemetry holds one row per span the ledger keeps: the turn's root,
+-- each agent run, model step and provider call, tool call, script run and
+-- call, workflow walk and node run (lib/observability/lineage.ts
+-- ledgerSpanKind). Each row now says where it sits:
+--   parent_span_id  the nearest ancestor span the ledger keeps a row for;
+--                   NULL for a root, and for every row written before 0016
+--   kind            turn | agent | model | tool | script | node; NULL for a
+--                   row written before 0016
+--   error           the span failed (an error status or code, a tool's error
+--                   response); NULL for a row written before 0016
+-- The full span (attributes, events, status) stays in `span`.
+--
+-- Cache tokens, the parts of input_tokens a provider read from or wrote to
+-- its prompt cache (lib/models/contract.ts Usage), priced at their own rates
+-- by 0017_cache_pricing:
+--   adk_telemetry.cache_read_tokens / cache_write_tokens  one call's (an
+--       llm.request row), or the turn's sum (a root row)
+--   adk_turns.cache_read_tokens / cache_write_tokens      summed over every
+--       call of the turn, as a provider bills them
+-- NULL where nothing was reported, and on every row written before 0016.
+--
+-- The ledger tables are optional: db/telemetry.sql creates them, after the
+-- migrations, and adds the same columns for a fresh install. This migration
+-- upgrades a ledger that already exists in place, and does nothing where
+-- there is none. Numbers and span ids only: nothing personal, nothing secret.
+-- Idempotent; safe to re-run.
+-- ============================================================================
+
+DO $span_tree$
+BEGIN
+  IF to_regclass('public.adk_telemetry') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS parent_span_id     TEXT';
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS kind               TEXT';
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS error              BOOLEAN';
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER';
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_adk_telemetry_parent ON adk_telemetry (trace_id, parent_span_id)';
+  END IF;
+  IF to_regclass('public.adk_turns') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER';
+    EXECUTE 'ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER';
+  END IF;
+END
+$span_tree$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (16, '0016_span_tree')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
+<!-- wiki:generated section="migration-0017_cache_pricing" source="db/migrations/0017_cache_pricing.sql" -->
+## Migration 0017_cache_pricing
+
+```sql
+-- ============================================================================
+-- 0017_cache_pricing — prompt-cache reads and writes at their own rates
+--                      (ADR 0139, extends ADR 0136)
+-- ============================================================================
+-- model_pricing gains two rates, USD per million tokens:
+--   cache_read_per_mtok   a token read from the provider's prompt cache
+--   cache_write_per_mtok  a token written to it (Anthropic's 5-minute cache,
+--                         the TTL the engine's requests get; OpenAI's 30-minute
+--                         write where its price list names one)
+-- NULL prices that token as input, which is what every row meant before:
+-- a cache token is an input token (lib/models/contract.ts Usage counts both
+-- inside inputTokens), so a row without cache rates prices exactly as 0015.
+--
+-- The cost functions take the two counts:
+--   melchizedek_cost_usd(model, input, output, thinking, cache_read, cache_write)
+--       input less both cache counts at the input rate, each cache count at
+--       its rate, output, thinking at the thinking rate (else output's)
+--   melchizedek_cost_usd(model, input, output, thinking)  the same with no
+--       cache tokens, kept for a caller written against 0015
+--   melchizedek_usage_cost(usage)  reads each model's cache_read and
+--       cache_write beside input, output and thinking in syndicate.usage;
+--       melchizedek_usage_text_cost (db/telemetry.sql) calls it, so the
+--       ledger trigger prices a turn's cache tokens too.
+--
+-- The seed: rates checked against the vendors' own price lists on
+-- 2026-10-20 (platform.claude.com/docs/en/about-claude/pricing and
+-- developers.openai.com/api/docs/pricing, standard tier), with verified_at
+-- set to that day. An Anthropic row 0015 seeded gains its cache rates only
+-- while it still holds 0015's input and output rates and no cache rate: an
+-- operator's own rates are never overwritten. New rows never overwrite a
+-- row that exists. Models the engine names but the lists price by prompt
+-- length beyond a flat row (claude-haiku-5-5, gpt-5.5 and gpt-5.4 over
+-- 272K) are left as noted below. Gemini, Grok and Kimi rows get no cache
+-- rates here (none was checked): their cache tokens price as input.
+--
+-- Nothing secret, nothing personal. Idempotent; safe to re-run.
+-- ============================================================================
+
+ALTER TABLE model_pricing ADD COLUMN IF NOT EXISTS cache_read_per_mtok  NUMERIC CHECK (cache_read_per_mtok >= 0);
+ALTER TABLE model_pricing ADD COLUMN IF NOT EXISTS cache_write_per_mtok NUMERIC CHECK (cache_write_per_mtok >= 0);
+
+-- Anthropic: the rows 0015 seeded, at the rates it seeded them.
+UPDATE model_pricing p
+SET cache_read_per_mtok  = s.cache_read,
+    cache_write_per_mtok = s.cache_write,
+    verified_at = '2026-10-20',
+    source = 'platform.claude.com/docs/en/about-claude/pricing',
+    note = 'Anthropic first-party, checked 2026-10-20; cache write is the 5-minute rate',
+    updated_at = now()
+FROM (VALUES
+  ('claude-fable-5-1',  10.00, 50.00, 0.25, 12.50),
+  ('claude-fable-5',    10.00, 50.00, 1.00, 12.50),
+  ('claude-opus-5',      5.00, 25.00, 0.50,  6.25),
+  ('claude-opus-4-8',    5.00, 25.00, 0.50,  6.25),
+  ('claude-opus-4-7',    5.00, 25.00, 0.50,  6.25),
+  ('claude-opus-4-6',    5.00, 25.00, 0.50,  6.25),
+  ('claude-sonnet-5',    2.00, 10.00, 0.20,  2.50),
+  ('claude-sonnet-4-6',  3.00, 15.00, 0.30,  3.75),
+  ('claude-haiku-4-5',   1.00,  5.00, 0.10,  1.25)
+) AS s(model, input, output, cache_read, cache_write)
+WHERE p.model = s.model
+  AND p.input_per_mtok = s.input
+  AND p.output_per_mtok = s.output
+  AND p.cache_read_per_mtok IS NULL
+  AND p.cache_write_per_mtok IS NULL;
+
+INSERT INTO model_pricing (model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, verified_at, source, note) VALUES
+  -- Anthropic models 0015 did not seed. claude-haiku-5-5 is left out: its
+  -- price doubles past a 100K-token prompt, which a flat row cannot say.
+  ('claude-opus-5-5',    4.00, 20.00, 0.20, 5.00, '2026-10-20', 'platform.claude.com/docs/en/about-claude/pricing', 'Anthropic first-party, checked 2026-10-20; cache write is the 5-minute rate'),
+  ('claude-sonnet-5-5',  2.00, 10.00, 0.10, 2.50, '2026-10-20', 'platform.claude.com/docs/en/about-claude/pricing', 'Anthropic first-party, checked 2026-10-20; cache write is the 5-minute rate'),
+  -- OpenAI, standard tier. Reasoning tokens bill as output (thinking NULL).
+  -- A NULL cache write: the list names no write rate, so a write prices as input.
+  ('gpt-6-astra',       10.00, 50.00, 1.00,  12.50, '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-6.1-sol',        2.00, 10.00, 0.10,  2.50,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-6-sol',          2.00, 10.00, 0.20,  2.50,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-6-luna',         0.10,  0.50, 0.01,  0.125, '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-5.6-sol',        4.00, 20.00, 0.40,  5.00,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-5.6-terra',      2.00, 12.00, 0.20,  2.50,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-5.6-luna',       0.20,  1.20, 0.02,  0.25,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; cache write is the 30-minute rate'),
+  ('gpt-5.5',            5.00, 30.00, 0.50,  NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; the rate for prompts under 272K tokens'),
+  ('gpt-5.4',            2.50, 15.00, 0.25,  NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20; the rate for prompts under 272K tokens'),
+  ('gpt-5.2',            1.75, 14.00, 0.175, NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20'),
+  ('gpt-5.1',            1.25, 10.00, 0.125, NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20'),
+  ('gpt-5',              1.25, 10.00, 0.125, NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20'),
+  ('gpt-5-mini',         0.25,  2.00, 0.025, NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20'),
+  ('gpt-5-nano',         0.05,  0.40, 0.005, NULL,  '2026-10-20', 'developers.openai.com/api/docs/pricing', 'OpenAI standard tier, checked 2026-10-20')
+ON CONFLICT (model) DO NOTHING;
+
+-- The row that prices `model`: its own, else its prefix's `<prefix>/*`.
+CREATE OR REPLACE FUNCTION melchizedek_cost_usd(model TEXT, input BIGINT, output BIGINT, thinking BIGINT, cache_read BIGINT, cache_write BIGINT)
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT (greatest(coalesce(input, 0) - coalesce(cache_read, 0) - coalesce(cache_write, 0), 0) * p.input_per_mtok
+          + coalesce(cache_read, 0) * coalesce(p.cache_read_per_mtok, p.input_per_mtok)
+          + coalesce(cache_write, 0) * coalesce(p.cache_write_per_mtok, p.input_per_mtok)
+          + coalesce(output, 0) * p.output_per_mtok
+          + coalesce(thinking, 0) * coalesce(p.thinking_per_mtok, p.output_per_mtok)) / 1000000
+  FROM model_pricing p
+  WHERE p.model = melchizedek_cost_usd.model
+     OR (position('/' IN melchizedek_cost_usd.model) > 0
+         AND p.model = split_part(melchizedek_cost_usd.model, '/', 1) || '/*')
+  ORDER BY (p.model = melchizedek_cost_usd.model) DESC
+  LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_cost_usd(model TEXT, input BIGINT, output BIGINT, thinking BIGINT)
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT melchizedek_cost_usd(model, input, output, thinking, 0::bigint, 0::bigint)
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_usage_cost(usage JSONB)
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN usage IS NULL OR jsonb_typeof(usage) <> 'object' THEN NULL
+    -- bool_and over no rows is NULL: a turn that made no model call costs nothing.
+    WHEN coalesce(bool_and(c.cost IS NOT NULL), true) THEN coalesce(sum(c.cost), 0)
+    ELSE NULL
+  END
+  FROM (
+    SELECT melchizedek_cost_usd(
+             e.key,
+             CASE WHEN jsonb_typeof(e.value->'input') = 'number' THEN (e.value->>'input')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'output') = 'number' THEN (e.value->>'output')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'thinking') = 'number' THEN (e.value->>'thinking')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'cache_read') = 'number' THEN (e.value->>'cache_read')::numeric::bigint END,
+             CASE WHEN jsonb_typeof(e.value->'cache_write') = 'number' THEN (e.value->>'cache_write')::numeric::bigint END
+           ) AS cost
+    FROM jsonb_each(CASE WHEN jsonb_typeof(usage) = 'object' THEN usage ELSE '{}'::jsonb END) e
+  ) c
+$$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (17, '0017_cache_pricing')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
+<!-- wiki:generated section="migration-0018_queue_view" source="db/migrations/0018_queue_view.sql" -->
+## Migration 0018_queue_view
+
+```sql
+-- ============================================================================
+-- 0018_queue_view — the job queue as an operator reads it (ADR 0021, 0113)
+-- ============================================================================
+-- A read model over melchizedek_tasks (migration 0009, checkpoint columns
+-- from 0014): one row per background job, with what an operator asks of a
+-- queue — is it stuck, how often was it tried, why did it fail. Todo items
+-- are not jobs and are left out. Nothing is stored; the view reads the
+-- table as it stands.
+--
+--   owner          the list the job belongs to (the caller's scope key;
+--                  '' for a shared list)
+--   id             the job's id within that list (t1, t2, …)
+--   title          the job's title as queued (user text)
+--   status         queued | running | done | failed | cancelled
+--   attempts       claims so far (a claim counts one, a retry resets it)
+--   retries        attempts beyond the first: GREATEST(attempts - 1, 0)
+--   max_attempts   the claims a job gets before an interruption fails it
+--                  (MAX_ATTEMPTS in lib/tools/taskTools.ts)
+--   dead_lettered  true when the job failed and will not run again unless
+--                  someone retries it (status 'failed')
+--   last_error     the error the job failed with, or why it was not retried
+--                  (cut at 1,000 characters when written)
+--   lease_owner    the worker holding a running job, and lease_until when
+--                  its claim runs out: a running job whose lease is past is
+--                  stuck until the next recover()
+--   has_checkpoint whether a resumable checkpoint is kept (running or
+--                  queued only), and checkpoint_at when it was saved
+--   created_at, started_at, finished_at, updated_at
+--
+-- Retry a dead-lettered or cancelled job with postgresStorage().retryTask
+-- (owner, id), the same rule task_update's `queued` applies. The view has
+-- the table's owner's privileges where security_invoker is not available
+-- (Postgres < 15), so it is revoked from the API roles here and in
+-- db/hardening.sql, like the table. Idempotent; safe to re-run.
+-- ============================================================================
+
+CREATE OR REPLACE VIEW melchizedek_task_queue AS
+  SELECT
+    t.owner,
+    t.id,
+    t.record->>'title'                                        AS title,
+    t.status,
+    COALESCE((t.record->>'attempts')::int, 0)                 AS attempts,
+    GREATEST(COALESCE((t.record->>'attempts')::int, 0) - 1, 0) AS retries,
+    2                                                         AS max_attempts,
+    (t.status = 'failed')                                     AS dead_lettered,
+    t.record->>'error'                                        AS last_error,
+    t.lease_owner,
+    t.lease_until,
+    (t.checkpoint IS NOT NULL)                                AS has_checkpoint,
+    t.checkpoint_at,
+    (t.record->>'created_at')::timestamptz                    AS created_at,
+    (t.record->>'started_at')::timestamptz                    AS started_at,
+    (t.record->>'finished_at')::timestamptz                   AS finished_at,
+    t.updated_at
+  FROM melchizedek_tasks t
+  WHERE t.kind = 'background';
+
+COMMENT ON VIEW melchizedek_task_queue IS
+  'Background jobs as an operator reads them: status, attempts, retries, dead_lettered, last_error, lease and checkpoint. Retry with postgresStorage().retryTask(owner, id). Migration 0018.';
+
+-- Postgres 15+: the view reads with the querying role's rights.
+DO $$
+BEGIN
+  IF current_setting('server_version_num')::int >= 150000 THEN
+    EXECUTE 'ALTER VIEW melchizedek_task_queue SET (security_invoker = true)';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    EXECUTE 'REVOKE ALL ON melchizedek_task_queue FROM anon';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    EXECUTE 'REVOKE ALL ON melchizedek_task_queue FROM authenticated';
+  END IF;
+END $$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (18, '0018_queue_view')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
 <!-- wiki:generated section="telemetry-ddl" source="db/telemetry.sql" -->
 ## Telemetry ledger (optional)
 
@@ -1986,10 +2290,14 @@ ON CONFLICT (version) DO NOTHING;
 --                  resolved syndicate that ran) and engine_version. Kept
 --                  indefinitely; full-text searchable. Eval runs land here
 --                  too, tagged eval_* so production views exclude them.
---   adk_telemetry  ONE ROW PER SPAN — the raw llm.request and root spans as
---                  before (v1 shape, now with the identity columns). Per-call
---                  tokens, latency and the agent that made the call. Small;
---                  kept indefinitely.
+--   adk_telemetry  ONE ROW PER SPAN the ledger keeps — the turn's root, each
+--                  agent run, model step (model.call) and provider call
+--                  (llm.request), tool call, script run and call, workflow
+--                  walk and node run — with its parent among them and its
+--                  kind, so the turn's span tree is stored (ADR 0139). Per-call
+--                  tokens, latency and the agent that made the call; a tool
+--                  call's arguments and the start of its result. Small; kept
+--                  indefinitely.
 --   adk_payloads   FULL REQUEST/RESPONSE PER MODEL CALL — the assembled
 --                  prompt (system instruction, history, tool schemas) and the
 --                  raw response. 10-100x the size of a turn row and repeats
@@ -2011,7 +2319,7 @@ CREATE TABLE IF NOT EXISTS adk_telemetry (
   ts              TIMESTAMPTZ NOT NULL DEFAULT now(),
   trace_id        TEXT NOT NULL,
   span_id         TEXT NOT NULL,
-  span_name       TEXT NOT NULL,          -- 'llm.request' | 'Syndicate Execution: <name>'
+  span_name       TEXT NOT NULL,          -- 'llm.request' | 'Syndicate Execution: <name>' | 'agent.invoke <name>' | ...
   syndicate       TEXT,                   -- syndicate name, when known
   agent           TEXT,                   -- the agent that made the call / answered the turn
   provider        TEXT,                   -- 'gemini' | 'anthropic' | 'openai' | 'xai' | 'ollama'
@@ -2031,6 +2339,23 @@ ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS schema_version SMALLINT NOT N
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_ts      ON adk_telemetry (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_trace   ON adk_telemetry (trace_id);
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_session ON adk_telemetry (session_id);
+
+-- The span tree (migration 0016_span_tree, ADR 0139), for a fresh install;
+-- 0016 adds the same columns to a ledger that already exists:
+--   parent_span_id      the nearest ancestor span the ledger keeps; NULL for a root
+--   kind                turn | agent | model | tool | script | node
+--   error               the span failed (status, error code, a tool's error response)
+--   cache_read_tokens   parts of input_tokens read from / written to the
+--   cache_write_tokens  provider's prompt cache: one call's, or a root's sum
+-- All NULL on rows written before 0016. Tokens and cost sit on llm.request
+-- rows (and a root's on the root): a model.call row carries neither, so a
+-- trace's rows sum without counting a call twice.
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS parent_span_id     TEXT;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS kind               TEXT;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS error              BOOLEAN;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
+CREATE INDEX IF NOT EXISTS idx_adk_telemetry_parent ON adk_telemetry (trace_id, parent_span_id);
 
 -- ── adk_turns: one row per turn — the system of record ───────────────────
 CREATE TABLE IF NOT EXISTS adk_turns (
@@ -2087,6 +2412,10 @@ CREATE TABLE IF NOT EXISTS adk_turns (
   UNIQUE (trace_id, span_id)
 );
 
+-- Cache tokens summed over the turn's calls (migration 0016, ADR 0139).
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_adk_turns_ts        ON adk_turns (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_trace     ON adk_turns (trace_id);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_session   ON adk_turns (session_id, ts);
@@ -2131,8 +2460,10 @@ CREATE INDEX IF NOT EXISTS idx_adk_turns_surface_user
 -- cost_usd is filled at write time by the trigger below from model_pricing
 -- (db/migrations/0015_model_pricing.sql), so both sinks and a replayed
 -- dead-letter spool get it, and the price table is the one source:
---   adk_telemetry  an llm.request row: its model and tokens. A root row: the
---                  turn's per-model usage on the span (syndicate.usage).
+--   adk_telemetry  an llm.request row: its model and tokens, cache reads and
+--                  writes at their own rates (migration 0017). A root row: the
+--                  turn's per-model usage on the span (syndicate.usage). Any
+--                  other row (an agent run, a model step, a tool call): NULL.
 --   adk_turns      the turn's per-model usage (attributes->'syndicate.usage',
 --                  the tracer sums each model's calls), so a turn that used
 --                  two models is priced per model, input summed per call.
@@ -2189,7 +2520,8 @@ BEGIN
     RETURN NEW;
   END IF;
   IF NEW.model IS NOT NULL THEN
-    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens);
+    NEW.cost_usd := melchizedek_cost_usd(NEW.model, NEW.input_tokens, NEW.output_tokens, NEW.thinking_tokens,
+                                         NEW.cache_read_tokens::bigint, NEW.cache_write_tokens::bigint);
   ELSE
     NEW.cost_usd := melchizedek_usage_text_cost(NEW.span->'attributes'->>'syndicate.usage');
   END IF;
@@ -2534,7 +2866,9 @@ BEGIN
   END LOOP;
   -- The production view and the retention function read/delete those
   -- tables on behalf of the caller; neither belongs on the public API.
-  FOREACH t IN ARRAY ARRAY['adk_turns_production', 'adk_kpi_daily', 'adk_kpi_routes_daily', 'adk_kpi_judges_daily', 'adk_kpi_hourly'] LOOP
+  -- So does the job queue's read model (migration 0018).
+  FOREACH t IN ARRAY ARRAY['adk_turns_production', 'adk_kpi_daily', 'adk_kpi_routes_daily', 'adk_kpi_judges_daily', 'adk_kpi_hourly',
+                            'melchizedek_task_queue'] LOOP
     IF to_regclass('public.' || t) IS NOT NULL THEN
       PERFORM pg_temp.melchizedek_revoke_api(format('%I', t));
     END IF;

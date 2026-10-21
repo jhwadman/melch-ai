@@ -393,6 +393,28 @@ export function applyFinish(store: TaskStore, id: string, outcome: JobOutcome): 
   }
 }
 
+/** A failed or cancelled job made new again: no attempts, no error, no finish time. */
+function resetForRetry(t: TaskRecord): void {
+  t.attempts = 0;
+  delete t.error;
+  delete t.finished_at;
+}
+
+/**
+ * The retry rule (every backend; an operator's Retry and task_update's
+ * `queued` alike): a failed or cancelled background job goes back to the
+ * queue with its attempts reset. Anything else is left alone.
+ */
+export function applyRetry(store: TaskStore, id: string): 'queued' | 'not-found' | 'not-retryable' {
+  const job = store.tasks.find((t) => t.id === id);
+  if (!job) return 'not-found';
+  if (job.kind !== 'background' || !['failed', 'cancelled'].includes(job.status)) return 'not-retryable';
+  resetForRetry(job);
+  job.status = 'queued';
+  job.updated_at = now();
+  return 'queued';
+}
+
 /** The interrupted-job rule for one record: back to the queue, or failed. */
 export function applyInterrupted(t: TaskRecord): 'requeued' | 'failed' {
   t.updated_at = now();
@@ -614,11 +636,7 @@ export const taskUpdateContract = defineTool({
             if (status === 'queued' && !['failed', 'cancelled'].includes(task.status)) {
               return `Error: only a failed or cancelled job can be queued again; ${id} is ${task.status}.`;
             }
-            if (status === 'queued') {
-              task.attempts = 0;
-              delete task.error;
-              delete task.finished_at;
-            }
+            if (status === 'queued') resetForRetry(task);
           }
           task.status = status;
         }

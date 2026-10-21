@@ -126,6 +126,7 @@ Field reference:
 |---|---|---|
 | `syndicate_name` | root | Display name. On the CLI it also namespaces memory user keys; on the A2A server memory is keyed by the caller's silo across every long-term syndicate that server serves. |
 | `memory_system` | root | `internal-only` (nothing persists — on the server too: its transcripts stay in process memory), `session-only` (transcript persists in Supabase), `long-term` (adds fact distillation + vector recall). |
+| `metadata` | root, any agent | Static labels for the ledger ([ADR 0141](./wiki/decisions/0141-metadata-and-the-task-state-hook.md)): `{ key: value }` with string (at most 256 characters), number or boolean values, at most 32 keys, each key `[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}`. The syndicate's become `meta.<key>` on every root span of a turn, so on its `adk_turns.attributes` (`meta.tags: "a,b"` gives the turn tags); an agent's become `meta.agent.<key>` on its `agent.invoke` span. A value shaped like a key or token is dropped at load with a warning naming the key; string values pass through the telemetry redactor. An A2A caller can add keys of its own (§6, Headers) but never set one named here. |
 | `variables` | root | Key/values bound into `{{placeholders}}` anywhere in instructions. `current_date` is always injected; CLI `--bind key=value` overrides. |
 | `memory_extraction_rules` | root | Domain rules appended to the shared fact-extraction prompt for THIS syndicate only (requires `memory_system: "long-term"`). The extraction prompt is global — anything domain-specific belongs here, never edited into it. Unset, the prompt renders byte-identical to before the slot existed (§4). |
 | `memory_extraction_model` | root | The model that distils this syndicate's turns into memory records (long-term only); any model id. Default: the deployment's `MEMORY_EXTRACTION_MODEL`. |
@@ -192,7 +193,7 @@ function, and every adapter recognises it by marker
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
-| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. On Postgres the view `melchizedek_task_queue` (migration 0018) lists every job with `attempts`, `retries`, `dead_lettered`, `last_error`, its lease and checkpoint, and `postgresStorage().retryTask(owner, id)` queues a failed or cancelled job again. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` (or several servers under `mcp_servers:`) in its YAML
@@ -626,8 +627,14 @@ row per turn with input, output, the responding agent, the plan-dispatch
 route, errors, tokens, model-vs-tool latency, the tool calls with their
 responses, the ids that join it to `adk_sessions` (`session_id`,
 `invocation_id`), provenance (`config_hash`, `engine_version`) and a
-full-text `search` column; `adk_telemetry` — one row per `llm.request` /
-root span; and `adk_payloads` — full prompts and responses per model call,
+full-text `search` column; `adk_telemetry` — one row per span of the
+turn's tree (the root, `agent.invoke`, `model.call`, `llm.request`,
+`tool.execute`, script and workflow spans), each with `parent_span_id`
+(the nearest ancestor that has a row), `kind` (`turn | agent | model |
+tool | script | node`) and `error` (migration 0016, ADR 0139); a tool
+span carries `tool.args` and `tool.result` (redacted, then cut at 8 KB),
+and tokens sit on the `llm.request` rows and the root, never on a
+`model.call` row; and `adk_payloads` — full prompts and responses per model call,
 kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `TELEMETRY_PAYLOAD_SAMPLE`, `TELEMETRY_PAYLOAD_TTL_DAYS`) and expired by
 `melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
@@ -648,6 +655,14 @@ input summed per call), thinking at the output rate unless the row sets
 never a partial sum; `ollama/*` costs zero. Add or change a rate with an
 `INSERT … ON CONFLICT (model) DO UPDATE` on `model_pricing`; rows already
 written keep the rate in force when they were written (ADR 0136).
+Prompt-cache tokens are parts of the input: each `llm.request` records
+`llm.tokens.cache_read` / `llm.tokens.cache_write` (and
+`llm.finish_reason`), `adk_telemetry` and `adk_turns` carry
+`cache_read_tokens` / `cache_write_tokens` (the turn's summed over its
+calls), and `syndicate.usage` carries `cache_read` / `cache_write` per
+model. `model_pricing.cache_read_per_mtok` / `cache_write_per_mtok` price
+them (migration 0017; NULL prices them as input), seeded for Anthropic and
+OpenAI from their price lists (ADR 0139).
 Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
@@ -700,6 +715,7 @@ README has the commands.
 | `GET /<agentId>/.well-known/agent-card.json` | bearer | another syndicate's card; its URLs point at `/<agentId>/a2a/...` |
 | `POST /<agentId>/a2a/jsonrpc`, `/<agentId>/a2a/rest` | bearer | another syndicate (`A2A_SERVED_AGENTS` restricts which) |
 | `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows), ledger rows, A2A tasks and the third-party tokens held for its tools, including conversations whose sessions have expired, with per-store counts; `?all=1` covers every memory namespace |
+| `POST /feedback`, `/<agentId>/feedback` | bearer | an end user's rating of a turn (ADR 0140): `{ "taskId" or "traceId", "score": "up" \| "down" \| 1–5, "comment"?, "userId"? }` → `201 { ok, traceId }`; one `adk_labels` row (below). 501 without the ledger |
 
 "bearer" means the credential `A2A_AUTH` asks for (below); with no
 `A2A_SERVER_SECRET` and no authenticator the server binds `127.0.0.1` only.
@@ -745,6 +761,38 @@ or pass your own `resolveRequest`.
   The counts live in the `melchizedek_usage` table (`db/migrations/0004_usage.sql`)
   when Postgres or Supabase is configured, else in process memory. A store
   that cannot be read refuses the task.
+  `budgets(config, { onBudgetState, warnAt, hardStop })` adds two hooks.
+  `onBudgetState(state)` is called with each subject's standing after every
+  task (`cause: 'record'`) and when a task arrives over a limit
+  (`cause: 'admit'`, `stopped` saying whether it was refused):
+  `{ subject: 'caller:<name>' | 'scope:<hash>', day, usage, limits?,
+  level: 'ok' | 'warn' | 'over', reached?, agentId }`, `warn` from `warnAt`
+  (default 0.8) of any limit, so a consumer can mirror a deployment's
+  spend. `hardStop: false` makes the limits advisory (reported, not
+  enforced); a function `(subject) => reason | undefined` is an outside
+  stop asked at admission after the limits, whose reason refuses the task
+  (a desktop app serving locally passes its monthly spend check, with
+  `budgets({}, { hardStop })`). It may throw; that refuses too.
+- **End-user feedback** (`POST /feedback`, `lib/a2a/feedback.ts`, ADR 0140):
+  a product's thumbs or 1–5 rating of a turn, named by its A2A `taskId` (a
+  dispatch task's answer, not its classifier turn) or its `traceId`, with an
+  optional `comment` (at most 4,000 characters) and the product's own
+  `userId` ([A-Za-z0-9._@:+/-], at most 128; a credential-shaped one is
+  refused). It writes one `adk_labels` row: `ref` and `trace_id` the turn's
+  trace id, `labeler = 'end-user'`, `fields = { score, userId }` (`score`
+  the string or the number as sent, `userId` null when none), `note` the
+  comment through the telemetry redactor (`TELEMETRY_REDACT`), null when
+  none. The route is behind the bearer, the authenticator and the task rate
+  limit like a task, with its own 32 KB body limit. A caller rates only
+  turns whose `user_id` is its scope (or beneath a scope that owns nested
+  ones) unless it holds an operator credential; another's turn answers the
+  same 404 as a missing one, and a turn reaches the ledger a few seconds
+  after it ends. One label per turn per `userId` (else per scope) per
+  minute, per process: 429 with `Retry-After`. Answers never repeat what
+  was sent. It needs the ledger in Postgres: `postgresStorage({ ledger:
+  true })` supplies `storage.feedback`, and `postgresFeedbackStore(pool)`
+  builds one on any pool with `db/telemetry.sql` applied; the supabase-js
+  path has none.
 - **One record per task** (option `onTaskEnd`): task id, trace id, agent,
   caller, a hash of the scope, status, reason, duration, model calls and
   tokens. The trace id is the one the turn's spans and its ledger row carry,
@@ -755,6 +803,14 @@ or pass your own `resolveRequest`.
   record carries `callerTraceId`. The turn keeps a trace id of its own, since
   ledger attribution and erasure key on it and a caller must not choose it.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
+- **Every state a task enters** (option `onTaskState`): `{ taskId, contextId,
+  state, syndicate, agentId, traceId?, at }` after each new state the server
+  publishes: `submitted`, `working` (with the first progress line), then
+  `completed`, `failed`, `canceled`, `rejected` or `input-required`. A repeat
+  of the state is not reported again; `traceId` is there once the turn's root
+  span started; `at` is ms since the epoch; a throwing hook is ignored. For a
+  live view of work in flight. A caller polling instead reads the same state
+  with `tasks/get` (below).
 - **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
   option `audit`, supplied by `postgresStorage`): one row per failed
   authentication (`auth.failure`), task outcome (`task.end`), erasure
@@ -825,6 +881,7 @@ sending it regulated data.
 | `X-API-Key` | BYOK mode only: the caller's model key (see above) |
 | `X-Provider` | BYOK mode only: which provider `X-API-Key` belongs to (default `google`) |
 | `X-Surface`, `X-Surface-Guild`, `-Channel`, `-User` | optional, telemetry only |
+| `X-Melch-Meta-<key>` | optional, telemetry only: `meta.<key>` (the key lowercased) on the turn's root span, with the limits of the YAML's `metadata:`. A header outside them is refused with 400. The A2A message's own `metadata` object adds its scalar entries the same way (a header wins a key both name; other entries are skipped). At most 32 keys a turn, the YAML's first; a key the YAML declares, or one starting `agent.`, is never taken from a request; a credential-shaped value is dropped ([ADR 0141](./wiki/decisions/0141-metadata-and-the-task-state-hook.md)). |
 
 #### Sessions
 
@@ -840,7 +897,12 @@ transcripts in process memory even when Supabase is configured.
 (Method names below are 0.3's; 1.0 clients use `SendMessage`,
 `GetTask`, `SendStreamingMessage`, `CancelTask` and the 1.0 enum spellings.)
 `message/send` blocks until the turn finishes unless the request sets
-`configuration.blocking: false`; then poll `tasks/get`. `message/stream`
+`configuration.blocking: false`; then poll `tasks/get` with the returned
+task id (`{"jsonrpc":"2.0","id":2,"method":"tasks/get","params":{"id":"<task id>"}}`):
+`result.status.state` is `submitted`, `working`, `input-required` (an
+approval, a question or a consent waits; the status message says which),
+`completed`, `failed`, `canceled` or `rejected`, and once it is final,
+`result.status.message` carries the answer or the reason. `message/stream`
 emits `[STATUS]` progress updates (tool calls, the chosen route, guard
 notes) and the answer as the final status message. With
 `A2A_STREAM_TEXT=true` (`streamText` in code) it also streams the answer as

@@ -30,8 +30,12 @@
  *   adapter's final response). A failed step carries none: its llm.request
  *   span carries the failed call's payload, as under ADK, where a failed
  *   call_llm never ended. With TELEMETRY_PAYLOADS=off no payload is
- *   recorded at all. Tool spans carry no arguments and no results: the root
- *   span's ToolCall/ToolResponse events are where the ledger keeps those.
+ *   recorded at all. A tool span carries its call's arguments (`tool.args`)
+ *   and the start of its result (`tool.result`), each as JSON, redacted by
+ *   the telemetry redactor and cut at TOOL_ATTRIBUTE_MAX_CHARS
+ *   (`tool.args_truncated` / `tool.result_truncated` when cut), so the
+ *   ledger's span tree shows a call without the payload tier (ADR 0139). The
+ *   root span's ToolCall/ToolResponse events still hold the whole of both.
  *
  * The loop calls three hooks (agentLoop.ts): traceAgentInvocation around the
  * whole run, traceModelCall around each step, traceToolCall around each call.
@@ -44,6 +48,8 @@ import type { ModelAdapter } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { RUNTIME_SPAN_SCOPE } from '../../observability/lineage.ts';
 import { payloadPolicyFromEnv } from '../../observability/supabaseSpanExporter.ts';
+import { telemetryRedactor } from '../../observability/redact.ts';
+import { META_AGENT_PREFIX, metaAttributes } from '../../observability/metadata.ts';
 import { startEngineSpan } from '../../observability/tracer.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
@@ -53,6 +59,32 @@ import type { NodeResult, TracedNode } from '../../workflow/scheduler.ts';
 
 /** The most a payload attribute holds, as for a failed call's (lib/observability/tracer.ts). */
 const PAYLOAD_MAX_CHARS = 200_000;
+
+/** The most a tool span's `tool.args` or `tool.result` holds: the first 8 KB of its redacted JSON (ADR 0139). */
+export const TOOL_ATTRIBUTE_MAX_CHARS = 8_192;
+
+/**
+ * Sets `key` to `value` as JSON, redacted first (so a cut never splits a
+ * secret the redactor would have caught) and then cut to the cap, with
+ * `<key>_truncated` when it was cut. Nothing on a span that records nothing.
+ */
+function setToolContent(span: Span, key: 'tool.args' | 'tool.result', value: unknown): void {
+  if (!span.isRecording() || value === undefined) return;
+  let json: string;
+  try {
+    json = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
+  } catch {
+    json = String(value);
+  }
+  const redactor = telemetryRedactor();
+  if (redactor) json = redactor(json);
+  if (json.length > TOOL_ATTRIBUTE_MAX_CHARS) {
+    span.setAttribute(key, json.slice(0, TOOL_ATTRIBUTE_MAX_CHARS));
+    span.setAttribute(`${key}_truncated`, true);
+  } else {
+    span.setAttribute(key, json);
+  }
+}
 
 /** A loop span in scope melchizedek.runtime; a non-recording one in a turn that opted out of tracing. */
 const startRuntimeSpan = (name: string, options: SpanOptions): Span => startEngineSpan(RUNTIME_SPAN_SCOPE, name, options);
@@ -98,7 +130,7 @@ function failed(span: Span, error: unknown): never {
 
 /** The agent's run as an `agent.invoke <name>` span, opened when the run starts. */
 export async function* traceAgentInvocation(
-  agent: Pick<NativeAgent, 'name' | 'description'>,
+  agent: Pick<NativeAgent, 'name' | 'description' | 'metadata'>,
   ctx: Pick<AgentLoopContext, 'session' | 'invocationId'>,
   run: () => AsyncGenerator<TurnEvent, AgentLoopEnd>,
 ): AsyncGenerator<TurnEvent, AgentLoopEnd> {
@@ -109,6 +141,8 @@ export async function* traceAgentInvocation(
       'gen_ai.agent.description': agent.description ?? '',
       'gen_ai.conversation.id': ctx.session.id,
       'adk.invocation_id': ctx.invocationId,
+      // The YAML's agent metadata (ADR 0141), redacted as every ledger value is.
+      ...metaAttributes(agent.metadata, META_AGENT_PREFIX),
     },
   });
   try {
@@ -174,7 +208,10 @@ function recordModelCall(span: Span, result: ModelStepResult, provider: string |
     span.setAttribute('gen_ai.usage.input_tokens', response.usage.inputTokens);
     span.setAttribute('gen_ai.usage.output_tokens', response.usage.outputTokens);
   }
-  if (response?.finishReason) span.setAttribute('gen_ai.response.finish_reasons', [response.finishReason]);
+  if (response?.finishReason) {
+    span.setAttribute('gen_ai.response.finish_reasons', [response.finishReason]);
+    span.setAttribute('llm.finish_reason', response.finishReason);
+  }
   if (result.stopped) {
     span.setAttribute('model.call.stop_code', result.stopped.code);
     return;
@@ -208,9 +245,11 @@ export async function traceToolCall<O extends { part?: TurnPart } | undefined>(
       ...(call.id ? { 'gen_ai.tool.call.id': call.id } : {}),
     },
   });
+  setToolContent(span, 'tool.args', call.args ?? {});
   try {
     const outcome = await context.with(trace.setSpan(context.active(), span), run);
     const response = outcome?.part?.functionResponse?.response as Record<string, unknown> | undefined;
+    if (response !== undefined) setToolContent(span, 'tool.result', response);
     if (!outcome?.part) span.setAttribute('tool.pending', true);
     else if (response && Object.hasOwn(response, 'error')) {
       // The error text can quote the person's words; the response event holds it.
@@ -289,7 +328,7 @@ export async function traceNodeExecution(node: TracedNode, run: () => Promise<No
 }
 
 /** A tool node's call as a `tool.execute <name>` span, under its node's (ToolNodeContext.traceCall). */
-export async function traceToolNodeCall<T>(call: { id: string; name: string }, tool: unknown, run: () => Promise<T>): Promise<T> {
+export async function traceToolNodeCall<T>(call: { id: string; name: string; args?: unknown }, tool: unknown, run: () => Promise<T>): Promise<T> {
   const description = tool && typeof tool === 'object' ? (tool as { description?: unknown }).description : undefined;
   const span = startRuntimeSpan(`tool.execute ${call.name}`, {
     attributes: {
@@ -299,8 +338,11 @@ export async function traceToolNodeCall<T>(call: { id: string; name: string }, t
       'gen_ai.tool.call.id': call.id,
     },
   });
+  if (call.args !== undefined) setToolContent(span, 'tool.args', call.args);
   try {
-    return await context.with(trace.setSpan(context.active(), span), run);
+    const result = await context.with(trace.setSpan(context.active(), span), run);
+    setToolContent(span, 'tool.result', result ?? null);
+    return result;
   } catch (error) {
     // The tool node turns the throw into its { error } response; the span notes the failure, not the message.
     span.setAttribute('tool.error', true);

@@ -15,7 +15,8 @@ import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { compareSchema, packageDbDir, schemaBehindMessage, shippedSchemaVersion } from '../lib/storage/schemaVersion.ts';
 
-const SHIPPED = readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).length;
+// The highest numbered migration, not the count: numbers are reserved by branches in flight.
+const SHIPPED = Math.max(...readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).map((f) => Number(f.slice(0, 4))));
 
 test('the shipped version is the highest numbered migration', () => {
   assert.equal(shippedSchemaVersion(), SHIPPED);

@@ -84,7 +84,9 @@ BEGIN
   END LOOP;
   -- The production view and the retention function read/delete those
   -- tables on behalf of the caller; neither belongs on the public API.
-  FOREACH t IN ARRAY ARRAY['adk_turns_production', 'adk_kpi_daily', 'adk_kpi_routes_daily', 'adk_kpi_judges_daily', 'adk_kpi_hourly'] LOOP
+  -- So does the job queue's read model (migration 0018).
+  FOREACH t IN ARRAY ARRAY['adk_turns_production', 'adk_kpi_daily', 'adk_kpi_routes_daily', 'adk_kpi_judges_daily', 'adk_kpi_hourly',
+                            'melchizedek_task_queue'] LOOP
     IF to_regclass('public.' || t) IS NOT NULL THEN
       PERFORM pg_temp.melchizedek_revoke_api(format('%I', t));
     END IF;

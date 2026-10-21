@@ -4,7 +4,137 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.10.0 — 2026-10-20
+
+A minor release for deployments: a served syndicate takes end-user
+feedback at POST /feedback into the ledger (ADR 0140), budgets report
+their state and can stop on a caller's own rule, and the job queue has a
+read model with a retry.
+
+### Added
+
+- **End-user feedback, `POST /feedback` and `POST /<agentId>/feedback`
+  (ADR 0140).** A product's thumbs or 1–5 rating of a served turn, named by
+  its A2A `taskId` or its `traceId`, with an optional `comment` (≤ 4,000
+  characters) and `userId`, lands in the ledger as one `adk_labels` row:
+  `ref = trace_id = <trace id>`, `labeler = 'end-user'`,
+  `fields = { score, userId }`, `note` = the comment through the telemetry
+  redactor. Behind the bearer, the authenticator and the task rate limit,
+  with a 32 KB body limit, the caller's own turns only, and one label per
+  (turn, user) per minute. New option `storage.feedback`; `postgresStorage`
+  supplies it when `ledger` is on. New subpath
+  `melchizedek-agents/a2a/feedback` and barrel exports: `parseFeedback`,
+  `feedbackRow`, `postgresFeedbackStore`, `END_USER_LABELER`, types
+  `FeedbackStore`, `FeedbackRow`, `FeedbackScore`, `FeedbackTurn`.
+- **Budget hooks.** `budgets(config, opts)` takes `onBudgetState(state)`,
+  called with each subject's day totals, limits and level (`ok`, `warn`,
+  `over`) after every task and when a task arrives over a limit; `warnAt`
+  (default 0.8); and `hardStop`: `true` (default, as before), `false`
+  (limits only report), or a function returning a refusal reason, asked at
+  admission (a local server's own spend check). New types `BudgetState`,
+  `BudgetLevel`, `BudgetOptions`, `HardStop`.
+- **The job queue's read model.** Migration `0018_queue_view` adds the view
+  `melchizedek_task_queue`: one row per background job with `attempts`,
+  `retries`, `max_attempts`, `dead_lettered`, `last_error`, the lease and
+  the checkpoint. `postgresStorage().retryTask(owner, id)` queues a failed
+  or cancelled job again with its attempts reset (`applyRetry` in
+  `lib/tools/taskTools.ts`, the rule `task_update`'s `queued` applies).
+  The view is revoked from the API roles in the migration and in
+  `db/hardening.sql`.
+
+## 1.9.0 — 2026-10-20
+
+Not published on its own: these changes ship in 1.10.0.
+
+A minor release for observability: the ledger keeps a turn's span tree
+with cache tokens and their prices (ADR 0139), and a syndicate's YAML
+and an A2A request can label a turn with metadata, with a hook on every
+task state (ADR 0141).
+
+The ledger keeps a turn's span tree, counts prompt-cache tokens, and
+prices them at their own rates (ADR 0139). **Apply the schema before
+upgrading the engine:** `npx melchizedek-db apply --telemetry` runs the
+new migrations 0016 and 0017 and `db/telemetry.sql`; the sinks write the
+new columns, so a ledger without them refuses the rows (they are spooled
+to the dead-letter file, and `telemetry:replay` re-sends them once the
+schema is applied). Rows written before keep NULL in every new column.
+
+### Added
+
+- **The span tree in `adk_telemetry` (migration `0016_span_tree`).** Every
+  span of a turn gets a row: the root, `agent.invoke <name>`, `model.call`,
+  `llm.request`, `tool.execute <name>`, `script.invoke` / `script.call`,
+  `workflow.invoke` / `node.execute`. New columns `parent_span_id` (the
+  nearest ancestor that has a row, read from the tracer's lineage when the
+  span starts and recorded as `ledger.parent_span_id` where it differs
+  from the direct parent), `kind` (`turn | agent | model | tool | script |
+  node`) and `error`; index `idx_adk_telemetry_parent`. A `model.call` row
+  carries no tokens and no payload (its `llm.request` rows and
+  `adk_payloads` hold them). New exports on `./observability/*`:
+  `ledgerSpanKind`, `LedgerSpanKind`, `LEDGER_PARENT_ATTRIBUTE`
+  (`lineage`); `isLedgerSpan`, `ledgerParentOf`, `spanFailed`, and the
+  new `TelemetryRow` / `TurnRow` fields (`supabaseSpanExporter`).
+- **Tool arguments and results on tool spans.** `tool.args` and
+  `tool.result`, JSON, run through the telemetry redactor and then cut at
+  8,192 characters (`TOOL_ATTRIBUTE_MAX_CHARS`, with
+  `tool.args_truncated` / `tool.result_truncated`), on the loop's tool
+  calls and a tool node's. `OTEL_EXPORT_CONTENT=off` drops `tool.result`
+  as it drops `tool.args`.
+- **Cache tokens and finish reasons.** `llm.request` records
+  `llm.tokens.cache_read` and `llm.tokens.cache_write` (parts of
+  `llm.tokens.input`, set when the provider reports them) and
+  `llm.finish_reason`; `model.call` records `llm.finish_reason` too.
+  `adk_telemetry` and `adk_turns` gain `cache_read_tokens` and
+  `cache_write_tokens` (a turn's summed over its calls; the root span's
+  `syndicate.tokens.cache_read` / `.cache_write`), and `syndicate.usage`
+  carries `cache_read` / `cache_write` per model. `LlmCallMeta.source`
+  lets a caller of `traceLlmGeneration` hand the contract response each
+  `LlmResponse` came from, which is where a cache write is read.
+- **Cache pricing (migration `0017_cache_pricing`).** `model_pricing`
+  gains `cache_read_per_mtok` and `cache_write_per_mtok` (NULL prices the
+  token as input, so every existing row prices as before);
+  `melchizedek_cost_usd(model, input, output, thinking, cache_read,
+  cache_write)` prices them (the four-argument form stays);
+  `melchizedek_usage_cost` and the ledger trigger read them. Seeded from
+  the vendors' lists, checked 2026-10-20: the Anthropic rows 0015 seeded
+  gain their cache rates (5-minute write) while they still hold 0015's
+  rates, `claude-opus-5-5` and `claude-sonnet-5-5` are added, and OpenAI's
+  `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-sol`, `gpt-6-luna`, `gpt-5.6-sol` /
+  `-terra` / `-luna`, `gpt-5.5`, `gpt-5.4` (under-272K rates), `gpt-5.2`,
+  `gpt-5.1`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano` get rows. Gemini, Grok and
+  Kimi rows get no cache rates.
+- **`metadata:` in the syndicate YAML (ADR 0141).** `{ key: value }` on
+  the syndicate and on any agent: strings (at most 256 characters),
+  numbers or booleans, at most 32 keys, each key
+  `[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}`. The syndicate's become
+  `meta.<key>` on every root span of a turn, so on
+  `adk_turns.attributes`; an agent's become `meta.agent.<key>` on its
+  `agent.invoke` span. A value shaped like a key or token is dropped at
+  load with a warning (`LoadSyndicateOptions.onWarning`) naming the key,
+  never the value; string values pass through the telemetry redactor. An
+  attribute an in-process caller passes in `trace.attributes` wins a key
+  both name. `config/agents/syndicate.schema.json` is regenerated.
+- **Per-request metadata over A2A (ADR 0141).** `X-Melch-Meta-<key>`
+  headers and the scalar entries of the A2A message's `metadata` object
+  become `meta.<key>` on the turn's root span, with the YAML's limits and
+  redaction; at most 32 keys a turn, the YAML's first. A header wins a key
+  both name; a key the YAML declares, or one starting `agent.`, is never
+  taken from a request; a credential-shaped value is dropped with a
+  warning. A malformed `X-Melch-Meta-*` header is refused with 400; a
+  message entry that is not metadata is skipped. `A2AContext.meta` holds
+  the checked headers.
+- **`A2AAppOptions.onTaskState(record)` (ADR 0141).** Called after each
+  new state the executor publishes, with
+  `{ taskId, contextId, state, syndicate, agentId, traceId?, at }`:
+  `submitted`, `working` (with the first progress line), then the state
+  the task ends in. Barrel types `TaskStateRecord`, `TaskStateName`,
+  `Metadata`, `MetadataValue`; the helpers are in
+  `melchizedek-agents/observability/metadata`.
+
+### Docs
+
+- `tasks/get` and the states a polling caller reads, in DOCUMENTATION.md
+  §6 and the A2A wiki doc.
 
 ## 1.8.0 — 2026-10-18
 

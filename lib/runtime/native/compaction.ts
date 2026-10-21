@@ -48,7 +48,7 @@
 
 import type { LlmRequest, LlmResponse } from '../../models/genaiMapping.ts';
 
-import type { ModelAdapter, ModelRequest } from '../../models/contract.ts';
+import type { ModelAdapter, ModelRequest, ModelResponse } from '../../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
 import { traceLlmGeneration } from '../../observability/tracer.ts';
 import { createTurnEvent, getFunctionCalls, getFunctionResponses } from '../events.ts';
@@ -176,10 +176,15 @@ export async function summarize(
   const startTime = (events[0] as TurnEvent).timestamp;
   const endTime = (events[events.length - 1] as TurnEvent).timestamp;
   const request = summaryRequest(events, model, options.signal);
+  const sources = new WeakMap<LlmResponse, ModelResponse>();
   async function* inner(): AsyncGenerator<LlmResponse, void> {
-    for await (const response of adapter.generate(request)) yield modelResponseToLlmResponse(response);
+    for await (const response of adapter.generate(request)) {
+      const mapped = modelResponseToLlmResponse(response);
+      sources.set(mapped, response);
+      yield mapped;
+    }
   }
-  const responses = traceLlmGeneration({ provider: adapter.provider, model, request }, inner());
+  const responses = traceLlmGeneration({ provider: adapter.provider, model, request, source: (r) => sources.get(r) }, inner());
   // As ADK: the first response must carry text; nothing after a failure is read.
   const first = await responses.next();
   const head = first.done ? undefined : first.value.content?.parts?.[0]?.text;

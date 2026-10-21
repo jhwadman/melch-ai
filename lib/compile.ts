@@ -402,6 +402,8 @@ export interface AgentSpec {
   mode?: 'task';
   /** The syndicate's `max_concurrency`, on its orchestrator (ADR 0116): delegated calls one step runs at once. */
   maxConcurrency?: number;
+  /** `metadata:` (ADR 0141): `meta.agent.<key>` on the agent's span. */
+  metadata?: Record<string, string | number | boolean>;
 }
 
 /** The agent fields a spec carries from YAML, orchestrator or subagent alike. */
@@ -420,6 +422,7 @@ interface AgentYaml {
   mode?: 'task';
   reasoning?: ReasoningSetting;
   generateContentConfig?: object;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 /** The model an agent runs on, resolved once through CompileOptions.resolveModel, and its id. */
@@ -461,6 +464,7 @@ function specOf(
   if (yaml.code_execution) spec.codeExecution = yaml.code_execution;
   if (yaml.context) spec.context = yaml.context;
   if (yaml.mode) spec.mode = yaml.mode;
+  if (yaml.metadata && Object.keys(yaml.metadata).length) spec.metadata = yaml.metadata;
   return spec;
 }
 

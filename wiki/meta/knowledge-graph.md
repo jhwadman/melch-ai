@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-19
+  at: 2026-10-21
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,9 +28,9 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 227 | a repo file that is not a source module (DDL, config, prose) |
-| `doc` | `/dir/doc.md` | 207 | a concept document in the bundle — identity is its bundle path |
-| `module` | `module:<name>` | 207 | one source module |
+| `file` | `file:<name>` | 234 | a repo file that is not a source module (DDL, config, prose) |
+| `doc` | `/dir/doc.md` | 210 | a concept document in the bundle — identity is its bundle path |
+| `module` | `module:<name>` | 209 | one source module |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 93 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 51 | an npm script entrypoint |
@@ -50,9 +50,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1181 | declared in the document’s `sources:` frontmatter |
-| `imports` | extracted | A imports B | 942 | a static import edge between source files |
-| `links_to` | extracted | A links to B | 795 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 1202 | declared in the document’s `sources:` frontmatter |
+| `imports` | extracted | A imports B | 956 | a static import edge between source files |
+| `links_to` | extracted | A links to B | 810 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 168 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 93 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 93 | the agent is configured with this model id |
@@ -60,7 +60,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `runs` | extracted | A runs B | 74 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 59 | the document derives from, and describes, this entity |
-| `reads_table` | extracted | A reads or writes B | 28 | the module names this table |
+| `reads_table` | extracted | A reads or writes B | 29 | the module names this table |
 | `routes_to` | extracted | A routes to B | 10 | the model id resolves to this provider adapter |
 | `connects_mcp` | extracted | A dials B | 6 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
