@@ -19,8 +19,10 @@
  *   5. BYOK headers → per-request AsyncLocalStorage context. Agent-card GETs
  *      are exempt from X-API-Key: discovery must not require a model key.
  *   6. Task rate limiter (POSTs only; polling GETs are exempt).
- *   7. Routes: the adopter's own (`routes`), DELETE /memory, the default
- *      syndicate at /a2a/*, and every other syndicate at /:agentId/a2a/*.
+ *   7. Routes: the adopter's own (`routes`), DELETE /memory, POST /feedback
+ *      and /:agentId/feedback (ADR 0140; their own 32 KB body limit), the
+ *      default syndicate at /a2a/*, and every other syndicate at
+ *      /:agentId/a2a/*.
  *
  * State that is per-process (documented, not hidden): the A2A task store,
  * the handler cache, the rate-limiter counters. Sessions and memory are
@@ -89,6 +91,8 @@ import { droppedHeaderWarning, headerMetadata } from '../observability/metadata.
 import { HEADER_VALUE_PATTERN, SCOPE_KEY_PATTERN } from './identity.ts';
 import type { IdentityScheme } from './identity.ts';
 import type { Policy } from './policy.ts';
+import { feedbackBodyParser, feedbackHandler, feedbackLimiter, isFeedbackPath } from './feedback.ts';
+import type { FeedbackStore } from './feedback.ts';
 import { createMetrics } from '../observability/metrics.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import { ConsentError } from '../tools/oauthConsent.ts';
@@ -235,6 +239,14 @@ export interface A2AAppOptions {
     /** Appends audit events (postgresStorage supplies one; ADR 0042). */
     audit?: AuditSink;
     /**
+     * Where `POST /feedback` reads turns and writes end-user labels: the
+     * telemetry ledger (ADR 0140). postgresStorage supplies one when its
+     * `ledger` is on; `postgresFeedbackStore(pool)` (lib/a2a/feedback.ts)
+     * builds one on any pool holding db/telemetry.sql. Without it the
+     * route answers 501.
+     */
+    feedback?: FeedbackStore;
+    /**
      * One turn at a time per conversation across instances (postgresStorage
      * supplies an advisory lock). Default: a lock in this process.
      */
@@ -317,7 +329,9 @@ export interface A2AAppOptions {
    * memoryService. Default: from MEMORY_* environment variables (Gemini).
    */
   memory?: { extractor?: MemoryExtractor; embedder?: Embedder };
-  /** Adopter routes, mounted after authentication and before the A2A routes. */
+  /** Adopter routes, mounted after authentication and before the A2A routes.
+   *  A POST to a path ending in /feedback (one segment deep) parses at the
+   *  feedback routes' 32 KB limit, not `bodyLimit`. */
   routes?: (app: Express) => void;
   /**
    * Tool credentials for every turn (ADR 0072): the sealed per-user store,
@@ -1050,7 +1064,10 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   }
 
   // ── 4. Body ────────────────────────────────────────────────────────────────
-  app.use(express.json({ limit: options.bodyLimit ?? '1mb' }));
+  // A POST to /feedback or /<id>/feedback parses at 32 KB, its errors as JSON (ADR 0140).
+  const jsonBody = express.json({ limit: options.bodyLimit ?? '1mb' });
+  const feedbackBody = feedbackBodyParser();
+  app.use((req, res, next) => (req.method === 'POST' && isFeedbackPath(req.path) ? feedbackBody(req, res, next) : jsonBody(req, res, next)));
 
   // ── 5. Caller context: who is calling, and whose data this is ──────────
   // Agent-card GETs need no caller context: discovery must not require a
@@ -1298,6 +1315,19 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   const registryIds = new Set(options.registryAgents ?? []);
   const served = options.servedAgents ? new Set(options.servedAgents) : undefined;
   class AgentNotFound extends Error {}
+
+  // End-user feedback (ADR 0140): behind the same authentication and task
+  // rate limit as a task, with its own body limit and per-turn limit.
+  const onFeedback = feedbackHandler({
+    store: options.storage?.feedback,
+    context: () => requestContextStorage.getStore(),
+    agentServed: (agentId) => isValidAgentId(agentId) && (!served || served.has(agentId)),
+    limiter: feedbackLimiter(),
+    log,
+    warn,
+  });
+  app.post('/feedback', onFeedback);
+  app.post('/:agentId/feedback', onFeedback);
 
   const loadAgentConfig = async (agentId: string): Promise<{ config: SyndicateYamlConfig; source: string }> => {
     const registryId = agentId.startsWith('registry:') ? agentId.slice('registry:'.length) : registryIds.has(agentId) ? agentId : undefined;

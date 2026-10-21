@@ -293,7 +293,7 @@ test('a 1.8 ledger upgrades in place: 0016 and 0017 add the columns, old rows ke
     for (const c of ['cache_read_per_mtok', 'cache_write_per_mtok']) assert.ok((await cols('model_pricing')).includes(c), c);
     const old = (await db.query<Record<string, unknown>>(`SELECT parent_span_id, kind, error, cache_read_tokens FROM adk_telemetry WHERE span_id = 's-old'`)).rows[0];
     assert.deepEqual(old, { parent_span_id: null, kind: null, error: null, cache_read_tokens: null });
-    const versions = (await db.query<{ version: number; name: string }>(`SELECT version, name FROM melchizedek_schema_version WHERE version >= 16 ORDER BY version`)).rows;
+    const versions = (await db.query<{ version: number; name: string }>(`SELECT version, name FROM melchizedek_schema_version WHERE version IN (16, 17) ORDER BY version`)).rows;
     assert.deepEqual(versions.map((v) => [v.version, v.name]), [[16, '0016_span_tree'], [17, '0017_cache_pricing']]);
     // telemetry.sql then completes the 1.8 ledger as on every upgrade; inserts after it name the new columns.
     await db.exec(telemetry);

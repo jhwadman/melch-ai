@@ -33,6 +33,9 @@ const INSTALL = [
   'db/hardening.sql',
 ];
 
+/** The highest numbered migration: what a fully installed database records. */
+const HIGHEST = Math.max(...INSTALL.filter((f) => f.startsWith('db/migrations/')).map((f) => Number(f.slice('db/migrations/'.length, 'db/migrations/'.length + 4))));
+
 async function install(db: PGlite): Promise<void> {
   for (const f of INSTALL) await db.exec(readFileSync(f, 'utf-8'));
 }
@@ -62,7 +65,7 @@ test('the whole install applies twice on a database with no Supabase API roles, 
   const roles = await plain.query<{ rolname: string }>(`SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'service_role')`);
   assert.deepEqual(roles.rows, [], 'hardening.sql must not create roles');
   const version = await plain.query<{ v: number }>('SELECT max(version) AS v FROM melchizedek_schema_version');
-  assert.equal(version.rows[0].v, INSTALL.filter((f) => f.startsWith('db/migrations/')).length);
+  assert.equal(version.rows[0].v, HIGHEST);
   const rls = await plain.query<{ table_name: string; rls_enabled: boolean }>('SELECT * FROM melchizedek_rls_status()');
   assert.ok(rls.rows.length >= 17);
   assert.deepEqual(rls.rows.filter((r) => !r.rls_enabled), [], 'RLS is on for every listed table');
@@ -136,7 +139,7 @@ test('a conversation through runSyndicateTurn persists on embedded Postgres and 
     assert.match(texts[1], /first/, 'the second turn carried the first message from the rows');
     const rows = await storage.pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM adk_session_events WHERE session_id = 'emb:u:c'`);
     assert.equal(rows.rows[0].n, 4);
-    assert.equal(await storage.schemaVersion(), INSTALL.filter((f) => f.startsWith('db/migrations/')).length);
+    assert.equal(await storage.schemaVersion(), HIGHEST);
   } finally {
     await storage.close();
   }

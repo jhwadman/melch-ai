@@ -5,25 +5,25 @@
     "at": "2026-10-21"
   },
   "stats": {
-    "nodes": 1027,
-    "edges": 4114,
+    "nodes": 1032,
+    "edges": 4129,
     "byKind": {
-      "doc": 209,
+      "doc": 210,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 231,
+      "file": 234,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
       "table": 19,
-      "module": 208,
+      "module": 209,
       "script": 51,
       "external": 13
     },
     "byRelation": {
-      "links_to": 808,
+      "links_to": 810,
       "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 951,
-      "reads_table": 28,
+      "imports": 956,
+      "reads_table": 29,
       "runs": 74,
-      "derives_from": 1196,
+      "derives_from": 1203,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3630,
+      "extracted": 3645,
       "inferred": 484
     },
     "isolated": 5
@@ -2080,6 +2080,18 @@
       }
     },
     {
+      "id": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "kind": "doc",
+      "label": "ADR 0140: End-user feedback is a bearer-guarded A2A route writing adk_labels",
+      "source": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 192
+      }
+    },
+    {
       "id": "/decisions/0141-metadata-and-the-task-state-hook.md",
       "kind": "doc",
       "label": "ADR 0141: Turn metadata from the YAML and the request, and a task-state hook",
@@ -2112,7 +2124,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 16950
+        "words": 17471
       }
     },
     {
@@ -2424,7 +2436,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 3473
+        "words": 3897
       }
     },
     {
@@ -2520,7 +2532,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 704
+        "words": 803
       }
     },
     {
@@ -4771,6 +4783,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0018_queue_view.sql",
+      "kind": "file",
+      "label": "0018_queue_view.sql",
+      "source": "db/migrations/0018_queue_view.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5172,6 +5191,19 @@
       "kind": "file",
       "label": "fallback.test.ts",
       "source": "tests/fallback.test.ts"
+    },
+    {
+      "id": "file:tests/feedback.test.ts",
+      "kind": "file",
+      "label": "feedback.test.ts",
+      "source": "tests/feedback.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/feedbackPostgres.test.ts",
+      "kind": "file",
+      "label": "feedbackPostgres.test.ts",
+      "source": "tests/feedbackPostgres.test.ts"
     },
     {
       "id": "file:tests/fixtures/parity.yaml",
@@ -5960,7 +5992,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1387
+        "lines": 1417
       }
     },
     {
@@ -5970,6 +6002,15 @@
       "source": "lib/a2a/executor.ts",
       "attrs": {
         "lines": 992
+      }
+    },
+    {
+      "id": "module:lib/a2a/feedback.ts",
+      "kind": "module",
+      "label": "lib/a2a/feedback.ts",
+      "source": "lib/a2a/feedback.ts",
+      "attrs": {
+        "lines": 274
       }
     },
     {
@@ -5996,7 +6037,7 @@
       "label": "lib/a2a/policy.ts",
       "source": "lib/a2a/policy.ts",
       "attrs": {
-        "lines": 229
+        "lines": 322
       }
     },
     {
@@ -6158,7 +6199,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 162
+        "lines": 176
       }
     },
     {
@@ -6932,7 +6973,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 310
+        "lines": 325
       }
     },
     {
@@ -7337,7 +7378,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 642
+        "lines": 660
       }
     },
     {
@@ -17539,6 +17580,41 @@
       "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
     },
     {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "file:tests/feedback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "file:tests/feedbackPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md frontmatter"
+    },
+    {
+      "from": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0140-end-user-feedback-into-adk-labels.md:28"
+    },
+    {
       "from": "/decisions/0141-metadata-and-the-task-state-hook.md",
       "to": "file:tests/metadata.test.ts",
       "rel": "derives_from",
@@ -17883,6 +17959,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0018_queue_view.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17893,14 +17976,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:38"
+      "evidence": "/memory/schema.md:39"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3018"
+      "evidence": "/memory/schema.md:3110"
     },
     {
       "from": "/memory/sessions.md",
@@ -21894,6 +21977,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "file:tests/feedback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "file:tests/oauthConsent.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -21916,6 +22006,13 @@
     {
       "from": "/protocols/a2a.md",
       "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "module:lib/a2a/feedback.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md frontmatter"
@@ -21967,203 +22064,210 @@
       "to": "/agents/event_assistant.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:94"
+      "evidence": "/protocols/a2a.md:96"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/agents/syndicate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:115"
+      "evidence": "/protocols/a2a.md:118"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:74"
+      "evidence": "/protocols/a2a.md:76"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0018-files-are-the-source-of-truth.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:98"
+      "evidence": "/protocols/a2a.md:100"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:90"
+      "evidence": "/protocols/a2a.md:92"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:74"
+      "evidence": "/protocols/a2a.md:76"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:110"
+      "evidence": "/protocols/a2a.md:112"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0039-public-deployments-state-their-posture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:76"
+      "evidence": "/protocols/a2a.md:78"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:106"
+      "evidence": "/protocols/a2a.md:108"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:39"
+      "evidence": "/protocols/a2a.md:41"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:104"
+      "evidence": "/protocols/a2a.md:106"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:65"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:35"
+      "evidence": "/protocols/a2a.md:37"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:65"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0129-capstone-starter-in-the-repository.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:94"
+      "evidence": "/protocols/a2a.md:96"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0140-end-user-feedback-into-adk-labels.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:123"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:114"
+      "evidence": "/protocols/a2a.md:117"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/models/chatgpt-signin.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:122"
+      "evidence": "/protocols/a2a.md:131"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:27"
+      "evidence": "/protocols/a2a.md:29"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:104"
+      "evidence": "/protocols/a2a.md:106"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:39"
+      "evidence": "/protocols/a2a.md:41"
     },
     {
       "from": "/protocols/mcp-server.md",
@@ -24820,6 +24924,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/a2a/identity.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25118,6 +25229,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
+    },
+    {
+      "from": "module:lib/a2a/feedback.ts",
+      "to": "table:adk_labels",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/a2a/feedback.ts"
     },
     {
       "from": "module:lib/a2a/identity.ts",
@@ -25745,6 +25877,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/a2a/executor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/a2a/feedback.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -29178,6 +29317,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/credentialStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/a2a/feedback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
     },
     {
       "from": "module:lib/storage/postgres/index.ts",

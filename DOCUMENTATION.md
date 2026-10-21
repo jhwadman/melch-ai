@@ -193,7 +193,7 @@ function, and every adapter recognises it by marker
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
-| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. On Postgres the view `melchizedek_task_queue` (migration 0018) lists every job with `attempts`, `retries`, `dead_lettered`, `last_error`, its lease and checkpoint, and `postgresStorage().retryTask(owner, id)` queues a failed or cancelled job again. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` (or several servers under `mcp_servers:`) in its YAML
@@ -715,6 +715,7 @@ README has the commands.
 | `GET /<agentId>/.well-known/agent-card.json` | bearer | another syndicate's card; its URLs point at `/<agentId>/a2a/...` |
 | `POST /<agentId>/a2a/jsonrpc`, `/<agentId>/a2a/rest` | bearer | another syndicate (`A2A_SERVED_AGENTS` restricts which) |
 | `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows), ledger rows, A2A tasks and the third-party tokens held for its tools, including conversations whose sessions have expired, with per-store counts; `?all=1` covers every memory namespace |
+| `POST /feedback`, `/<agentId>/feedback` | bearer | an end user's rating of a turn (ADR 0140): `{ "taskId" or "traceId", "score": "up" \| "down" \| 1–5, "comment"?, "userId"? }` → `201 { ok, traceId }`; one `adk_labels` row (below). 501 without the ledger |
 
 "bearer" means the credential `A2A_AUTH` asks for (below); with no
 `A2A_SERVER_SECRET` and no authenticator the server binds `127.0.0.1` only.
@@ -760,6 +761,38 @@ or pass your own `resolveRequest`.
   The counts live in the `melchizedek_usage` table (`db/migrations/0004_usage.sql`)
   when Postgres or Supabase is configured, else in process memory. A store
   that cannot be read refuses the task.
+  `budgets(config, { onBudgetState, warnAt, hardStop })` adds two hooks.
+  `onBudgetState(state)` is called with each subject's standing after every
+  task (`cause: 'record'`) and when a task arrives over a limit
+  (`cause: 'admit'`, `stopped` saying whether it was refused):
+  `{ subject: 'caller:<name>' | 'scope:<hash>', day, usage, limits?,
+  level: 'ok' | 'warn' | 'over', reached?, agentId }`, `warn` from `warnAt`
+  (default 0.8) of any limit, so a consumer can mirror a deployment's
+  spend. `hardStop: false` makes the limits advisory (reported, not
+  enforced); a function `(subject) => reason | undefined` is an outside
+  stop asked at admission after the limits, whose reason refuses the task
+  (a desktop app serving locally passes its monthly spend check, with
+  `budgets({}, { hardStop })`). It may throw; that refuses too.
+- **End-user feedback** (`POST /feedback`, `lib/a2a/feedback.ts`, ADR 0140):
+  a product's thumbs or 1–5 rating of a turn, named by its A2A `taskId` (a
+  dispatch task's answer, not its classifier turn) or its `traceId`, with an
+  optional `comment` (at most 4,000 characters) and the product's own
+  `userId` ([A-Za-z0-9._@:+/-], at most 128; a credential-shaped one is
+  refused). It writes one `adk_labels` row: `ref` and `trace_id` the turn's
+  trace id, `labeler = 'end-user'`, `fields = { score, userId }` (`score`
+  the string or the number as sent, `userId` null when none), `note` the
+  comment through the telemetry redactor (`TELEMETRY_REDACT`), null when
+  none. The route is behind the bearer, the authenticator and the task rate
+  limit like a task, with its own 32 KB body limit. A caller rates only
+  turns whose `user_id` is its scope (or beneath a scope that owns nested
+  ones) unless it holds an operator credential; another's turn answers the
+  same 404 as a missing one, and a turn reaches the ledger a few seconds
+  after it ends. One label per turn per `userId` (else per scope) per
+  minute, per process: 429 with `Retry-After`. Answers never repeat what
+  was sent. It needs the ledger in Postgres: `postgresStorage({ ledger:
+  true })` supplies `storage.feedback`, and `postgresFeedbackStore(pool)`
+  builds one on any pool with `db/telemetry.sql` applied; the supabase-js
+  path has none.
 - **One record per task** (option `onTaskEnd`): task id, trace id, agent,
   caller, a hash of the scope, status, reason, duration, model calls and
   tokens. The trace id is the one the turn's spans and its ledger row carry,

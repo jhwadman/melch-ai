@@ -82,7 +82,21 @@ export {
 } from './a2a/identity.ts';
 export type { Authenticator, CallerEntry, IdentityScheme, JwtIdentityOptions } from './a2a/identity.ts';
 export { budgets, memoryUsageStore, parseBudgets, postgresUsageStore, supabaseUsageStore } from './a2a/policy.ts';
-export type { BudgetConfig, BudgetLimits, DailyUsage, Policy, PolicyDecision, PolicySubject, UsageStore } from './a2a/policy.ts';
+export type {
+  BudgetConfig,
+  BudgetLevel,
+  BudgetLimits,
+  BudgetOptions,
+  BudgetState,
+  DailyUsage,
+  HardStop,
+  Policy,
+  PolicyDecision,
+  PolicySubject,
+  UsageStore,
+} from './a2a/policy.ts';
+export { END_USER_LABELER, feedbackRow, parseFeedback, postgresFeedbackStore } from './a2a/feedback.ts';
+export type { FeedbackRow, FeedbackScore, FeedbackStore, FeedbackTurn } from './a2a/feedback.ts';
 export { createMetrics } from './observability/metrics.ts';
 export type { Metrics, TaskRecord } from './observability/metrics.ts';
 export { patternRedactor, redactRow, setTelemetryRedactor, telemetryRedactor } from './observability/redact.ts';

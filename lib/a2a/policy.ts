@@ -189,40 +189,133 @@ function over(limits: BudgetLimits | undefined, u: DailyUsage): string | undefin
   return undefined;
 }
 
+/** Where a subject stands against its limits today. */
+export type BudgetLevel = 'ok' | 'warn' | 'over';
+
+/**
+ * One subject's standing, as `onBudgetState` reports it: after every task
+ * it recorded (cause 'record'), and when a task arrives over a limit
+ * (cause 'admit'; `stopped` says whether it was refused). Counts only,
+ * never user text; the scope is its hash.
+ */
+export interface BudgetState {
+  /** `caller:<name>` or `scope:<SHA-256 prefix>` (scopeSubject). */
+  subject: string;
+  /** The UTC day counted (YYYY-MM-DD). */
+  day: string;
+  /** The subject's totals for the day, this task included. */
+  usage: DailyUsage;
+  /** The limits that apply to the subject; undefined when none do. */
+  limits?: BudgetLimits;
+  /** 'over' at or past any limit, 'warn' at or past `warnAt` of one, else 'ok'. */
+  level: BudgetLevel;
+  /** The limit reached, as the refusal names it ('2,000,000 tokens'), when over. */
+  reached?: string;
+  cause: 'record' | 'admit';
+  /** The agent id the task was sent to ('' or 'default' for the boot syndicate). */
+  agentId: string;
+  /** With cause 'admit': true when the task was refused, false when it went ahead over the limit (hardStop: false). */
+  stopped?: boolean;
+}
+
+/**
+ * A stop decided outside the daily limits, at admission: return a reason to
+ * refuse the task with it, or undefined to admit it. Throwing refuses (fail
+ * closed). A desktop app serving locally passes its own month's spend check.
+ */
+export type HardStop = (subject: PolicySubject) => string | undefined | Promise<string | undefined>;
+
+export interface BudgetOptions {
+  store?: UsageStore;
+  now?: () => Date;
+  /**
+   * Called with each subject's standing after a task is recorded, and when
+   * a task arrives over a limit, so a consumer can mirror a deployment's spend. Errors are
+   * swallowed; it never delays or fails a task beyond its own runtime.
+   */
+  onBudgetState?: (state: BudgetState) => void | Promise<void>;
+  /** The share of a limit at which the level is 'warn'. Default 0.8. */
+  warnAt?: number;
+  /**
+   * true (default): a subject at a limit is refused. false: the limits only
+   * report ('over' through onBudgetState) and tasks go ahead. A function:
+   * the limits refuse, and the function is asked as well (HardStop).
+   */
+  hardStop?: boolean | HardStop;
+}
+
+function levelOf(limits: BudgetLimits | undefined, u: DailyUsage, warnAt: number): BudgetLevel {
+  if (!limits) return 'ok';
+  if (over(limits, u)) return 'over';
+  const near = (used: number, limit: number | undefined) => limit !== undefined && used >= limit * warnAt;
+  return near(u.tasks, limits.tasks) || near(u.llmCalls, limits.llmCalls) || near(tokensOf(u), limits.tokens) ? 'warn' : 'ok';
+}
+
 /**
  * Daily budgets per caller and per scope. A request is refused when the
  * caller or its scope has reached any limit today (UTC); the message says
  * which and when it resets. A store failure refuses (fail closed) — a
- * budget that cannot be read is not a budget.
+ * budget that cannot be read is not a budget. `onBudgetState` mirrors each
+ * subject's standing; `hardStop` makes the limits advisory, or adds an
+ * outside stop (BudgetOptions).
  */
-export function budgets(config: BudgetConfig, opts: { store?: UsageStore; now?: () => Date } = {}): Policy & { store: UsageStore } {
+export function budgets(config: BudgetConfig, opts: BudgetOptions = {}): Policy & { store: UsageStore } {
   const store = opts.store ?? memoryUsageStore();
   const now = opts.now ?? (() => new Date());
+  const warnAt = opts.warnAt !== undefined && opts.warnAt > 0 && opts.warnAt <= 1 ? opts.warnAt : 0.8;
+  const enforce = opts.hardStop !== false;
+  const outsideStop = typeof opts.hardStop === 'function' ? opts.hardStop : undefined;
   const callerLimits = (caller?: string) => (caller && config.callers?.[caller]) || config.perCaller;
+  const subjectsOf = (s: PolicySubject): Array<[string, BudgetLimits | undefined]> => [
+    ...(s.caller ? [[`caller:${s.caller}`, callerLimits(s.caller)] as [string, BudgetLimits | undefined]] : []),
+    [scopeSubject(s.scopeKey), config.perScope],
+  ];
+  const report = async (state: BudgetState) => {
+    if (!opts.onBudgetState) return;
+    try {
+      await opts.onBudgetState(state);
+    } catch {
+      /* a broken mirror must not touch the task */
+    }
+  };
   return {
     store,
     async admit(s) {
       const day = today(now);
-      const checks: Array<[string, BudgetLimits | undefined]> = [
-        [s.caller ? `caller:${s.caller}` : '', s.caller ? callerLimits(s.caller) : undefined],
-        [scopeSubject(s.scopeKey), config.perScope],
-      ];
-      for (const [subject, limits] of checks) {
-        if (!subject || !limits) continue;
-        const hit = over(limits, await store.get(day, subject));
+      for (const [subject, limits] of subjectsOf(s)) {
+        if (!limits) continue;
+        const usage = await store.get(day, subject);
+        const hit = over(limits, usage);
         if (hit) {
+          await report({ subject, day, usage, limits, level: 'over', reached: hit, cause: 'admit', agentId: s.agentId, stopped: enforce });
+          if (!enforce) continue;
           const who = subject.startsWith('caller:') ? `Caller '${s.caller}'` : 'This user';
           return { ok: false, reason: `${who} has used today's budget of ${hit}. It resets at 00:00 UTC.` };
         }
+      }
+      if (outsideStop) {
+        const reason = await outsideStop(s);
+        if (reason) return { ok: false, reason };
       }
       return { ok: true };
     },
     async record(s, usage) {
       const day = today(now);
       const delta: DailyUsage = { tasks: 1, ...usage };
-      const writes: Promise<void>[] = [store.add(day, scopeSubject(s.scopeKey), delta)];
-      if (s.caller) writes.push(store.add(day, `caller:${s.caller}`, delta));
-      await Promise.all(writes);
+      const subjects = subjectsOf(s);
+      await Promise.all(subjects.map(([subject]) => store.add(day, subject, delta)));
+      if (!opts.onBudgetState) return;
+      for (const [subject, limits] of subjects) {
+        let totals: DailyUsage;
+        try {
+          totals = await store.get(day, subject);
+        } catch {
+          continue; // the spend is recorded; only the mirror misses this one
+        }
+        const level = levelOf(limits, totals, warnAt);
+        const reached = level === 'over' ? over(limits, totals) : undefined;
+        await report({ subject, day, usage: totals, ...(limits ? { limits } : {}), level, ...(reached ? { reached } : {}), cause: 'record', agentId: s.agentId });
+      }
     },
   };
 }

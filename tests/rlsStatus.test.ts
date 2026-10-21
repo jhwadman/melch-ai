@@ -35,7 +35,8 @@ test('on a direct connection: no API roles or a private schema means nothing exp
   assert.equal(evaluatePostgresRls({ apiRoles: true, schema: 'public', rows: [on('adk_memory_facts'), on('adk_sessions')] }).applied, true);
 });
 
-const SHIPPED = readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).length;
+// The highest numbered migration, not the count: numbers are reserved by branches in flight.
+const SHIPPED = Math.max(...readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).map((f) => Number(f.slice(0, 4))));
 
 async function boot(status: RlsHardeningStatus, requireHardenedDb: boolean) {
   const warnings: string[] = [];
