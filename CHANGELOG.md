@@ -6,6 +6,40 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+For 1.10.0 (merges after the 1.9.0 work: span tree, cache tokens,
+migrations 0016–0017, ADR 0139). No version bump yet.
+
+### Added
+
+- **End-user feedback, `POST /feedback` and `POST /<agentId>/feedback`
+  (ADR 0140).** A product's thumbs or 1–5 rating of a served turn, named by
+  its A2A `taskId` or its `traceId`, with an optional `comment` (≤ 4,000
+  characters) and `userId`, lands in the ledger as one `adk_labels` row:
+  `ref = trace_id = <trace id>`, `labeler = 'end-user'`,
+  `fields = { score, userId }`, `note` = the comment through the telemetry
+  redactor. Behind the bearer, the authenticator and the task rate limit,
+  with a 32 KB body limit, the caller's own turns only, and one label per
+  (turn, user) per minute. New option `storage.feedback`; `postgresStorage`
+  supplies it when `ledger` is on. New subpath
+  `melchizedek-agents/a2a/feedback` and barrel exports: `parseFeedback`,
+  `feedbackRow`, `postgresFeedbackStore`, `END_USER_LABELER`, types
+  `FeedbackStore`, `FeedbackRow`, `FeedbackScore`, `FeedbackTurn`.
+- **Budget hooks.** `budgets(config, opts)` takes `onBudgetState(state)`,
+  called with each subject's day totals, limits and level (`ok`, `warn`,
+  `over`) after every task and when a task arrives over a limit; `warnAt`
+  (default 0.8); and `hardStop`: `true` (default, as before), `false`
+  (limits only report), or a function returning a refusal reason, asked at
+  admission (a local server's own spend check). New types `BudgetState`,
+  `BudgetLevel`, `BudgetOptions`, `HardStop`.
+- **The job queue's read model.** Migration `0018_queue_view` adds the view
+  `melchizedek_task_queue`: one row per background job with `attempts`,
+  `retries`, `max_attempts`, `dead_lettered`, `last_error`, the lease and
+  the checkpoint. `postgresStorage().retryTask(owner, id)` queues a failed
+  or cancelled job again with its attempts reset (`applyRetry` in
+  `lib/tools/taskTools.ts`, the rule `task_update`'s `queued` applies).
+  The view is revoked from the API roles in the migration and in
+  `db/hardening.sql`.
+
 ## 1.8.0 — 2026-10-18
 
 A minor release that gives a repository a manifest (ADR 0138). A

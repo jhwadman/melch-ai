@@ -15,6 +15,8 @@ sources:
   - resource: lib/a2a/identity.ts
   - resource: lib/a2a/executor.ts
   - resource: lib/a2a/policy.ts
+  - resource: lib/a2a/feedback.ts
+  - resource: tests/feedback.test.ts
   - resource: lib/tools/oauthConsent.ts
   - resource: tests/oauthConsent.test.ts
   - resource: lib/a2a/oauthSetup.ts
@@ -28,7 +30,7 @@ sources:
 
 ## Protocol
 
-The server speaks A2A 1.0 with the SDK's 0.3 compatibility on every handler: the agent card lists both versions' endpoints, a request with no `A2A-Version` header is treated as 0.3, and 0.3 method names, part shapes and state spellings are translated both ways. Routes: `/.well-known/agent-card.json`, `/a2a/jsonrpc`, `/a2a/rest` for the boot syndicate, and the same under `/<agentId>/` for others — each card advertises its own URLs and declares its security schemes. `/healthz` and `/readyz` answer without credentials.
+The server speaks A2A 1.0 with the SDK's 0.3 compatibility on every handler: the agent card lists both versions' endpoints, a request with no `A2A-Version` header is treated as 0.3, and 0.3 method names, part shapes and state spellings are translated both ways. Routes: `/.well-known/agent-card.json`, `/a2a/jsonrpc`, `/a2a/rest` for the boot syndicate, and the same under `/<agentId>/` for others — each card advertises its own URLs and declares its security schemes. `/healthz` and `/readyz` answer without credentials. `POST /feedback` (and `/<agentId>/feedback`) takes an end user's rating of a turn (below).
 
 A syndicate can also CALL an A2A agent: a subagent with `a2a_agent_url:` is a remote agent (1.0 or 0.3, the card decides), reached as a delegation tool or a plan-dispatch route through `lib/a2a/remoteAgent.ts`. The delegation tool is an own Tool (`remoteAgentOwnTool`) with a subagent's single `request` argument; it keys the remote conversation by the local session and aborts with the turn. The native loop runs it as it is (`remoteAgentTool()` returns the same Tool). Its card and endpoints pass the SSRF guard; credentials come from `A2A_AGENT_TOKENS` (host → bearer or headers).
 
@@ -110,8 +112,15 @@ The server is not stateless. The config cache, the rate-limiter counters and the
 Governance ([ADR 0026](/decisions/0026-governance-policy-and-visibility.md)) runs on the `policy` plug point:
 
 - **Budgets.** `A2A_BUDGETS` sets daily limits per UTC day, per caller and per scope, on tasks, model calls and tokens; for example `{"perCaller":{"tokens":5000000},"callers":{"reports":{"tasks":100}},"perScope":{"tasks":50}}`. A task over budget ends `rejected` with the reason before it takes a slot. A store that cannot be read refuses. Spend is charged when a task ends, whatever its outcome: a failed or canceled turn still spent its calls. A task already running when a limit is crossed finishes, so the overshoot is bounded by the concurrency cap and no task is cut off halfway. The memory extraction after a completed task runs after its spend is recorded, on the operator's keys, and is not counted against the caller's budget. The counts live in `melchizedek_usage` (migration 0004, scopes stored only as a hash) when Postgres or Supabase is configured, else in process memory.
+- **Budget hooks.** `budgets(config, { onBudgetState, warnAt, hardStop })`: `onBudgetState` receives each subject's standing (`caller:<name>` or the scope's hash, the day's totals, its limits, `ok` / `warn` / `over` with `warn` from `warnAt` of a limit, default 0.8) after every recorded task and when a task arrives over a limit, so a consumer mirrors a deployment's spend; its errors are swallowed. `hardStop: false` makes the limits advisory; a function is an outside stop asked at admission after the limits, and the reason it returns refuses the task (a desktop app serving locally passes its own monthly spend check). A stop that throws refuses.
 - **One record per task**, however it ended: agent, caller, a hash of the scope, status, reason, duration, model calls and tokens. `A2A_LOG_FORMAT=json` prints it as a JSON line among the server's other JSON lines.
 - **Metrics.** `GET /metrics` (Prometheus text) serves tasks, model calls, tokens by kind, a task-duration histogram and tasks in flight, behind its own `A2A_METRICS_TOKEN`. Labels are agent, outcome and caller name, never a scope.
+
+## End-user feedback
+
+`POST /feedback` and `POST /<agentId>/feedback` (`lib/a2a/feedback.ts`, [ADR 0140](/decisions/0140-end-user-feedback-into-adk-labels.md)) take a product's rating of a turn: `{ taskId | traceId, score: 'up' | 'down' | 1–5, comment?, userId? }`, exactly one id, a comment of at most 4,000 characters, and a `userId` of [A-Za-z0-9._@:+/-] up to 128 (a credential-shaped one is refused). A `taskId` names the task's answer turn, not a dispatch classifier's. The answer is `201 { ok, traceId }`; errors name the rule broken and never repeat the value sent. The routes sit behind the bearer, the authenticator, the failed-auth limiter and the task rate limit, and parse their own body with a 32 KB limit (the server-wide parser leaves them alone; a body over it is a JSON 413). A caller rates only a turn whose `user_id` is its scope, or one beneath a scope that owns nested ones, unless it holds an operator credential; anything else is the same 404 as a turn the ledger does not have yet (a turn lands a few seconds after it ends). One label per turn per `userId` (without one, per scope) per minute in each process: 429 with `Retry-After`; a failed write gives the minute back. `/<agentId>/feedback` answers 404 for an id the server would not serve.
+
+The row is `adk_labels` (db/telemetry.sql): `ref` and `trace_id` the turn's trace id, `labeler = 'end-user'`, `fields = { score, userId }` (the score as sent, a string or a number; `userId` null when none), `note` the comment through the telemetry redactor (`TELEMETRY_REDACT`, `setTelemetryRedactor`), null when none; `judge` stays NULL, so several users' rows on one turn coexist under the table's unique key. It is the ledger's content, erased with the scope's turns by `DELETE /memory` and readable by whoever reads the ledger. The store is `storage.feedback`: `postgresStorage({ ledger: true })` supplies `postgresFeedbackStore(pool)`; without one the routes answer 501.
 
 ## The bindings trap
 
