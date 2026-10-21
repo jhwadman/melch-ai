@@ -44,6 +44,8 @@ read model with a retry.
 
 ## 1.9.0 — 2026-10-20
 
+Not published on its own: these changes ship in 1.10.0.
+
 A minor release for observability: the ledger keeps a turn's span tree
 with cache tokens and their prices (ADR 0139), and a syndicate's YAML
 and an A2A request can label a turn with metadata, with a hook on every
