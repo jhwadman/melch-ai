@@ -31,6 +31,8 @@ import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
 import { attachLedger } from '../../observability/tracer.ts';
 import { postgresLedgerClient } from '../../observability/supabaseSpanExporter.ts';
+import { postgresFeedbackStore } from '../../a2a/feedback.ts';
+import type { FeedbackStore } from '../../a2a/feedback.ts';
 import type { PayloadPolicy } from '../../observability/supabaseSpanExporter.ts';
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
@@ -131,6 +133,8 @@ export interface PostgresStorage {
   rlsHardening: () => Promise<RlsHardeningStatus>;
   /** Appends to melchizedek_audit (migration 0012, ADR 0042). */
   audit: AuditSink;
+  /** End-user feedback into the ledger's adk_labels (POST /feedback, ADR 0140); present when `ledger` is on. */
+  feedback?: FeedbackStore;
   /** Tool credentials, sealed (migration 0013, ADR 0072); present when `credentials` was given. */
   credentials?: CredentialStore;
   /**
@@ -268,6 +272,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     turnLock,
     ...(credentials ? { credentials } : {}),
     ...(memoryService ? { memoryService } : {}),
+    ...(options.ledger ? { feedback: postgresFeedbackStore(pool) } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner, lease }),
     leases: {
       ...lease,
