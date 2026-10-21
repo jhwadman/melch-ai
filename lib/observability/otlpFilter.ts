@@ -32,6 +32,7 @@ export const CONTENT_ATTRIBUTES = new Set([
   'llm.thinking',
   'llm.error_message',
   'tool.args',
+  'tool.result',
   'tool.data_gathered',
 ]);
 const CONTENT_PREFIXES = ['llm.payload.'];

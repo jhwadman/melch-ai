@@ -33,7 +33,7 @@ import { endpointFromEnv } from '../models/endpoints.ts';
 import type { ProviderEndpoint } from '../models/endpoints.ts';
 import { GoogleGenAI } from '@google/genai';
 import { SpanStatusCode } from '@opentelemetry/api';
-import type { ModelAdapter } from '../models/contract.ts';
+import type { ModelAdapter, ModelResponse } from '../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../models/genaiMapping.ts';
 import type { LlmRequest, LlmResponse } from '../models/genaiMapping.ts';
 
@@ -97,11 +97,16 @@ export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtracto
         toolsDict: {},
       };
       const request = llmRequestToModelRequest(llmRequest, { model, stream: false });
+      const sources = new WeakMap<LlmResponse, ModelResponse>();
       async function* inner(): AsyncGenerator<LlmResponse, void> {
-        for await (const response of adapter.generate(request)) yield modelResponseToLlmResponse(response);
+        for await (const response of adapter.generate(request)) {
+          const mapped = modelResponseToLlmResponse(response);
+          sources.set(mapped, response);
+          yield mapped;
+        }
       }
       let text = '';
-      for await (const response of traceLlmGeneration({ provider: adapter.provider, model, request }, inner())) {
+      for await (const response of traceLlmGeneration({ provider: adapter.provider, model, request, source: (r) => sources.get(r) }, inner())) {
         if (response.errorCode) {
           throw new Error(`${model}: ${response.errorCode}${response.errorMessage ? ` — ${response.errorMessage}` : ''}`);
         }

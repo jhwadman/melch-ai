@@ -6,6 +6,59 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+The ledger keeps a turn's span tree, counts prompt-cache tokens, and
+prices them at their own rates (ADR 0139). **Apply the schema before
+upgrading the engine:** `npx melchizedek-db apply --telemetry` runs the
+new migrations 0016 and 0017 and `db/telemetry.sql`; the sinks write the
+new columns, so a ledger without them refuses the rows (they are spooled
+to the dead-letter file, and `telemetry:replay` re-sends them once the
+schema is applied). Rows written before keep NULL in every new column.
+
+### Added
+
+- **The span tree in `adk_telemetry` (migration `0016_span_tree`).** Every
+  span of a turn gets a row: the root, `agent.invoke <name>`, `model.call`,
+  `llm.request`, `tool.execute <name>`, `script.invoke` / `script.call`,
+  `workflow.invoke` / `node.execute`. New columns `parent_span_id` (the
+  nearest ancestor that has a row, read from the tracer's lineage when the
+  span starts and recorded as `ledger.parent_span_id` where it differs
+  from the direct parent), `kind` (`turn | agent | model | tool | script |
+  node`) and `error`; index `idx_adk_telemetry_parent`. A `model.call` row
+  carries no tokens and no payload (its `llm.request` rows and
+  `adk_payloads` hold them). New exports on `./observability/*`:
+  `ledgerSpanKind`, `LedgerSpanKind`, `LEDGER_PARENT_ATTRIBUTE`
+  (`lineage`); `isLedgerSpan`, `ledgerParentOf`, `spanFailed`, and the
+  new `TelemetryRow` / `TurnRow` fields (`supabaseSpanExporter`).
+- **Tool arguments and results on tool spans.** `tool.args` and
+  `tool.result`, JSON, run through the telemetry redactor and then cut at
+  8,192 characters (`TOOL_ATTRIBUTE_MAX_CHARS`, with
+  `tool.args_truncated` / `tool.result_truncated`), on the loop's tool
+  calls and a tool node's. `OTEL_EXPORT_CONTENT=off` drops `tool.result`
+  as it drops `tool.args`.
+- **Cache tokens and finish reasons.** `llm.request` records
+  `llm.tokens.cache_read` and `llm.tokens.cache_write` (parts of
+  `llm.tokens.input`, set when the provider reports them) and
+  `llm.finish_reason`; `model.call` records `llm.finish_reason` too.
+  `adk_telemetry` and `adk_turns` gain `cache_read_tokens` and
+  `cache_write_tokens` (a turn's summed over its calls; the root span's
+  `syndicate.tokens.cache_read` / `.cache_write`), and `syndicate.usage`
+  carries `cache_read` / `cache_write` per model. `LlmCallMeta.source`
+  lets a caller of `traceLlmGeneration` hand the contract response each
+  `LlmResponse` came from, which is where a cache write is read.
+- **Cache pricing (migration `0017_cache_pricing`).** `model_pricing`
+  gains `cache_read_per_mtok` and `cache_write_per_mtok` (NULL prices the
+  token as input, so every existing row prices as before);
+  `melchizedek_cost_usd(model, input, output, thinking, cache_read,
+  cache_write)` prices them (the four-argument form stays);
+  `melchizedek_usage_cost` and the ledger trigger read them. Seeded from
+  the vendors' lists, checked 2026-10-20: the Anthropic rows 0015 seeded
+  gain their cache rates (5-minute write) while they still hold 0015's
+  rates, `claude-opus-5-5` and `claude-sonnet-5-5` are added, and OpenAI's
+  `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-sol`, `gpt-6-luna`, `gpt-5.6-sol` /
+  `-terra` / `-luna`, `gpt-5.5`, `gpt-5.4` (under-272K rates), `gpt-5.2`,
+  `gpt-5.1`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano` get rows. Gemini, Grok and
+  Kimi rows get no cache rates.
+
 ## 1.8.0 — 2026-10-18
 
 A minor release that gives a repository a manifest (ADR 0138). A

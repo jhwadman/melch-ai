@@ -1,7 +1,7 @@
 import { trace, context, defaultTextMapGetter, ROOT_CONTEXT, INVALID_SPAN_CONTEXT } from '@opentelemetry/api';
 import type { Context, Span, SpanContext, SpanOptions } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
-import { ADK_SPAN_SCOPE, RUNTIME_SPAN_SCOPE, TELEMETRY_SCHEMA_VERSION, agentOfSpanName, engineVersion, isModelCallSpan, isToolSpanName } from './lineage.ts';
+import { ADK_SPAN_SCOPE, LEDGER_PARENT_ATTRIBUTE, RUNTIME_SPAN_SCOPE, TELEMETRY_SCHEMA_VERSION, agentOfSpanName, engineVersion, isModelCallSpan, isToolSpanName, ledgerSpanKind } from './lineage.ts';
 import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
 import { telemetryRedactor } from './redact.ts';
 import { chargeLlmCall, chargeTokens, turnUntraced } from '../runtime/turnControl.ts';
@@ -19,7 +19,7 @@ const { ExportResultCode } = core;
 
 import type { LlmResponse } from '../models/genaiMapping.ts';
 import type { TurnEvent as Event } from '../runtime/events.ts';
-import type { ModelRequest } from '../models/contract.ts';
+import type { FinishReason, ModelRequest, ModelResponse } from '../models/contract.ts';
 
 import {
   SupabaseSpanExporter,
@@ -229,6 +229,9 @@ interface TraceStats {
   toolMs: number;
   llmCalls: number;
   models: Set<string>;
+  /** Cache tokens summed over every call (`syndicate.tokens.cache_read` / `.cache_write`). */
+  cacheRead: number;
+  cacheWrite: number;
   /** Each model's calls and tokens, input summed per call (what a provider bills), for `syndicate.usage` (ADR 0136). */
   usage: Map<string, ModelUsage>;
   startedAt: number;
@@ -237,9 +240,13 @@ interface TraceStats {
 /** One model's share of a turn: what the ledger prices it from (model_pricing, ADR 0136). */
 export interface ModelUsage {
   calls: number;
+  /** Every input token, the cache's included (the contract's meaning, lib/models/contract.ts). */
   input: number;
   output: number;
   thinking: number;
+  /** The parts of `input` read from and written to the provider's prompt cache, priced at their own rates (ADR 0139). */
+  cache_read: number;
+  cache_write: number;
 }
 const traceStats = new Map<string, TraceStats>();
 const TRACE_STATS_TTL_MS = 60 * 60 * 1000;
@@ -247,7 +254,7 @@ const TRACE_STATS_TTL_MS = 60 * 60 * 1000;
 function statsFor(traceId: string): TraceStats {
   let s = traceStats.get(traceId);
   if (!s) {
-    s = { modelMs: 0, toolMs: 0, llmCalls: 0, models: new Set(), usage: new Map(), startedAt: Date.now() };
+    s = { modelMs: 0, toolMs: 0, llmCalls: 0, models: new Set(), cacheRead: 0, cacheWrite: 0, usage: new Map(), startedAt: Date.now() };
     traceStats.set(traceId, s);
     if (traceStats.size > 2_000) {
       const cutoff = Date.now() - TRACE_STATS_TTL_MS;
@@ -274,6 +281,14 @@ class SpanLineageProcessor {
     const parent: string | undefined =
       span.parentSpanContext?.spanId ?? span.parentSpanId ?? undefined;
     spanLineage.set(ctx.spanId, { name: span.name, parent });
+    // The ledger's parent is the nearest ancestor it keeps a row for, read
+    // now: an ancestor's entry is gone once it ends, and the exporter sees
+    // the span only after that (ADR 0139). Recorded only when it differs
+    // from the direct parent, which the span carries itself.
+    if (ledgerSpanKind(span.name) !== null) {
+      const ledgerParent = ledgerAncestor(parent);
+      if (ledgerParent && ledgerParent !== parent) span.setAttribute(LEDGER_PARENT_ATTRIBUTE, ledgerParent);
+    }
     // The model-call span (the loop's model.call, ADK's call_llm before 1.0.0: the one
     // carrying the full request/response payloads) learns its agent the same
     // way llm.request does, so a payload row can be attributed without
@@ -303,19 +318,43 @@ class SpanLineageProcessor {
           const v = span.attributes[key];
           return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
         };
-        const u = s.usage.get(model) ?? { calls: 0, input: 0, output: 0, thinking: 0 };
+        const u = s.usage.get(model) ?? { calls: 0, input: 0, output: 0, thinking: 0, cache_read: 0, cache_write: 0 };
         u.calls += 1;
         u.input += tokens('llm.tokens.input');
         u.output += tokens('llm.tokens.output');
         u.thinking += tokens('llm.tokens.thinking');
+        u.cache_read += tokens('llm.tokens.cache_read');
+        u.cache_write += tokens('llm.tokens.cache_write');
         s.usage.set(model, u);
       }
+      const cache = (key: string): number => {
+        const v = span.attributes[key];
+        return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+      };
+      s.cacheRead += cache('llm.tokens.cache_read');
+      s.cacheWrite += cache('llm.tokens.cache_write');
     } else if (isToolSpanName(span.name)) {
       statsFor(traceId).toolMs += spanDurationMs(span);
     }
   }
   shutdown(): Promise<void> { return Promise.resolve(); }
   forceFlush(): Promise<void> { return Promise.resolve(); }
+}
+
+/**
+ * The nearest of `spanId` and its ancestors that the ledger keeps a row for
+ * (ledgerSpanKind), or `spanId` itself when the chain leaves the lineage
+ * (a remote parent, an evicted entry) or holds no such span.
+ */
+function ledgerAncestor(spanId: string | undefined): string | undefined {
+  let cursor = spanId;
+  for (let depth = 0; cursor && depth < 32; depth++) {
+    const entry = spanLineage.get(cursor);
+    if (!entry) return depth === 0 ? spanId : cursor;
+    if (ledgerSpanKind(entry.name) !== null) return cursor;
+    cursor = entry.parent;
+  }
+  return spanId;
 }
 
 /** Name of the agent of the nearest enclosing agent span (ADK's `invoke_agent`, the loop's `agent.invoke`), or null. */
@@ -678,6 +717,9 @@ export async function* traceAgentRun(
       span.setAttribute('syndicate.latency.tool_ms', Math.round(stats.toolMs));
       span.setAttribute('syndicate.llm_calls', stats.llmCalls);
       span.setAttribute('syndicate.models', [...stats.models].sort().join(','));
+      // Summed over every call, as a provider bills them (adk_turns.cache_read_tokens / cache_write_tokens).
+      span.setAttribute('syndicate.tokens.cache_read', stats.cacheRead);
+      span.setAttribute('syndicate.tokens.cache_write', stats.cacheWrite);
       // The ledger prices the turn from this, per model (melchizedek_usage_cost, ADR 0136).
       span.setAttribute('syndicate.usage', JSON.stringify(Object.fromEntries([...stats.usage].sort(([a], [b]) => a.localeCompare(b)))));
     }
@@ -718,6 +760,15 @@ export interface LlmCallMeta {
    * for an adapter written before the model contract.
    */
   llmRequest?: unknown;
+  /**
+   * The contract response a yielded LlmResponse was mapped from, when the
+   * caller holds it (the native step, the summarizer, the memory extractor).
+   * The span reads what an LlmResponse cannot carry from it: the cache
+   * write count and the contract's finish reason. Without it the span
+   * records the cache reads Gemini's usage names and no finish reason
+   * unless the call failed.
+   */
+  source?: (response: LlmResponse) => ModelResponse | undefined;
 }
 
 const THINKING_EVENT_MAX_CHARS = 600;
@@ -823,6 +874,9 @@ export async function* traceLlmGeneration(
   let inputTokens = 0;
   let outputTokens = 0;
   let thinkingTokens = 0;
+  let cacheRead: number | undefined;
+  let cacheWrite: number | undefined;
+  let finishReason: FinishReason | undefined;
   let thinkingPreview = '';
   let errorCode = '';
   let errorMessage = '';
@@ -841,6 +895,13 @@ export async function* traceLlmGeneration(
         inputTokens = resp.usageMetadata.promptTokenCount ?? inputTokens;
         outputTokens = resp.usageMetadata.candidatesTokenCount ?? outputTokens;
         thinkingTokens = resp.usageMetadata.thoughtsTokenCount ?? thinkingTokens;
+        cacheRead = resp.usageMetadata.cachedContentTokenCount ?? cacheRead;
+      }
+      const source = meta.source?.(resp);
+      if (source && !source.partial) {
+        finishReason = source.finishReason;
+        if (source.usage?.cacheReadTokens !== undefined) cacheRead = source.usage.cacheReadTokens;
+        if (source.usage?.cacheWriteTokens !== undefined) cacheWrite = source.usage.cacheWriteTokens;
       }
       if (resp.errorCode) {
         errorCode = String(resp.errorCode);
@@ -884,6 +945,11 @@ export async function* traceLlmGeneration(
     span.setAttribute('llm.tokens.input', inputTokens);
     span.setAttribute('llm.tokens.output', outputTokens);
     span.setAttribute('llm.tokens.thinking', thinkingTokens);
+    // Parts of llm.tokens.input, set only when the provider reported them (ADR 0139).
+    if (cacheRead !== undefined) span.setAttribute('llm.tokens.cache_read', cacheRead);
+    if (cacheWrite !== undefined) span.setAttribute('llm.tokens.cache_write', cacheWrite);
+    if (errorCode) finishReason = 'error';
+    if (finishReason) span.setAttribute('llm.finish_reason', finishReason);
     span.setAttribute('gen_ai.usage.input_tokens', inputTokens);
     span.setAttribute('gen_ai.usage.output_tokens', outputTokens);
     // llm.latency_ms mirrors the span duration for the flat adk_telemetry row.

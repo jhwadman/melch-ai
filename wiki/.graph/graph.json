@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-19"
+    "at": "2026-10-21"
   },
   "stats": {
-    "nodes": 1020,
-    "edges": 4077,
+    "nodes": 1024,
+    "edges": 4096,
     "byKind": {
-      "doc": 207,
+      "doc": 208,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 35,
-      "file": 227,
+      "file": 230,
       "syndicate": 35,
       "agent": 93,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 795,
+      "links_to": 802,
       "requires_env": 168,
       "routes_to": 10,
       "defined_in": 81,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 942,
+      "imports": 943,
       "reads_table": 28,
       "runs": 74,
-      "derives_from": 1181,
+      "derives_from": 1192,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3593,
+      "extracted": 3612,
       "inferred": 484
     },
     "isolated": 5
@@ -1332,7 +1332,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 91
+        "words": 107
       }
     },
     {
@@ -2068,6 +2068,18 @@
       }
     },
     {
+      "id": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "kind": "doc",
+      "label": "ADR 0139: The ledger keeps the span tree",
+      "source": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 265
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2088,7 +2100,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 15166
+        "words": 16950
       }
     },
     {
@@ -2304,7 +2316,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2386
+        "words": 2543
       }
     },
     {
@@ -2340,7 +2352,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 8729
+        "words": 9007
       }
     },
     {
@@ -4733,6 +4745,20 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0016_span_tree.sql",
+      "kind": "file",
+      "label": "0016_span_tree.sql",
+      "source": "db/migrations/0016_span_tree.sql",
+      "attrs": {}
+    },
+    {
+      "id": "file:db/migrations/0017_cache_pricing.sql",
+      "kind": "file",
+      "label": "0017_cache_pricing.sql",
+      "source": "db/migrations/0017_cache_pricing.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5622,6 +5648,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/spanTree.test.ts",
+      "kind": "file",
+      "label": "spanTree.test.ts",
+      "source": "tests/spanTree.test.ts"
+    },
+    {
       "id": "file:tests/structuredOrchestrator.test.ts",
       "kind": "file",
       "label": "structuredOrchestrator.test.ts",
@@ -6162,7 +6194,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 347
+        "lines": 352
       }
     },
     {
@@ -6477,7 +6509,7 @@
       "label": "lib/observability/lineage.ts",
       "source": "lib/observability/lineage.ts",
       "attrs": {
-        "lines": 151
+        "lines": 181
       }
     },
     {
@@ -6495,7 +6527,7 @@
       "label": "lib/observability/otlpFilter.ts",
       "source": "lib/observability/otlpFilter.ts",
       "attrs": {
-        "lines": 122
+        "lines": 123
       }
     },
     {
@@ -6513,7 +6545,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 651
+        "lines": 705
       }
     },
     {
@@ -6522,7 +6554,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 901
+        "lines": 967
       }
     },
     {
@@ -6639,7 +6671,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 222
+        "lines": 227
       }
     },
     {
@@ -6711,7 +6743,7 @@
       "label": "lib/runtime/native/telemetry.ts",
       "source": "lib/runtime/native/telemetry.ts",
       "attrs": {
-        "lines": 313
+        "lines": 352
       }
     },
     {
@@ -8716,13 +8748,19 @@
       "id": "table:adk_telemetry",
       "kind": "table",
       "label": "adk_telemetry",
-      "source": "db/telemetry.sql"
+      "source": "db/telemetry.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:adk_turns",
       "kind": "table",
       "label": "adk_turns",
-      "source": "db/telemetry.sql"
+      "source": "db/telemetry.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:adk_verdicts",
@@ -8791,7 +8829,10 @@
       "id": "table:model_pricing",
       "kind": "table",
       "label": "model_pricing",
-      "source": "db/migrations/0015_model_pricing.sql"
+      "source": "db/migrations/0017_cache_pricing.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "tool:ask_user",
@@ -13188,10 +13229,17 @@
     },
     {
       "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:27"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:28"
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:29"
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
@@ -17373,6 +17421,97 @@
       "evidence": "/decisions/0138-project-manifest-melchizedek-json.md:27"
     },
     {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/migrations/0016_span_tree.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/migrations/0017_cache_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:db/telemetry.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "file:tests/spanTree.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md frontmatter"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:31"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:31"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
+    },
+    {
+      "from": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0139-the-ledger-keeps-the-span-tree.md:35"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -17661,6 +17800,20 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0016_span_tree.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
+      "to": "file:db/migrations/0017_cache_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17671,14 +17824,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:36"
+      "evidence": "/memory/schema.md:38"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2776"
+      "evidence": "/memory/schema.md:3018"
     },
     {
       "from": "/memory/sessions.md",
@@ -20174,6 +20327,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:60"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21011,6 +21171,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:320"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:390"
     },
     {
       "from": "/overview/native-loop.md",
@@ -28225,6 +28392,13 @@
     {
       "from": "module:lib/runtime/native/telemetry.ts",
       "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/redact.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/telemetry.ts"

@@ -13,7 +13,11 @@
  *                    tool calls WITH their responses, the ids that join it to
  *                    the session (session_id, invocation_id) and the task,
  *                    and provenance (config_hash, engine_version).
- *     adk_telemetry  one row per span — llm.request and root spans, raw.
+ *     adk_telemetry  one row per span the ledger keeps — the turn's root, each
+ *                    agent run, model step and provider call, tool call,
+ *                    script run and call, workflow walk and node run — each
+ *                    with its parent among them and its kind, so a turn's
+ *                    span tree is stored (ADR 0139).
  *     adk_payloads   full request/response per model call, captured by
  *                    POLICY and expiring. ADK's own call_llm spans carry the
  *                    assembled prompt and raw response, and the native
@@ -45,7 +49,8 @@ import core from '@opentelemetry/core';
 const { ExportResultCode } = core;
 
 import { hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
-import { TELEMETRY_SCHEMA_VERSION, isModelCallSpan } from './lineage.ts';
+import { LEDGER_PARENT_ATTRIBUTE, TELEMETRY_SCHEMA_VERSION, isModelCallSpan, ledgerSpanKind } from './lineage.ts';
+import type { LedgerSpanKind } from './lineage.ts';
 import { redactRow, telemetryRedactor } from './redact.ts';
 import { outputsDir } from '../paths.ts';
 
@@ -64,11 +69,19 @@ export interface TelemetryRow {
   input_tokens: number | null;
   output_tokens: number | null;
   thinking_tokens: number | null;
+  /** The parts of input_tokens read from and written to the provider's prompt cache; null when unreported. */
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
   latency_ms: number;
   session_id: string | null;
   user_id: string | null;
   task_id: string | null;
   invocation_id: string | null;
+  /** The nearest ancestor span the ledger keeps (ADR 0139); null for a span with no parent. */
+  parent_span_id: string | null;
+  kind: LedgerSpanKind | null;
+  /** The span failed: an error status, an error code, a tool's error response. */
+  error: boolean;
   schema_version: number;
   span: Record<string, unknown>;
 }
@@ -102,6 +115,9 @@ export interface TurnRow {
   input_tokens: number | null;
   output_tokens: number | null;
   thinking_tokens: number | null;
+  /** Cache tokens summed over the turn's calls (a provider bills each call's). */
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
   latency_ms: number;
   model_ms: number | null;
   tool_ms: number | null;
@@ -197,8 +213,17 @@ export function payloadDecision(
 // ── Span → row mapping (pure; tested offline) ───────────────────────────────
 
 const ROOT_PREFIX = 'Syndicate Execution: ';
-// A script's own spans (ADR 0137 item 16) carry its run, its calls' kinds, names, sequence and status, never an argument or a result.
-const EXPORTED_SPAN_NAMES = /^(llm\.request$|Syndicate Execution: |script\.(invoke|call) )/;
+/**
+ * The spans that get an adk_telemetry row: every span ledgerSpanKind names
+ * (ADR 0139). A model step's row (`model.call`) leaves its payload to
+ * adk_payloads (spanJson drops `llm.payload.*`) and its tokens to its
+ * llm.request rows, so a trace's rows sum without counting a call twice. A
+ * script's own spans (ADR 0137 item 16) carry its run, its calls' kinds,
+ * names, sequence and status, never an argument or a result.
+ */
+export function isLedgerSpan(span: ReadableSpan): boolean {
+  return ledgerSpanKind(span.name) !== null;
+}
 
 function attrsOf(span: ReadableSpan): Record<string, unknown> {
   return span.attributes as Record<string, unknown>;
@@ -285,6 +310,28 @@ function spanJson(span: ReadableSpan): Record<string, unknown> {
   };
 }
 
+/** The span's parent in the ledger: the ancestor the tracer recorded at start, else its direct parent. */
+export function ledgerParentOf(span: ReadableSpan): string | null {
+  const recorded = attrsOf(span)[LEDGER_PARENT_ATTRIBUTE];
+  if (typeof recorded === 'string' && recorded) return recorded;
+  const s = span as any;
+  const parent = s.parentSpanContext?.spanId ?? s.parentSpanId;
+  return typeof parent === 'string' && parent ? parent : null;
+}
+
+/** Whether a span failed: its status, an error code it records, or a tool's error response. */
+export function spanFailed(span: ReadableSpan): boolean {
+  const attrs = attrsOf(span);
+  return (
+    (span.status as any)?.code === 2 || // SpanStatusCode.ERROR
+    !!str(attrs, 'llm.error_code') ||
+    !!str(attrs, 'syndicate.error.code') ||
+    attrs['tool.error'] === true ||
+    attrs['script.call.status'] === 'error' ||
+    attrs['adk.node.status'] === 'failed'
+  );
+}
+
 /** Span attributes minus the payload capture (`llm.payload.*`). */
 export function withoutPayloadAttributes(attrs: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -292,7 +339,7 @@ export function withoutPayloadAttributes(attrs: Record<string, unknown>): Record
   return out;
 }
 
-/** Flatten an llm.request or root span into one adk_telemetry row. */
+/** Flatten a span the ledger keeps (isLedgerSpan) into one adk_telemetry row. */
 export function toTelemetryRow(span: ReadableSpan): TelemetryRow {
   const attrs = attrsOf(span);
   return {
@@ -307,11 +354,16 @@ export function toTelemetryRow(span: ReadableSpan): TelemetryRow {
     input_tokens: num(attrs, 'llm.tokens.input') ?? num(attrs, 'syndicate.tokens.input'),
     output_tokens: num(attrs, 'llm.tokens.output') ?? num(attrs, 'syndicate.tokens.output'),
     thinking_tokens: num(attrs, 'llm.tokens.thinking') ?? num(attrs, 'syndicate.tokens.thinking'),
+    cache_read_tokens: num(attrs, 'llm.tokens.cache_read') ?? num(attrs, 'syndicate.tokens.cache_read'),
+    cache_write_tokens: num(attrs, 'llm.tokens.cache_write') ?? num(attrs, 'syndicate.tokens.cache_write'),
     latency_ms: durationMs(span),
     session_id: str(attrs, 'session.id'),
     user_id: str(attrs, 'user.id'),
     task_id: str(attrs, 'a2a.task_id'),
     invocation_id: str(attrs, 'adk.invocation_id'),
+    parent_span_id: ledgerParentOf(span),
+    kind: ledgerSpanKind(span.name),
+    error: spanFailed(span),
     schema_version: TELEMETRY_SCHEMA_VERSION,
     span: spanJson(span),
   };
@@ -357,6 +409,8 @@ export function toTurnRow(span: ReadableSpan): TurnRow {
     input_tokens: num(attrs, 'syndicate.tokens.input'),
     output_tokens: num(attrs, 'syndicate.tokens.output'),
     thinking_tokens: num(attrs, 'syndicate.tokens.thinking'),
+    cache_read_tokens: num(attrs, 'syndicate.tokens.cache_read'),
+    cache_write_tokens: num(attrs, 'syndicate.tokens.cache_write'),
     latency_ms: durationMs(span),
     model_ms: num(attrs, 'syndicate.latency.model_ms'),
     tool_ms: num(attrs, 'syndicate.latency.tool_ms'),
@@ -539,7 +593,7 @@ export class SupabaseSpanExporter implements SpanExporter {
     const payloadRows: PayloadRow[] = [];
 
     for (const span of spans) {
-      if (EXPORTED_SPAN_NAMES.test(span.name)) telemetryRows.push(toTelemetryRow(span));
+      if (isLedgerSpan(span)) telemetryRows.push(toTelemetryRow(span));
 
       if (isRootSpan(span)) {
         const turn = toTurnRow(span);

@@ -67,6 +67,36 @@ export function isModelCallSpan(name: string, scope: string): boolean {
   return (name === 'call_llm' && scope === ADK_SPAN_SCOPE) || (name === 'model.call' && scope === RUNTIME_SPAN_SCOPE);
 }
 
+/** What a span the ledger keeps is, as `adk_telemetry.kind` records it (ADR 0139). */
+export type LedgerSpanKind = 'turn' | 'agent' | 'model' | 'tool' | 'script' | 'node';
+
+/**
+ * The kind of a span the ledger keeps a row for, from its name, else null:
+ * the turn's root (`Syndicate Execution: <name>`), an agent's run
+ * (`agent.invoke`), a model step and each provider call in it (`model.call`,
+ * `llm.request`), a tool call (`tool.execute`), a script's run and calls
+ * (`script.invoke`, `script.call`), and a workflow's walk and node runs
+ * (`workflow.invoke`, `node.execute`). Every other span (a credential
+ * refresh, a library's own) stays out of the ledger.
+ */
+export function ledgerSpanKind(name: string): LedgerSpanKind | null {
+  if (name.startsWith('Syndicate Execution: ')) return 'turn';
+  if (name === 'llm.request' || name === 'model.call') return 'model';
+  if (name.startsWith('agent.invoke ')) return 'agent';
+  if (name.startsWith('tool.execute ')) return 'tool';
+  if (name.startsWith('script.invoke ') || name.startsWith('script.call ')) return 'script';
+  if (name.startsWith('workflow.invoke ') || name.startsWith('node.execute ')) return 'node';
+  return null;
+}
+
+/**
+ * The attribute a span carries when its parent in the ledger is not its
+ * direct parent: the nearest ancestor the ledger keeps, which the tracer
+ * reads from its span lineage when the span starts, while every ancestor is
+ * still open (ADR 0139).
+ */
+export const LEDGER_PARENT_ATTRIBUTE = 'ledger.parent_span_id';
+
 /** JSON with object keys sorted at every depth — stable across reloads. */
 export function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
