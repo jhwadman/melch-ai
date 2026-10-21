@@ -31,7 +31,13 @@ test('hardening revokes function execution from PUBLIC, not just the named roles
 test('every migration is idempotent by construction and records its own version', () => {
   const files = migrationFiles('db/migrations');
   assert.ok(files.length >= 1);
-  files.forEach((rel, i) => {
+  // Numbers taken by release branches still in flight, which their merge fills:
+  // 0016–0017 (1.9.0, the span tree and cache tokens). Empty once they land.
+  const RESERVED = new Set([16, 17]);
+  let expected = 1;
+  files.forEach((rel) => {
+    while (RESERVED.has(expected) && !rel.replace(/^migrations\//, '').startsWith(String(expected).padStart(4, '0'))) expected++;
+    const i = expected++ - 1;
     const sql = readFileSync(`db/${rel}`, 'utf-8');
     const creates = sql.match(/CREATE (TABLE|INDEX|EXTENSION)\b(?! IF NOT EXISTS)/g) ?? [];
     assert.deepStrictEqual(creates, [], `${rel}: every CREATE TABLE/INDEX/EXTENSION must say IF NOT EXISTS`);

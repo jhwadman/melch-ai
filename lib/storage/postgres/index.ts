@@ -34,6 +34,7 @@ import { postgresLedgerClient } from '../../observability/supabaseSpanExporter.t
 import type { PayloadPolicy } from '../../observability/supabaseSpanExporter.ts';
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
+import { applyRetry } from '../../tools/taskTools.ts';
 import type { TaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
@@ -140,6 +141,13 @@ export interface PostgresStorage {
   turnLock: TurnLock;
   /** The task tools' lists and job queue (lib/tools/taskTools.ts setTaskBackend). */
   taskQueue: TaskBackend;
+  /**
+   * Puts a failed or cancelled background job back on the queue, attempts
+   * reset (the Retry of an operator's queue view, melchizedek_task_queue,
+   * migration 0018). Ids are per owner, so the owner names the list.
+   * 'not-found' and 'not-retryable' leave the queue as it was.
+   */
+  retryTask: (owner: string, id: string) => Promise<'queued' | 'not-found' | 'not-retryable'>;
   /**
    * Task leases: renew this instance's, fail other instances' expired ones,
    * and list this instance's running tasks a caller asked another instance
@@ -251,6 +259,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     : undefined;
 
   const audit = postgresAuditSink(pool);
+  const taskQueue = postgresTaskBackend(pool, options.taskQueue);
   const credentials = options.credentials ? postgresCredentialStore(pool, { ...options.credentials, audit }) : undefined;
 
   return {
@@ -266,7 +275,8 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       reap: () => reapExpiredTasks(pool),
       cancelRequested: () => cancelRequestedTasks(pool, lease),
     },
-    taskQueue: postgresTaskBackend(pool, options.taskQueue),
+    taskQueue,
+    retryTask: (owner, id) => taskQueue.mutate(owner, (store) => applyRetry(store, id)),
     async schemaVersion() {
       try {
         const r = await pool.query('SELECT max(version) AS v FROM melchizedek_schema_version');
