@@ -4,7 +4,9 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.11.0 — 2026-10-22
+
+A minor release: DeepSeek joins the providers, and Kimi calls are priced.
 
 **DeepSeek is a provider** (ADR 0143). `deepseek-*` ids route to the new
 `DeepSeekAdapter` (exported from `melchizedek-agents/model`, beside
@@ -20,7 +22,8 @@ the system message and validated by the engine), forced `tool_choice` is
 weakened to auto, and `web_search` is dropped with a warning. Without the
 key, `MODEL_GATEWAY` serves the ids as `deepseek/<id>`. The doctor, the
 setup guide (`ONBOARDING.md`), `.env.example`, the `model_overrides` keys
-(`deepseek`) and the model zoo (a seventh agent, `deepseek`) know it. Not
+(`deepseek`) and the model zoo (a seventh agent, `deepseek`) know it, as do the onboarding skills
+(`melchizedek-onboard`, `melchizedek-onboard-keys`) and the skill briefs. Not
 yet run live.
 
 **Price rows for DeepSeek and Kimi** (migration
