@@ -13,6 +13,14 @@ list (its rate under 200k prompt tokens); the two Gemini rows come from
 sources other than Google's current page, which no longer lists them, so
 their `verified_at` is NULL. An existing row is never overwritten.
 
+**`gemini-3.8-flash` and `grok-4.7` at their vendors' lists** (migration
+`0021_correct_gemini_flash_grok_rates`). Both were 0015 placeholders:
+`gemini-3.8-flash` is now $0.75 / $0.075 cached / $3.75 (was $0.30 / $2.50;
+Google lists a rise to $1.50 / $0.15 / $7.50 from 2027-01-01), `grok-4.7`
+$2.00 / $0.50 / $6.00 (was $3.00 / $15.00). A row changes only while it is
+still the seed, at the seed's rates; an operator's rate is kept. Calls
+already priced keep the rate they were written at.
+
 ## 1.11.0 — 2026-10-22
 
 A minor release: DeepSeek joins the providers, and Kimi calls are priced.
