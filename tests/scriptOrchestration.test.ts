@@ -263,7 +263,7 @@ test('loader: {{token}} does not touch script.source, and the script reads the b
   const file = join(dir, 'desk.yaml');
   writeFileSync(file, [
     'syndicate_name: Desk',
-    'variables: { desk: "Augustin" }',
+    'variables: { desk: "Harwick" }',
     'script:',
     '  source: |',
     '    export default async ({ variables }) => `{{desk}} is ${variables.desk}`;',
@@ -271,9 +271,9 @@ test('loader: {{token}} does not touch script.source, and the script reads the b
   ].join('\n'));
   const config = loadSyndicate('desk.yaml', { agentsDir: dir, bindings: { extra: 1 } });
   assert.match(config.script!.source, /`\{\{desk\}\} is \$\{variables\.desk\}`/);
-  assert.equal(config.script!.variables?.desk, 'Augustin');
+  assert.equal(config.script!.variables?.desk, 'Harwick');
   assert.equal(config.script!.variables?.extra, 1);
-  assert.equal(config.orchestrator.instruction, 'You are Augustin.');
+  assert.equal(config.orchestrator.instruction, 'You are Harwick.');
 });
 
 test('switch: a script syndicate is refused before any model call while the sandbox is off', async () => {

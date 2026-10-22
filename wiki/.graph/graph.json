@@ -2,7 +2,7 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-21"
+    "at": "2026-10-22"
   },
   "stats": {
     "nodes": 1034,
@@ -88,18 +88,6 @@
       }
     },
     {
-      "id": "/agents/augustin.md",
-      "kind": "doc",
-      "label": "Augustin",
-      "source": "/agents/augustin.md",
-      "attrs": {
-        "type": "syndicate",
-        "status": "stable",
-        "trust": "unverified",
-        "words": 275
-      }
-    },
-    {
       "id": "/agents/cartographers.md",
       "kind": "doc",
       "label": "The Cartographers",
@@ -181,6 +169,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 224
+      }
+    },
+    {
+      "id": "/agents/current_events.md",
+      "kind": "doc",
+      "label": "Current Event Aggregation",
+      "source": "/agents/current_events.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 283
       }
     },
     {
@@ -2658,38 +2658,6 @@
       }
     },
     {
-      "id": "agent:augustin/Arbiter",
-      "kind": "agent",
-      "label": "Arbiter",
-      "source": "config/agents/examples/augustin.yaml",
-      "attrs": {
-        "role": "orchestrator",
-        "syndicate": "augustin"
-      }
-    },
-    {
-      "id": "agent:augustin/WebResearcher",
-      "kind": "agent",
-      "label": "WebResearcher",
-      "source": "config/agents/examples/augustin.yaml",
-      "attrs": {
-        "role": "subagent",
-        "syndicate": "augustin",
-        "description": "Web search + source reading: verifies specific claims and establishes the documented record from wire services, primary sources, and diverse outlets."
-      }
-    },
-    {
-      "id": "agent:augustin/XResearcher",
-      "kind": "agent",
-      "label": "XResearcher",
-      "source": "config/agents/examples/augustin.yaml",
-      "attrs": {
-        "role": "subagent",
-        "syndicate": "augustin",
-        "description": "Live X (Twitter) fact-gathering through the X API, pictures included: what is being claimed and by whom, how different camps frame the topic, what is disputed, and what the photos attached to posts say."
-      }
-    },
-    {
       "id": "agent:cartographers/Cosmographer",
       "kind": "agent",
       "label": "Cosmographer",
@@ -2846,6 +2814,38 @@
       "attrs": {
         "role": "orchestrator",
         "syndicate": "critic"
+      }
+    },
+    {
+      "id": "agent:current_events/Arbiter",
+      "kind": "agent",
+      "label": "Arbiter",
+      "source": "config/agents/examples/current_events.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "current_events"
+      }
+    },
+    {
+      "id": "agent:current_events/WebResearcher",
+      "kind": "agent",
+      "label": "WebResearcher",
+      "source": "config/agents/examples/current_events.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "current_events",
+        "description": "Web search + source reading: verifies specific claims and establishes the documented record from wire services, primary sources, and diverse outlets."
+      }
+    },
+    {
+      "id": "agent:current_events/XResearcher",
+      "kind": "agent",
+      "label": "XResearcher",
+      "source": "config/agents/examples/current_events.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "current_events",
+        "description": "Live X (Twitter) fact-gathering through the X API, pictures included: what is being claimed and by whom, how different camps frame the topic, what is disputed, and what the photos attached to posts say."
       }
     },
     {
@@ -4419,13 +4419,6 @@
       "attrs": {}
     },
     {
-      "id": "file:config/agents/examples/augustin.yaml",
-      "kind": "file",
-      "label": "augustin.yaml",
-      "source": "config/agents/examples/augustin.yaml",
-      "attrs": {}
-    },
-    {
       "id": "file:config/agents/examples/cartographers.yaml",
       "kind": "file",
       "label": "cartographers.yaml",
@@ -4458,6 +4451,13 @@
       "kind": "file",
       "label": "critic.yaml",
       "source": "config/agents/examples/critic.yaml",
+      "attrs": {}
+    },
+    {
+      "id": "file:config/agents/examples/current_events.yaml",
+      "kind": "file",
+      "label": "current_events.yaml",
+      "source": "config/agents/examples/current_events.yaml",
       "attrs": {}
     },
     {
@@ -8129,15 +8129,6 @@
       }
     },
     {
-      "id": "script:syndicate:augustin",
-      "kind": "script",
-      "label": "npm run syndicate:augustin",
-      "source": "package.json",
-      "attrs": {
-        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate augustin"
-      }
-    },
-    {
       "id": "script:syndicate:cartographers",
       "kind": "script",
       "label": "npm run syndicate:cartographers",
@@ -8180,6 +8171,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate critic"
+      }
+    },
+    {
+      "id": "script:syndicate:current-events",
+      "kind": "script",
+      "label": "npm run syndicate:current-events",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate current_events"
       }
     },
     {
@@ -8414,17 +8414,6 @@
       }
     },
     {
-      "id": "syndicate:augustin",
-      "kind": "syndicate",
-      "label": "Augustin",
-      "source": "config/agents/examples/augustin.yaml",
-      "attrs": {
-        "memory": "session-only",
-        "agents": 3,
-        "mode": "delegate"
-      }
-    },
-    {
       "id": "syndicate:cartographers",
       "kind": "syndicate",
       "label": "The Cartographers",
@@ -8495,6 +8484,17 @@
       "kind": "syndicate",
       "label": "Critic Review Workflow",
       "source": "config/agents/examples/critic.yaml",
+      "attrs": {
+        "memory": "session-only",
+        "agents": 3,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:current_events",
+      "kind": "syndicate",
+      "label": "Current Event Aggregation",
+      "source": "config/agents/examples/current_events.yaml",
       "attrs": {
         "memory": "session-only",
         "agents": 3,
@@ -9254,27 +9254,6 @@
       "evidence": "/agents/assistant.md:17"
     },
     {
-      "from": "/agents/augustin.md",
-      "to": "file:config/agents/examples/augustin.yaml",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/agents/augustin.md frontmatter"
-    },
-    {
-      "from": "/agents/augustin.md",
-      "to": "syndicate:augustin",
-      "rel": "documents",
-      "tier": "extracted",
-      "evidence": "/agents/augustin.md"
-    },
-    {
-      "from": "/agents/augustin.md",
-      "to": "/decisions/0018-files-are-the-source-of-truth.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/agents/augustin.md:19"
-    },
-    {
       "from": "/agents/cartographers.md",
       "to": "file:config/agents/examples/cartographers.yaml",
       "rel": "derives_from",
@@ -9413,6 +9392,27 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/critic.md:19"
+    },
+    {
+      "from": "/agents/current_events.md",
+      "to": "file:config/agents/examples/current_events.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/current_events.md frontmatter"
+    },
+    {
+      "from": "/agents/current_events.md",
+      "to": "syndicate:current_events",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/current_events.md"
+    },
+    {
+      "from": "/agents/current_events.md",
+      "to": "/decisions/0018-files-are-the-source-of-truth.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/current_events.md:19"
     },
     {
       "from": "/agents/delegation.md",
@@ -23877,55 +23877,6 @@
       "evidence": "config/agents/examples/assistant.yaml"
     },
     {
-      "from": "agent:augustin/Arbiter",
-      "to": "model:gemini-3.8-flash",
-      "rel": "uses_model",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/WebResearcher",
-      "to": "model:gemini-3.8-flash",
-      "rel": "uses_model",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/WebResearcher",
-      "to": "tool:web_extract",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/WebResearcher",
-      "to": "tool:web_search",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/XResearcher",
-      "to": "model:gemini-3.8-flash",
-      "rel": "uses_model",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/XResearcher",
-      "to": "tool:web_extract",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "agent:augustin/XResearcher",
-      "to": "tool:x_api_search",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
       "from": "agent:cartographers/Cosmographer",
       "to": "model:gemini-3.8-flash",
       "rel": "uses_model",
@@ -24127,6 +24078,55 @@
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/critic.yaml"
+    },
+    {
+      "from": "agent:current_events/Arbiter",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/WebResearcher",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/WebResearcher",
+      "to": "tool:web_extract",
+      "rel": "uses_tool",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/WebResearcher",
+      "to": "tool:web_search",
+      "rel": "uses_tool",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/XResearcher",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/XResearcher",
+      "to": "tool:web_extract",
+      "rel": "uses_tool",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "agent:current_events/XResearcher",
+      "to": "tool:x_api_search",
+      "rel": "uses_tool",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
     },
     {
       "from": "agent:delegation/CodeExpert",
@@ -33222,20 +33222,6 @@
       "evidence": "package.json"
     },
     {
-      "from": "script:syndicate:augustin",
-      "to": "module:scripts/syndicate_chat.ts",
-      "rel": "runs",
-      "tier": "extracted",
-      "evidence": "package.json"
-    },
-    {
-      "from": "script:syndicate:augustin",
-      "to": "syndicate:augustin",
-      "rel": "runs",
-      "tier": "extracted",
-      "evidence": "package.json"
-    },
-    {
       "from": "script:syndicate:cartographers",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -33301,6 +33287,20 @@
     {
       "from": "script:syndicate:critic",
       "to": "syndicate:critic",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:current-events",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:current-events",
+      "to": "syndicate:current_events",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"
@@ -33628,34 +33628,6 @@
       "evidence": "config/agents/examples/assistant.yaml"
     },
     {
-      "from": "syndicate:augustin",
-      "to": "agent:augustin/Arbiter",
-      "rel": "contains",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "syndicate:augustin",
-      "to": "agent:augustin/WebResearcher",
-      "rel": "contains",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "syndicate:augustin",
-      "to": "agent:augustin/XResearcher",
-      "rel": "contains",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
-      "from": "syndicate:augustin",
-      "to": "file:config/agents/examples/augustin.yaml",
-      "rel": "defined_in",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/augustin.yaml"
-    },
-    {
       "from": "syndicate:cartographers",
       "to": "agent:cartographers/Cosmographer",
       "rel": "contains",
@@ -33808,6 +33780,34 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/critic.yaml"
+    },
+    {
+      "from": "syndicate:current_events",
+      "to": "agent:current_events/Arbiter",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "syndicate:current_events",
+      "to": "agent:current_events/WebResearcher",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "syndicate:current_events",
+      "to": "agent:current_events/XResearcher",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
+    },
+    {
+      "from": "syndicate:current_events",
+      "to": "file:config/agents/examples/current_events.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/current_events.yaml"
     },
     {
       "from": "syndicate:delegation",

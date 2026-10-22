@@ -4,6 +4,21 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.10.3 — 2026-10-21
+
+A patch release: the starter pack's fact-checking example is renamed.
+`config/agents/examples/augustin.yaml` is now
+`config/agents/examples/current_events.yaml`, with `syndicate_name:
+"Current Event Aggregation"`; its prompts no longer carry a persona name.
+What it does is unchanged: an X researcher and a web researcher report to
+a tool-free arbiter. In a clone, `npm run syndicate:augustin` is now
+`npm run syndicate:current-events`. No API changes.
+
+**Read before upgrading:** a project that runs the shipped file by its old
+id (`--syndicate augustin`, or `augustin` in `A2A_SERVED_AGENTS`) now names
+`current_events`. A registry row or a project file of your own named
+`augustin` is not affected.
+
 ## 1.10.2 — 2026-10-21
 
 A patch release: a process that ran the code sandbox could fail to exit.

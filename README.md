@@ -207,7 +207,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `patient_advocate.yaml` | Memory across sessions: diagnoses, medications, lab trends | [2.02 · Memory Systems](https://lyceumagents.com/curriculum/memory-systems/) |
 | `librarian.yaml` | Tools discovered at runtime from an MCP server, including writes | [2.03 · MCP](https://lyceumagents.com/curriculum/mcp-extending-reach/) |
 | `image_production.yaml` | Spec-first image generation, a blind inventory, and a separate spec auditor | [2.04 · Multimodal Agents](https://lyceumagents.com/curriculum/multimodal-agents/) |
-| `augustin.yaml` | Fact-checking: an X researcher and a web researcher report to a tool-free arbiter | [2.05 · Fact-Checking Arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
+| `current_events.yaml` | Current-event aggregation and fact-checking: an X researcher and a web researcher report to a tool-free arbiter | [2.05 · Fact-Checking Arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
 | `claude.yaml` | Minimal configuration using the Anthropic adapter | — |
 | `model_zoo.yaml` | One agent per provider (Qwen, Claude, Grok, GPT, Gemini, Kimi) | — |
 | `research.yaml` | Plan-and-dispatch over keyless clinical and literature sources, with an identifier and retraction guard | — |
