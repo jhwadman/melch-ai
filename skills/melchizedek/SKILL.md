@@ -39,7 +39,7 @@ To modify an example, copy it into `config/agents/` in your project and edit it.
 - `patient_advocate.yaml`: Patient Advocate; long-term memory doctrine: preloads what it knows about the person, recalls mid-conversation; gemini, plus Supabase.
 - `librarian.yaml`: Lyceum Librarian; a subagent with no tools of its own discovers them at runtime from an MCP server (`mcp_server_url`); gemini, plus the demo catalog server.
 - `image_production.yaml`: Image Production; spec-first image generation with a blind audit of the result; images land in `outputs/`; gemini.
-- `augustin.yaml`: Augustin; fact-checking: an X researcher and a web researcher gather, a tool-free arbiter rules; gemini, plus `X_BEARER_TOKEN` for the X channel.
+- `current_events.yaml`: Current Event Aggregation; fact-checking: an X researcher and a web researcher gather, a tool-free arbiter rules; gemini, plus `X_BEARER_TOKEN` for the X channel.
 - `claude.yaml`: Claude Chat; the smallest file: one agent whose model line is claude-sonnet-4-6; anthropic.
 - `model_zoo.yaml`: Model Zoo; one lightweight agent per provider; multi-provider.
 - `scriptorium.yaml`: The Scriptorium; answers questions from a repository's knowledge bundle with citations and authors documents through a validated save gate; gemini.
@@ -133,7 +133,7 @@ The runner always injects `{{current_date}}`. Syndicates configured with `memory
 ## Delegate a task from this agent
 
 When a user's task matches a syndicate, execute the syndicate in one shot with `CHAT_STREAMING=false`, capture stdout, and present the reply to the user alongside the syndicate name:
-- Check a claim: `augustin.yaml`.
+- Check a claim: `current_events.yaml`.
 - Write a document from facts: `scribe.yaml`.
 - Research a question on the web: `syndicate.yaml`.
 - Teach a topic: `tutor.yaml`.

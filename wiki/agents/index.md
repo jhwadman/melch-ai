@@ -4,7 +4,6 @@
 - [Account Memory](/agents/account_memory.md) — The Account Memory syndicate.
 - [Ares Data Extractor](/agents/ares.md) — The Ares Data Extractor syndicate.
 - [Assistant](/agents/assistant.md) — The Assistant syndicate.
-- [Augustin](/agents/augustin.md) — The Augustin syndicate.
 - [The Cartographers](/agents/cartographers.md) — Maps the knowledge graph: has the Surveyor read prose for relations a parser cannot see, and the Registrar record them with their evidence.
 - [Case Desk](/agents/case_desk.md) — The Case Desk syndicate.
 - [Claude Chat](/agents/claude.md) — The Claude Chat syndicate.
@@ -12,6 +11,7 @@
 - [Conversational](/agents/conversational.md) — The Conversational syndicate.
 - [Council](/agents/council.md) — The Council syndicate.
 - [Critic Review Workflow](/agents/critic.md) — The Critic Review Workflow syndicate.
+- [Current Event Aggregation](/agents/current_events.md) — The Current Event Aggregation syndicate.
 - [Delegation Router Workflow](/agents/delegation.md) — The Delegation Router Workflow syndicate.
 - [Draft Review](/agents/draft_review.md) — The Draft Review syndicate.
 - [Event Assistant](/agents/event_assistant.md) — Answers visitors' questions about one community event from the published event information and the current updates, and says when neither holds the answer.

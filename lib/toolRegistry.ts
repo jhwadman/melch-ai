@@ -73,7 +73,7 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   web_search: WEB_SEARCH_MARKER,
   // Deterministic complement to web_search: client-side URL → clean-text
   // reading (keyless — works on every provider, including local Ollama).
-  // augustin.yaml and librarian-style research agents declare it.
+  // current_events.yaml and librarian-style research agents declare it.
   web_extract: webExtractTool,
   // Gemini reads URLs in the conversation server-side; a no-op (reported as
   // dropped by the doctor) on other providers. lib/tools/nativeTools.ts.
