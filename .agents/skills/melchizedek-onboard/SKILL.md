@@ -32,7 +32,7 @@ In a clone of the repository, use `npm run setup -- <flags>` instead of `npx mel
 | They have | Level | Follow |
 |---|---|---|
 | Nothing, or want everything on their machine | 1 `local` | `melchizedek-onboard-local` |
-| One key from Google AI Studio, Anthropic, OpenAI, xAI or Moonshot | 2 `one-provider` | `melchizedek-onboard-keys` |
+| One key from Google AI Studio, Anthropic, OpenAI, xAI, Moonshot or DeepSeek | 2 `one-provider` | `melchizedek-onboard-keys` |
 | Keys from several of those | 3 `several-providers` | `melchizedek-onboard-keys` |
 | A Vercel AI Gateway or OpenRouter key | 4 `gateway` | `melchizedek-onboard-keys` |
 | Google Cloud (Vertex AI), AWS (Bedrock) or Azure OpenAI access | 5 `cloud-platform` | `melchizedek-onboard-cloud` |
