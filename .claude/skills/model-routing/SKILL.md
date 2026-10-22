@@ -15,6 +15,7 @@ description: How a model id in a YAML becomes a provider call — the prefix tab
 | `gpt-*`, `o<digit>*` | OpenAI | `OPENAI_API_KEY` |
 | `grok-*` | xAI | `XAI_API_KEY` |
 | `kimi-*` | Moonshot AI (Kimi) | `MOONSHOT_API_KEY` |
+| `deepseek-*` | DeepSeek | `DEEPSEEK_API_KEY` |
 | anything else | Gemini (the default) | `GOOGLE_GENAI_API_KEY` (or `GEMINI_API_KEY`) |
 
 The fallback is silent and deliberate: a typo in a `claude-` id does not error,
@@ -39,7 +40,7 @@ populate: the id is resolved at compile time, per agent.
 One `ModelAdapter` per provider on the engine's model contract
 (`lib/models/contract.ts`): `claudeAdapter.ts`, `gptAdapter.ts`,
 `grokAdapter.ts`, `geminiAdapter.ts` (on `@google/genai`), and the
-chat-completions three, `kimiAdapter.ts`, `ollamaAdapter.ts` and
+chat-completions four, `kimiAdapter.ts`, `deepseekAdapter.ts`, `ollamaAdapter.ts` and
 `gatewayAdapter.ts` on `chatCompletionsAdapter.ts`. `fallbackAdapter.ts`
 wraps an agent's `model` and `fallback_model`. The native loop calls the
 adapter directly, and that call is where `max_steps`, cancellation, the

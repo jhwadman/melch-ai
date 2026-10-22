@@ -29,6 +29,7 @@ import { GeminiAdapter } from './geminiAdapter.ts';
 import { GptAdapter } from './gptAdapter.ts';
 import { GrokAdapter } from './grokAdapter.ts';
 import { KimiAdapter } from './kimiAdapter.ts';
+import { DeepSeekAdapter } from './deepseekAdapter.ts';
 import { OllamaAdapter } from './ollamaAdapter.ts';
 import { providerForModel } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
@@ -72,7 +73,7 @@ export function scopedKey(model: string, apiKey: string | undefined, keyProvider
 /** A provider name as the A2A X-Provider header gives it; anything unknown reads as gemini. */
 export function normalizeProvider(provider?: string): ProviderId {
   const p = provider?.toLowerCase();
-  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot') {
+  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot' || p === 'deepseek') {
     return p;
   }
   return 'gemini';
@@ -143,6 +144,7 @@ const CONTRACT_ADAPTER: Record<Exclude<ProviderId, 'gemini'>, (r: Route) => Mode
       : new GptAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
   xai: (r) => new GrokAdapter({ model: r.model, apiKey: r.apiKey }),
   moonshot: (r) => new KimiAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
+  deepseek: (r) => new DeepSeekAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
 };
 
 /** A resolver over the one prefix table. A Gemini id gets GeminiAdapter (ADR 0100, ADR 0107). */

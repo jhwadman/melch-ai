@@ -34,6 +34,7 @@ import {
   GEMINI_MODEL,
   GEMINI_SIGNATURE,
   KIMI_REASONING,
+  MODEL,
   REASONING_ITEM,
   SCHEMA,
   SIGNED_THINKING,
@@ -197,13 +198,27 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
       case 'chat': {
         const tools = (body.tools ?? []).length > 0;
         if (!tools) return 'unsupported';
-        // The budget has no wire form here; only reasoning_effort travels.
-        if (body.reasoning_effort !== 'low' || 'thinking' in body) return 'unsupported';
+        // The budget has no wire form here; only reasoning_effort travels
+        // (beside DeepSeek's thinking switch, which it needs to say "on").
+        if (body.reasoning_effort !== 'low') return 'unsupported';
+        if (row === 'deepseek' ? body.thinking?.type !== 'enabled' : 'thinking' in body) return 'unsupported';
         // Supported where the assistant message holding the call gets its
         // reasoning_content back (Kimi); elsewhere the model re-reasons.
         const assistant = (body.messages ?? []).find((m: any) => m.role === 'assistant');
         const replayed = assistant?.reasoning_content === KIMI_REASONING && assistant.tool_calls?.[0]?.id === 'call_1';
-        return replayed ? 'supported' : 'degraded';
+        if (row !== 'deepseek' || !replayed) return replayed ? 'supported' : 'degraded';
+        // DeepSeek asks for it on EVERY assistant message of a tool request, earlier turns'
+        // included: an earlier turn's stored state goes back, and one with none goes as "".
+        const loop = thinkingToolLoop(row);
+        const earlier: Message[] = [
+          { role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+          { role: 'assistant', parts: [{ type: 'text', text: 'hello', providerState: { provider: 'deepseek', kind: 'reasoning_content', model: MODEL.deepseek, payload: 'greet back' } }] },
+          { role: 'user', parts: [{ type: 'text', text: 'and?' }] },
+          { role: 'assistant', parts: [{ type: 'text', text: 'ask away' }] },
+        ];
+        const two = await capture(row, { ...loop, messages: [...earlier, ...loop.messages] });
+        const said = (two.messages ?? []).filter((m: any) => m.role === 'assistant').map((m: any) => m.reasoning_content);
+        return JSON.stringify(said) === JSON.stringify(['greet back', '', KIMI_REASONING]) ? 'supported' : 'degraded';
       }
     }
   },

@@ -177,6 +177,7 @@ const modelOverridesSchema = z
     openai: modelOverrideEntry.optional(),
     xai: modelOverrideEntry.optional(),
     moonshot: modelOverrideEntry.optional(),
+    deepseek: modelOverrideEntry.optional(),
     ollama: modelOverrideEntry.optional(),
   })
   .describe('Per-provider instruction, keyed by the provider of the agent\'s model id (lib/models/providerMap.ts). Applied at compile time before the skills index; not to fallback_model, and never to globalInstruction (ADR 0115).');

@@ -28,6 +28,7 @@ import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
+import { DeepSeekAdapter } from '../lib/models/deepseekAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 
 const ENV_KEYS = [
@@ -46,6 +47,8 @@ const ENV_KEYS = [
   'XAI_API_KEY',
   'MOONSHOT_API_KEY',
   'MOONSHOT_BASE_URL',
+  'DEEPSEEK_API_KEY',
+  'DEEPSEEK_BASE_URL',
   'OLLAMA_BASE_URL',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
@@ -59,6 +62,7 @@ const ENV_ANTHROPIC = 'fixture-env-anthropic-0123456789';
 const ENV_OPENAI = 'fixture-env-openai-0123456789';
 const ENV_XAI = 'fixture-env-xai-0123456789';
 const ENV_MOONSHOT = 'fixture-env-moonshot-0123456789';
+const ENV_DEEPSEEK = 'fixture-env-deepseek-0123456789';
 const CALLER = 'fixture-caller-key-0123456789';
 
 const ALL_KEYS = {
@@ -67,6 +71,7 @@ const ALL_KEYS = {
   OPENAI_API_KEY: ENV_OPENAI,
   XAI_API_KEY: ENV_XAI,
   MOONSHOT_API_KEY: ENV_MOONSHOT,
+  DEEPSEEK_API_KEY: ENV_DEEPSEEK,
 };
 const GATEWAY_ONLY = { MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789' };
 
@@ -128,6 +133,7 @@ test('resolveAdapter returns each provider\'s contract adapter from the one pref
       ['o4-mini', GptAdapter, 'openai'],
       ['grok-4.7', GrokAdapter, 'xai'],
       ['kimi-k3', KimiAdapter, 'moonshot'],
+      ['deepseek-flash', DeepSeekAdapter, 'deepseek'],
       ['ollama/qwen3:8b', OllamaAdapter, 'ollama'],
       ['gemini-3.5-flash-lite', GeminiAdapter, 'gemini'],
       ['some-unknown-id', GeminiAdapter, 'gemini'],
@@ -168,7 +174,7 @@ test('Gemini: the engine adapter (ADR 0100); GEMINI_ADAPTER=adk or the adk optio
 
 test('the gateway serves an id only when its direct key is absent, never Ollama, never over a BYOK key', async () => {
   await withEnv(GATEWAY_ONLY, () => {
-    for (const id of ['claude-sonnet-4-6', 'gpt-5-mini', 'grok-4.7', 'kimi-k3', 'gemini-x']) {
+    for (const id of ['claude-sonnet-4-6', 'gpt-5-mini', 'grok-4.7', 'kimi-k3', 'deepseek-flash', 'gemini-x']) {
       const adapter = resolveAdapter(id);
       assert.ok(adapter instanceof GatewayAdapter, `${id} via the gateway`);
       assert.equal(adapter.model, id);
@@ -204,6 +210,7 @@ for (const [id, envKey] of [
   ['gpt-5-mini', ENV_OPENAI],
   ['grok-4.7', ENV_XAI],
   ['kimi-k3', ENV_MOONSHOT],
+  ['deepseek-v4-pro', ENV_DEEPSEEK],
   ['gemini-x', ENV_GEMINI],
 ] as const) {
   test(`BYOK on ${id}: the caller's key goes on the wire, not the environment's, and never into the error`, async () => {
@@ -243,6 +250,9 @@ test('an endpoint from the credentials plug point reaches the adapter', async ()
 
     r = await call(resolveAdapter('kimi-k3', { apiKey: CALLER, endpoint: { baseURL: 'https://kimi-proxy.internal/v1' } }));
     assert.equal(r.seen[0]!.url, 'https://kimi-proxy.internal/v1/chat/completions');
+
+    r = await call(resolveAdapter('deepseek-flash', { apiKey: CALLER, endpoint: { baseURL: 'https://deepseek-proxy.internal' } }));
+    assert.equal(r.seen[0]!.url, 'https://deepseek-proxy.internal/chat/completions');
   });
 });
 
@@ -291,7 +301,7 @@ test('logProviderStatuses reports every provider once and registers nothing', as
   await withEnv(ALL_KEYS, () => {
     const lines: string[] = [];
     const statuses = logProviderStatuses((m) => lines.push(m));
-    assert.deepEqual(statuses.map((s) => s.provider).sort(), ['anthropic', 'gemini', 'moonshot', 'ollama', 'openai', 'xai']);
+    assert.deepEqual(statuses.map((s) => s.provider).sort(), ['anthropic', 'deepseek', 'gemini', 'moonshot', 'ollama', 'openai', 'xai']);
     assert.ok(statuses.every((s) => s.available && s.transport === 'direct'));
     assert.equal(lines.length, statuses.length);
     assert.ok(lines.every((l) => /active/.test(l)));

@@ -4,6 +4,32 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**DeepSeek is a provider** (ADR 0143). `deepseek-*` ids route to the new
+`DeepSeekAdapter` (exported from `melchizedek-agents/model`, beside
+`KimiAdapter`), against `https://api.deepseek.com` with `DEEPSEEK_API_KEY`
+(`DEEPSEEK_BASE_URL` for a proxy); `deepseek-flash` is the default
+(`DEFAULT_DEEPSEEK_MODEL`), `deepseek-v4-pro` the deeper, text-only tier.
+Tool calling, delegation, streaming, vision on `deepseek-flash`, and
+thinking across a tool loop: on a request with tools, every earlier
+assistant message carries its `reasoning_content`, as DeepSeek requires.
+`reasoning: none` turns thinking off; other levels go as `reasoning_effort`
+low, high or max. Structured output is JSON mode (the schema is asked for in
+the system message and validated by the engine), forced `tool_choice` is
+weakened to auto, and `web_search` is dropped with a warning. Without the
+key, `MODEL_GATEWAY` serves the ids as `deepseek/<id>`. The doctor, the
+setup guide (`ONBOARDING.md`), `.env.example`, the `model_overrides` keys
+(`deepseek`) and the model zoo (a seventh agent, `deepseek`) know it. Not
+yet run live.
+
+**Price rows for DeepSeek and Kimi** (migration
+`0019_deepseek_kimi_pricing`). DeepSeek's rows hold its peak rate (double
+the off-peak list), so a budget never underestimates a call; the Kimi
+family (`kimi-k3`, `kimi-k2.6`, `kimi-k2.7-code`,
+`kimi-k2.7-code-highspeed`) gets its first rows. An existing row is never
+overwritten.
+
 ## 1.10.3 — 2026-10-21
 
 A patch release: the starter pack's fact-checking example is renamed.

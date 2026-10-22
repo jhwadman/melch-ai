@@ -45,7 +45,7 @@ test('the fixture loads with a model id per binding', () => {
 test('scripted: every check passes on every provider', async () => {
   const report = await runParity({ scripted: true });
   assert.equal(report.mode, 'scripted');
-  assert.deepEqual(report.providers.map((p) => p.provider), ['gemini', 'anthropic', 'openai', 'xai', 'moonshot', 'ollama']);
+  assert.deepEqual(report.providers.map((p) => p.provider), ['gemini', 'anthropic', 'openai', 'xai', 'moonshot', 'deepseek', 'ollama']);
   for (const p of report.providers) {
     for (const c of p.checks) assert.ok(c.pass, `${p.provider} · ${c.id}: ${c.detail}`);
     assert.deepEqual(p.turns.map((t) => t.name), ['delegate', 'tool', 'structured', 'followup']);
@@ -121,7 +121,7 @@ test('CLI --scripted: exit 0, the table on stdout, a dated JSON report, nothing 
   const r = cli(['--scripted', '--out', out]);
   assert.equal(r.status, 0, r.stderr || r.stdout);
   assert.match(r.stdout, /^provider +model +delegation/m);
-  assert.match(r.stdout, /PASS {2}36 checks on 6 providers/);
+  assert.match(r.stdout, /PASS {2}42 checks on 7 providers/);
   assert.doesNotMatch(r.stdout, SECRET_SHAPES);
   const files = readdirSync(out);
   assert.equal(files.length, 1);
@@ -130,7 +130,7 @@ test('CLI --scripted: exit 0, the table on stdout, a dated JSON report, nothing 
   assert.doesNotMatch(raw, SECRET_SHAPES);
   const report = JSON.parse(raw) as ParityReport;
   assert.equal(report.pass, true);
-  assert.equal(report.providers.length, 6);
+  assert.equal(report.providers.length, 7);
 });
 
 test('CLI --scripted with a deliberately failing check: exit non-zero', () => {

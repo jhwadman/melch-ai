@@ -1,13 +1,13 @@
 ---
 type: model-provider
 title: Provider routing
-description: "How a model string in YAML reaches the right provider adapter: one prefix table, six providers, availability by API key."
+description: "How a model string in YAML reaches the right provider adapter: one prefix table, seven providers, availability by API key."
 tags:
   - models
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-09
+  at: 2026-10-22
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -30,6 +30,7 @@ The chat-completions adapters (Ollama, Kimi and the gateways, all over `lib/mode
 | openai | OpenAI GPT | `OPENAI_API_KEY` | `gpt-*`, `o<digit>*` | `gpt-5-mini` |
 | xai | xAI Grok | `XAI_API_KEY` | `grok-*` | `grok-4.7` |
 | moonshot | Moonshot Kimi | `MOONSHOT_API_KEY` | `kimi-*` | `kimi-k3` |
+| deepseek | DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-*` | `deepseek-flash` |
 | ollama | Ollama (local) | (keyless, local) | `ollama/<model>` | `ollama/qwen3:8b` |
 <!-- /wiki:generated -->
 
@@ -64,45 +65,50 @@ The provider is the id's; the *platform* is configuration (`lib/models/endpoints
 Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/config.ts). Schema-dialect bridging between Gemini-uppercase and standard JSON Schema is covered in [tool contracts](/tools/tool-contracts.md).
 
 <!-- wiki:generated section="capabilities" source="lib/models/capabilities.ts" -->
-| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Moonshot Kimi | Ollama (local) | Gateway (any id) |
-|---|---|---|---|---|---|---|---|
-| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ✓3 | ✓4 |
-| structured output beside tools (an outputSchema on an agent that calls tools or delegates) | ◐5 | ✓6 | ✓7 | ◐8 | ◐9 | ◐10 | ◐11 |
-| thinking with tool use | ✓ | ✓12 | ✓13 | ✓14 | ✓15 | ◐16 | ◐17 |
-| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| image input | ✓ | ✓18 | ✓19 | ✓20 | ✓21 | ✓22 | ✓23 |
-| native web search | ✓ | ✓ | ✓ | ✓ | ✗24 | ✗25 | ✗26 |
+| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Moonshot Kimi | DeepSeek | Ollama (local) | Gateway (any id) |
+|---|---|---|---|---|---|---|---|---|
+| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 | ✓5 |
+| structured output beside tools (an outputSchema on an agent that calls tools or delegates) | ◐6 | ✓7 | ✓8 | ◐9 | ◐10 | ◐11 | ◐12 | ◐13 |
+| thinking with tool use | ✓ | ✓14 | ✓15 | ✓16 | ✓17 | ✓18 | ◐19 | ◐20 |
+| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| image input | ✓ | ✓21 | ✓22 | ✓23 | ✓24 | ✓25 | ✓26 | ✓27 |
+| native web search | ✓ | ✓ | ✓ | ✓ | ✗28 | ✗29 | ✗30 | ✗31 |
 
 ✓ supported · ◐ degraded · ✗ unsupported. Every cell is asserted against the request the adapter sends; the Gemini column is the engine's own Gemini adapter.
 
 1. Anthropic Claude · structured output (outputSchema): output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049).
 2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
-3. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
-4. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
-5. Google Gemini · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request; ADR 0109).
-6. Anthropic Claude · structured output beside tools (an outputSchema on an agent that calls tools or delegates): output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109).
-7. OpenAI GPT · structured output beside tools (an outputSchema on an agent that calls tools or delegates): text.format (strict json_schema) beside the tools in one request (ADR 0109).
-8. xAI Grok · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on xAI; ADR 0109).
-9. Moonshot Kimi · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on Moonshot; ADR 0109).
-10. Ollama (local) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (grammar-constrained decoding to the schema would hold back the tool calls; ADR 0109).
-11. Gateway (any id) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (upstream support for a schema beside tools varies by model; ADR 0109).
-12. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
-13. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
-14. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
-15. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
-16. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-17. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-18. Anthropic Claude · image input: user-turn images only.
-19. OpenAI GPT · image input: user-turn images only.
-20. xAI Grok · image input: user-turn images only.
-21. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
-22. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
-23. Gateway (any id) · image input: upstream model must accept images.
-24. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
-25. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
-26. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
+3. DeepSeek · structured output (outputSchema): JSON mode (response_format json_object), not a strict schema: the schema is asked for in the system message and the engine validates the reply.
+4. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
+5. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
+6. Google Gemini · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request; ADR 0109).
+7. Anthropic Claude · structured output beside tools (an outputSchema on an agent that calls tools or delegates): output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109).
+8. OpenAI GPT · structured output beside tools (an outputSchema on an agent that calls tools or delegates): text.format (strict json_schema) beside the tools in one request (ADR 0109).
+9. xAI Grok · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on xAI; ADR 0109).
+10. Moonshot Kimi · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on Moonshot; ADR 0109).
+11. DeepSeek · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (DeepSeek takes JSON mode only, no strict schema; ADR 0109).
+12. Ollama (local) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (grammar-constrained decoding to the schema would hold back the tool calls; ADR 0109).
+13. Gateway (any id) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (upstream support for a schema beside tools varies by model; ADR 0109).
+14. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
+15. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
+16. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
+17. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
+18. DeepSeek · thinking with tool use: reasoning_content is sent back on every assistant message of a request with tools, earlier turns included, as DeepSeek requires (else a 400): the same model's stored state, an empty string where none is stored (ADR 0046); effort travels as reasoning_effort beside a thinking switch.
+19. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+20. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+21. Anthropic Claude · image input: user-turn images only.
+22. OpenAI GPT · image input: user-turn images only.
+23. xAI Grok · image input: user-turn images only.
+24. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
+25. DeepSeek · image input: user-turn images only, sent as base64; deepseek-flash only (deepseek-v4-pro is text-only).
+26. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
+27. Gateway (any id) · image input: upstream model must accept images.
+28. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
+29. DeepSeek · native web search: DeepSeek's Search and Fetch are separate per-request REST APIs, not a chat request field; the web_search sentinel is dropped (use web_extract).
+30. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
+31. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
 
 **Reasoning above high** (ADR 0117): what `reasoning: xhigh` and `reasoning: max` reach each path as. "Weakened" means the model's highest setting is sent and the span carries `llm.reasoning.weakened`.
 
@@ -113,6 +119,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | OpenAI GPT | xhigh as asked on GPT-5.2 and later, and max goes as xhigh there, weakened; high, weakened, on the o-series, GPT-5 and GPT-5.1 |
 | xAI Grok | xhigh as asked on grok-4.7, and max goes as xhigh there, weakened; high, weakened, on grok-4.5 and grok-4.6 |
 | Moonshot Kimi | max as asked on kimi-k3, and xhigh rounds up to max; the K2 generation takes a thinking switch, which these leave on |
+| DeepSeek | max as asked, and xhigh rounds up to max (DeepSeek has low | high | max), each beside thinking enabled |
 | Ollama (local) | reasoning_effort high, weakened |
 | Gateway (any id) | reasoning_effort high, weakened, whatever the id: the words above high are not accepted across gateways |
 

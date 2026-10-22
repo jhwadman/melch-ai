@@ -36,7 +36,10 @@
  *     (replaysReasoningContent: Kimi) writes the response's reasoning_content
  *     as providerState on the part it preceded and sends it back on that
  *     assistant message within the current turn's tool loop, for the same
- *     provider and model only (ADR 0046).
+ *     provider and model only (ADR 0046). An adapter whose provider asks for
+ *     it on every past assistant message of a request with tools
+ *     (replaysReasoningOnEveryTurn: DeepSeek) sends it on all of them, an
+ *     empty string where none of its own is stored.
  *   - A turn that thought, or ran out of tokens, without a reply or a tool
  *     call is an error final (`<ID>_MAX_TOKENS`, `<ID>_EMPTY_RESPONSE`, ADR
  *     0027), carrying its usage. An adapter that opts in
@@ -459,6 +462,30 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     return false;
   }
 
+  /**
+   * Whether, on a request that carries `tools`, EVERY assistant message in
+   * the history (earlier turns' included, not only this turn's tool loop)
+   * carries `reasoning_content`: this adapter's own stored state for the
+   * same model where there is some, else an empty string, so the field is
+   * never missing. Default: never. Only meaningful beside
+   * replaysReasoningContent (DeepSeek, whose API returns 400 on a tool
+   * request missing a past turn's reasoning_content).
+   */
+  protected replaysReasoningOnEveryTurn(_model: string): boolean {
+    return false;
+  }
+
+  /**
+   * Whether the provider enforces a strict `json_schema` response_format.
+   * Default: true. Where it takes JSON mode only (DeepSeek), an outputSchema
+   * goes as `response_format: json_object` and the schema rides in the
+   * system message instead; the engine validates the reply against it
+   * (lib/runtime/native/agentLoop.ts saveOutput).
+   */
+  protected takesStrictJsonSchema(_model: string): boolean {
+    return true;
+  }
+
   /** A precondition the call cannot be made without (e.g. no API key), or undefined when ready. */
   protected missingRequirement(): ChatFailure | undefined {
     return undefined;
@@ -782,7 +809,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       ...this.reasoningFields(model, request.reasoning),
       ...(tools.length > 0 ? { tools } : {}),
       ...(tools.length > 0 ? this.#toolChoice(choice, model, request.reasoning) : {}),
-      ...this.#responseFormat(request),
+      ...this.#responseFormat(request, model),
       ...this.extraBodyFields(request),
     };
     this.#nativeTools(request.nativeTools ?? [], body, model);
@@ -812,7 +839,8 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
    * `outputFormat: 'json'` without a schema is JSON mode (ADR 0061); each
    * of Ollama, Kimi and the gateway takes it.
    */
-  #responseFormat(request: ModelRequest): Record<string, unknown> {
+  #responseFormat(request: ModelRequest, model: string): Record<string, unknown> {
+    if (request.outputSchema && !this.takesStrictJsonSchema(model)) return { response_format: { type: 'json_object' } };
     if (request.outputSchema) {
       return { response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: toStrictJsonSchema(request.outputSchema) } } };
     }
@@ -853,7 +881,12 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     // span providers ask for it on. Earlier turns' state is left out: the
     // stored history is not what the model saw (tool payloads are elided
     // before storage), and replaying it bills it again as input (ADR 0046).
-    const turnStart = this.replaysReasoningContent(model) ? currentTurnStart(request.messages) : Infinity;
+    // An adapter whose provider wants it on every past assistant message of
+    // a tool request (DeepSeek) replays from the first, and fills the field.
+    const everyTurn = this.replaysReasoningContent(model) && this.replaysReasoningOnEveryTurn(model) && this.toolsFor(request).length > 0;
+    const turnStart = everyTurn ? -1 : this.replaysReasoningContent(model) ? currentTurnStart(request.messages) : Infinity;
+    // JSON mode only: the schema the provider cannot hold the reply to is asked for in the system message.
+    if (request.outputSchema && !this.takesStrictJsonSchema(model)) system.push(schemaInstruction(request.outputSchema));
 
     request.messages.forEach((message, index) => {
       switch (message.role) {
@@ -912,7 +945,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
             messages.push({
               role: 'assistant',
               content: text || null,
-              ...(reasoning.length > 0 ? { reasoning_content: reasoning.join('') } : {}),
+              ...(reasoning.length > 0 ? { reasoning_content: reasoning.join('') } : everyTurn ? { reasoning_content: '' } : {}),
               ...(calls.length > 0 ? { tool_calls: calls } : {}),
             });
           }
@@ -933,6 +966,11 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     this.#warned.add(key);
     console.warn(message);
   }
+}
+
+/** The system line asking for the schema where the provider takes JSON mode only (takesStrictJsonSchema). */
+export function schemaInstruction(schema: unknown): string {
+  return `Reply with one JSON object, and nothing else, that matches this JSON Schema:\n${JSON.stringify(schema)}`;
 }
 
 /** A tool declaration as a function tool: the schema as written, or its strict form with `strict: true`. */

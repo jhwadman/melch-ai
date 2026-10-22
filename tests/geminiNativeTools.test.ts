@@ -342,10 +342,10 @@ async function geminiBodies(file: string, memory?: ReturnType<typeof memoryOf>):
   return bodies;
 }
 
-test('model zoo: the Zookeeper declares its six explainers, and the gemini explainer sends no tools', async () => {
+test('model zoo: the Zookeeper declares its seven explainers, and the gemini explainer sends no tools', async () => {
   const bodies = await geminiBodies('model_zoo.yaml');
   assert.deepEqual([...bodies.keys()], ['Zookeeper', 'gemini']);
-  assert.deepEqual(declaredNames(bodies.get('Zookeeper')), ['qwen_local', 'claude', 'grok', 'gpt', 'gemini', 'kimi']);
+  assert.deepEqual(declaredNames(bodies.get('Zookeeper')), ['qwen_local', 'claude', 'grok', 'gpt', 'gemini', 'kimi', 'deepseek']);
   assert.deepEqual(geminiOwnTools(bodies.get('Zookeeper')), []);
   assert.equal(bodies.get('gemini').tools, undefined);
   assert.ok(systemOf(bodies.get('gemini')).includes('At most three paragraphs'), 'the shared explainer instruction');

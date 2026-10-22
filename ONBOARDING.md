@@ -9,7 +9,7 @@ In a clone, the commands are spelled as npm scripts (`npm run doctor`, `npm run 
 | # | You have | Guide |
 |---|---|---|
 | 1 | Nothing yet: run open-weight models locally (Ollama, no key) | `--level local` |
-| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI or Moonshot) | `--level one-provider` |
+| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot or DeepSeek) | `--level one-provider` |
 | 3 | API keys for several providers | `--level several-providers` |
 | 4 | One gateway key (Vercel AI Gateway or OpenRouter) | `--level gateway` |
 | 5 | Cloud platform credentials (Vertex AI, Amazon Bedrock, Azure OpenAI) | `--level cloud-platform` |
@@ -62,6 +62,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 | `OPENAI_API_KEY` | an API key from https://platform.openai.com/api-keys | OpenAI GPT: model ids gpt-*, o<digit>* |
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
+| `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
 
 **Confirm:** `npx melchizedek-doctor`: the providers line shows a ✓ beside your provider, and the files of that tier read `ready`.
 
@@ -72,6 +73,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 - OPENAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - MOONSHOT_API_KEY: no shipped file yet (change a `model:` line to use one)
+- DEEPSEEK_API_KEY: no shipped file yet (change a `model:` line to use one)
 - with no key at all: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
@@ -101,6 +103,7 @@ Each key funds its own provider, and a syndicate may mix them: one agent on Clau
 | `OPENAI_API_KEY` | an API key from https://platform.openai.com/api-keys | OpenAI GPT: model ids gpt-*, o<digit>* |
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
+| `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
 
 **Confirm:** `npx melchizedek-doctor`: a ✓ beside each provider you set; `multi-provider` files read `ready` once every provider they use has its key.
 

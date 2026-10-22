@@ -100,6 +100,7 @@ test('each model has an effort ceiling, and a word above it is held there and re
     ['claude-opus-5-5', 'max'],
     ['claude-sonnet-4-6', 'max'], // the Claude adapter holds its budget generations itself
     ['kimi-k3', 'max'],
+    ['deepseek-flash', 'max'],
     ['gpt-5.4', 'xhigh'],
     ['gpt-5.2', 'xhigh'],
     ['gpt-6', 'xhigh'],
@@ -120,6 +121,8 @@ test('each model has an effort ceiling, and a word above it is held there and re
   assert.deepEqual(word('kimi-k3', 'xhigh'), { word: 'max' }, 'K3 has no xhigh: it rounds up, which is not a weakening');
   assert.deepEqual(word('kimi-k3', 'max'), { word: 'max' });
   assert.deepEqual(word('kimi-k3', 'medium'), { word: 'high' });
+  assert.deepEqual(word('deepseek-v4-pro', 'xhigh'), { word: 'max' }, 'DeepSeek has low | high | max: xhigh rounds up');
+  assert.deepEqual(word('deepseek-v4-pro', 'medium'), { word: 'high' });
   assert.deepEqual(word('claude-opus-5-5', 'max', 'high'), { word: 'high', weakened: 'max' }, 'the gateway holds every id at high');
   assert.deepEqual(word('gpt-5', 'none'), { word: 'minimal' }, 'the levels up to high are unchanged');
 });
@@ -167,6 +170,9 @@ test('reasoning: xhigh and max on the wire of every provider', async () => {
     ['grok-4.5', 'max', 'high'],
     ['kimi-k3', 'max', 'max'],
     ['kimi-k3', 'xhigh', 'max'],
+    ['deepseek-flash', 'max', 'max'],
+    ['deepseek-flash', 'xhigh', 'max'],
+    ['deepseek-flash', 'max', 'high', 'gateway'],
     ['ollama/qwen3:8b', 'max', 'high'],
     ['claude-sonnet-4-6', 'max', 'high', 'gateway'],
     ['kimi-k3', 'max', 'high', 'gateway'],

@@ -36,6 +36,7 @@ import {
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
+import { DeepSeekAdapter } from '../lib/models/deepseekAdapter.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { splitThinkBlocks, ThinkStreamSplitter } from '../lib/models/chatCompletionsAdapter.ts';
 import { subagentTool } from '../lib/runtime/native/delegate.ts';
@@ -123,6 +124,8 @@ test('providerForModel maps every prefix to its provider', () => {
   assert.equal(providerForModel('grok-4-1-fast-reasoning'), 'xai');
   assert.equal(providerForModel('kimi-k3'), 'moonshot');
   assert.equal(providerForModel('kimi-k2.7-code-highspeed'), 'moonshot');
+  assert.equal(providerForModel('deepseek-flash'), 'deepseek');
+  assert.equal(providerForModel('deepseek-v4-pro'), 'deepseek');
   assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
   assert.equal(providerForModel('gemini-3.5-flash-lite'), 'gemini');
   assert.equal(providerForModel('something-unknown'), 'gemini'); // the default provider
@@ -134,6 +137,8 @@ test('resolveModel returns the right adapter instance; model id wins over header
   assert.ok(resolveModel('grok-4-1-fast-reasoning') instanceof GrokAdapter);
   assert.equal(resolveModel('gpt-5-mini').constructor, GptAdapter);
   assert.ok(resolveModel('kimi-k3') instanceof KimiAdapter);
+  assert.ok(resolveModel('deepseek-flash') instanceof DeepSeekAdapter);
+  assert.ok(resolveModel(undefined, { defaultProvider: 'deepseek' }) instanceof DeepSeekAdapter, 'the X-Provider default is deepseek-flash');
 });
 
 test('resolveModel uses the deprecated provider header only when model is absent', () => {
@@ -148,10 +153,11 @@ test('providerStatuses reflects env keys; ollama is always available', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.XAI_API_KEY;
     delete process.env.MOONSHOT_API_KEY;
+    delete process.env.DEEPSEEK_API_KEY;
     delete process.env.GOOGLE_GENAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     const off = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.available]));
-    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, moonshot: false, ollama: true });
+    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, moonshot: false, deepseek: false, ollama: true });
 
     process.env.XAI_API_KEY = 'test-key';
     assert.equal(providerKeyPresent('xai'), true);
@@ -293,6 +299,184 @@ test('KimiAdapter: without a key the call ends before any request', async () => 
     assert.equal(finalOf(responses).error?.code, 'MOONSHOT_MISSING_KEY');
   } finally {
     if (saved !== undefined) process.env.MOONSHOT_API_KEY = saved;
+  }
+});
+
+// ── DeepSeek: the thinking switch, JSON mode, reasoning_content on every turn ─
+
+const DEEPSEEK_FIXTURE_KEY = 'fixture-deepseek-0123456789abcdef'; // gitleaks:allow (test fixture)
+
+/**
+ * Every request DeepSeekAdapter posts for one call, and the call's responses,
+ * from a stubbed fetch answering `reply` (default: an answer with reasoning_content).
+ */
+async function deepseekExchange(
+  model: string,
+  fields: Partial<ModelRequest> = {},
+  reply: () => Response = () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: 'An answer.', reasoning_content: 'pondering' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 5, completion_tokens: 7, total_tokens: 12, completion_tokens_details: { reasoning_tokens: 3 } },
+      }),
+      { status: 200 },
+    ),
+): Promise<{ url: string; body: any; responses: ModelResponse[] }> {
+  const originalFetch = globalThis.fetch;
+  const saved = { key: process.env.DEEPSEEK_API_KEY, base: process.env.DEEPSEEK_BASE_URL };
+  process.env.DEEPSEEK_API_KEY = DEEPSEEK_FIXTURE_KEY;
+  delete process.env.DEEPSEEK_BASE_URL;
+  let url = '';
+  let body: any;
+  globalThis.fetch = (async (u: any, init: any) => {
+    url = String(u);
+    body = JSON.parse(init.body);
+    return reply();
+  }) as any;
+  try {
+    const responses = await run(new DeepSeekAdapter({ model }), makeRequest({ model, ...fields }));
+    return { url, body, responses };
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (saved.key === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = saved.key;
+    if (saved.base !== undefined) process.env.DEEPSEEK_BASE_URL = saved.base;
+  }
+}
+
+const deepseekBody = async (model: string, fields: Partial<ModelRequest> = {}) => (await deepseekExchange(model, fields)).body;
+
+test('DeepSeekAdapter: posts to api.deepseek.com, surfaces reasoning_content as thinking, and reads the usage', async () => {
+  const { url, body, responses } = await deepseekExchange('deepseek-flash');
+  assert.equal(url, 'https://api.deepseek.com/chat/completions');
+  assert.equal(body.model, 'deepseek-flash');
+  const final = finalOf(responses);
+  assert.equal(textOf(final), 'An answer.');
+  assert.equal(final.usage?.thinkingTokens, 3);
+  assert.deepEqual(thinkingOf(responses), ['pondering']);
+  assert.equal((final.parts[0] as any).providerState?.provider, 'deepseek', 'the reasoning_content is kept as providerState');
+  assert.equal((final.parts[0] as any).providerState?.payload, 'pondering');
+});
+
+test('DeepSeekAdapter: no reasoning sends the vendor default; none switches thinking off; a level goes with thinking enabled in DeepSeek\'s word', async () => {
+  const plain = await deepseekBody('deepseek-flash');
+  assert.ok(!('thinking' in plain) && !('reasoning_effort' in plain), 'DeepSeek thinks at high by default: nothing is pinned');
+  const off = await deepseekBody('deepseek-flash', { reasoning: 'none' });
+  assert.deepEqual(off.thinking, { type: 'disabled' });
+  assert.ok(!('reasoning_effort' in off));
+  assert.deepEqual((await deepseekBody('deepseek-v4-pro', { reasoning: { budget_tokens: 0 } })).thinking, { type: 'disabled' });
+  for (const [level, word] of [['low', 'low'], ['medium', 'high'], ['high', 'high'], ['xhigh', 'max'], ['max', 'max']] as const) {
+    const body = await deepseekBody('deepseek-v4-pro', { reasoning: level });
+    assert.deepEqual(body.thinking, { type: 'enabled' }, level);
+    assert.equal(body.reasoning_effort, word, `${level} goes as ${word}`);
+  }
+  assert.equal((await deepseekBody('deepseek-flash', { reasoning: { budget_tokens: 5000 } })).reasoning_effort, 'high', 'a budget as the level that covers it');
+});
+
+test('DeepSeekAdapter: an output schema goes as JSON mode with the schema in the system message, never a strict json_schema', async () => {
+  const schema = { type: 'object', properties: { verdict: { type: 'string' } }, required: ['verdict'] };
+  const body = await deepseekBody('deepseek-flash', { system: 'You grade.', outputSchema: schema });
+  assert.deepEqual(body.response_format, { type: 'json_object' });
+  assert.equal(body.messages[0].role, 'system');
+  assert.ok(body.messages[0].content.startsWith('You grade.'));
+  assert.ok(body.messages[0].content.includes(JSON.stringify(schema)), 'the schema is asked for in the system message');
+  assert.match(body.messages[0].content, /JSON/, 'JSON mode wants the word json in the prompt');
+  const json = await deepseekBody('deepseek-flash', { outputFormat: 'json' });
+  assert.deepEqual(json.response_format, { type: 'json_object' });
+});
+
+/** A two-turn history: an earlier turn (one reply with stored state, one with another model's), then this turn's tool loop. */
+function deepseekHistory(model: string): ModelRequest['messages'] {
+  const state = (payload: string, m = model) => ({ provider: 'deepseek', kind: 'reasoning_content', model: m, payload });
+  return [
+    { role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+    { role: 'assistant', parts: [{ type: 'text', text: 'hello', providerState: state('greet back') }] },
+    { role: 'user', parts: [{ type: 'text', text: 'and?' }] },
+    { role: 'assistant', parts: [{ type: 'text', text: 'ask away', providerState: state('other model', 'deepseek-other') }] },
+    { role: 'user', parts: [{ type: 'text', text: 'look it up' }] },
+    { role: 'assistant', parts: [{ type: 'toolCall', id: 'call_1', name: 'lookup', args: { q: 'x' }, providerState: state('ask the tool') }] },
+    { role: 'tool', parts: [{ type: 'toolResult', id: 'call_1', name: 'lookup', result: { result: 'found' } }] },
+  ] as ModelRequest['messages'];
+}
+
+const LOOKUP_TOOL = { name: 'lookup', description: 'Looks things up', parameters: { type: 'object', properties: { q: { type: 'string' } } } };
+
+test('DeepSeekAdapter: with tools, every past assistant message carries reasoning_content, earlier turns included, "" where none of its own is stored', async () => {
+  const body = await deepseekBody('deepseek-flash', { messages: deepseekHistory('deepseek-flash'), tools: [LOOKUP_TOOL] });
+  assert.ok(body.tools?.length === 1);
+  const assistants = body.messages.filter((m: any) => m.role === 'assistant');
+  assert.deepEqual(
+    assistants.map((m: any) => m.reasoning_content),
+    ['greet back', '', 'ask the tool'],
+    "an earlier turn's own state goes back; another model's is not replayed but the field is still sent",
+  );
+  assert.equal(assistants[2].tool_calls[0].id, 'call_1');
+});
+
+test('DeepSeekAdapter: without tools, only the current turn\'s reasoning_content goes back (DeepSeek ignores it there)', async () => {
+  const body = await deepseekBody('deepseek-flash', { messages: deepseekHistory('deepseek-flash') });
+  assert.ok(!('tools' in body));
+  const assistants = body.messages.filter((m: any) => m.role === 'assistant');
+  assert.deepEqual(assistants.map((m: any) => m.reasoning_content), [undefined, undefined, 'ask the tool']);
+});
+
+test('DeepSeekAdapter: a tool-call response keeps its reasoning_content for the next step', async () => {
+  const { responses } = await deepseekExchange('deepseek-flash', { tools: [LOOKUP_TOOL] }, () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: { content: null, reasoning_content: 'I need the tool.', tool_calls: [{ id: 'call_9', type: 'function', function: { name: 'lookup', arguments: '{"q":"x"}' } }] },
+            finish_reason: 'tool_calls',
+          },
+        ],
+        usage: { prompt_tokens: 5, completion_tokens: 7, total_tokens: 12 },
+      }),
+      { status: 200 },
+    ),
+  );
+  const call = finalOf(responses).parts.find((p) => p.type === 'toolCall') as any;
+  assert.equal(call?.id, 'call_9');
+  assert.deepEqual(call.providerState, { provider: 'deepseek', kind: 'reasoning_content', model: 'deepseek-flash', payload: 'I need the tool.' });
+});
+
+test('DeepSeekAdapter: web_search is dropped (no request field), tool choice is weakened to auto', async () => {
+  const body = await deepseekBody('deepseek-flash', { tools: [LOOKUP_TOOL], nativeTools: ['web_search'], toolChoice: 'required' });
+  assert.ok(!/web_search/.test(JSON.stringify(body)));
+  assert.ok(!('tool_choice' in body), 'required is weakened to auto: unverified in thinking mode');
+});
+
+test('DeepSeekAdapter: no key ends the call before any request; a 404 names the current ids; DEEPSEEK_BASE_URL is honoured', async () => {
+  const saved = { key: process.env.DEEPSEEK_API_KEY, base: process.env.DEEPSEEK_BASE_URL };
+  delete process.env.DEEPSEEK_API_KEY;
+  try {
+    const responses = await run(new DeepSeekAdapter({ model: 'deepseek-flash' }), makeRequest({ model: 'deepseek-flash' }));
+    assert.equal(finalOf(responses).error?.code, 'DEEPSEEK_MISSING_KEY');
+  } finally {
+    if (saved.key !== undefined) process.env.DEEPSEEK_API_KEY = saved.key;
+  }
+  const { responses } = await deepseekExchange('deepseek-chat', {}, () => new Response('{"error":{"message":"Model Not Exist"}}', { status: 404 }));
+  const error = finalOf(responses).error;
+  assert.equal(error?.code, 'DEEPSEEK_HTTP_ERROR');
+  assert.match(error?.message ?? '', /deepseek-flash and deepseek-v4-pro/);
+  assert.match(error?.message ?? '', /deepseek-chat and deepseek-reasoner were retired/);
+  const originalFetch = globalThis.fetch;
+  let url = '';
+  process.env.DEEPSEEK_API_KEY = DEEPSEEK_FIXTURE_KEY;
+  process.env.DEEPSEEK_BASE_URL = 'https://deepseek-proxy.internal/';
+  globalThis.fetch = (async (u: any) => {
+    url = String(u);
+    return new Response('{}', { status: 400 });
+  }) as any;
+  try {
+    await run(new DeepSeekAdapter({ model: 'deepseek-flash' }), makeRequest({ model: 'deepseek-flash' }));
+    assert.equal(url, 'https://deepseek-proxy.internal/chat/completions');
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (saved.key === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = saved.key;
+    if (saved.base === undefined) delete process.env.DEEPSEEK_BASE_URL;
+    else process.env.DEEPSEEK_BASE_URL = saved.base;
   }
 });
 

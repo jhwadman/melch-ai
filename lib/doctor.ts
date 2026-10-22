@@ -401,6 +401,7 @@ export const CONSOLE_URLS: Record<ProviderId, string> = {
   openai: 'https://platform.openai.com/api-keys',
   xai: 'https://console.x.ai',
   moonshot: 'https://platform.moonshot.ai',
+  deepseek: 'https://platform.deepseek.com/api_keys',
   ollama: 'https://ollama.com',
 };
 
@@ -856,6 +857,7 @@ const PROBE_ID: Record<ProviderId, string> = {
   openai: 'gpt-x',
   xai: 'grok-x',
   moonshot: 'kimi-x',
+  deepseek: 'deepseek-x',
   ollama: 'ollama/x',
 };
 

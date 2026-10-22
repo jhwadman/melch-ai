@@ -169,6 +169,10 @@ test('cost: the pricing functions, the prefix row, the shipped seed, and a value
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('ollama/qwen3:8b', 1000000, 1000000, 0) AS v`)), 0, 'ollama/* prices every local model at zero');
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('claude-opus-5', 1000000, 1000000, 1000000) AS v`)), 55);
   assert.equal(await one(`SELECT melchizedek_cost_usd('no-such-model', 10, 10, 0) AS v`), null);
+  // 0019: DeepSeek at its peak rate (double the off-peak list), Kimi from the adapter's family table.
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('deepseek-flash', 1000000, 1000000, 0) AS v`)), 1.5);
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('deepseek-v4-pro', 1000000, 0, 0, 1000000, 0) AS v`)), 0.044, 'every input token a cache hit');
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('kimi-k3', 1000000, 1000000, 0) AS v`)), 18);
   assert.equal(Number(await one(`SELECT melchizedek_usage_cost('{}'::jsonb) AS v`)), 0, 'no model call costs nothing');
   assert.equal(await one(`SELECT melchizedek_usage_cost(NULL) AS v`), null);
   assert.equal(await one(`SELECT melchizedek_usage_cost('[1]'::jsonb) AS v`), null);

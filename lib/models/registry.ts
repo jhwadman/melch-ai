@@ -32,6 +32,7 @@ import {
   DEFAULT_GPT_MODEL,
   DEFAULT_GROK_MODEL,
   DEFAULT_KIMI_MODEL,
+  DEFAULT_DEEPSEEK_MODEL,
   DEFAULT_OLLAMA_MODEL,
 } from '../config.ts';
 import type { ModelAdapter } from './contract.ts';
@@ -150,6 +151,8 @@ function modelHint(provider: ProviderId): string {
       return 'grok-*';
     case 'moonshot':
       return 'kimi-*';
+    case 'deepseek':
+      return 'deepseek-*';
     case 'ollama':
       return 'ollama/*';
     case 'gemini':
@@ -182,6 +185,7 @@ const DEFAULT_MODEL_FOR: Record<ProviderId, string> = {
   openai: DEFAULT_GPT_MODEL,
   xai: DEFAULT_GROK_MODEL,
   moonshot: DEFAULT_KIMI_MODEL,
+  deepseek: DEFAULT_DEEPSEEK_MODEL,
   ollama: DEFAULT_OLLAMA_MODEL,
 };
 

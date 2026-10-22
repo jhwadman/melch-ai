@@ -11,7 +11,7 @@
  * compiler nor the runtime (ADR 0068).
  *
  * The id's prefix picks the provider (gemini-*, claude-*, gpt-*, grok-*,
- * kimi-*, ollama/*), and the provider's key comes from the environment, or
+ * kimi-*, deepseek-*, ollama/*), and the provider's key comes from the environment, or
  * MODEL_GATEWAY when the key is absent. The adapter opens no span and
  * charges nothing (ADR 0053): this is the bare call. A turn with tools,
  * sessions and telemetry is runSyndicateTurn (scripts/syndicate_chat.ts).

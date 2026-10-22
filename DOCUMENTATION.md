@@ -140,10 +140,10 @@ Field reference:
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
 | `run_code` | agent | With `run_code` in `tools`, the agent runs JavaScript in the engine's sandbox on any provider (`{ code, input? }` → `{ result, logs, error }`; no network, host, clock or randomness; needs `MELCHIZEDEK_CODE_SANDBOX=on`, [ADR 0137](./wiki/decisions/0137-script-orchestration-and-sandboxed-code.md)). `run_code: { attach: true }` puts each run's code and result on the reply as a `code_run` data part (`result.codeRuns`). |
-| `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, `xhigh`, `max`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). `xhigh` and `max` reach the models that take them (both on Claude from Opus 4.7 and Sonnet 5, `max` on Kimi K3, `xhigh` on GPT-5.2 and later and grok-4.7); elsewhere the model's highest setting is sent and the span carries `llm.reasoning.weakened` (`npm run doctor -- --matrix` lists each path, [ADR 0117](./wiki/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)). Unset, each adapter keeps its own default. |
+| `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, `xhigh`, `max`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, DeepSeek (beside its thinking switch), Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). `xhigh` and `max` reach the models that take them (both on Claude from Opus 4.7 and Sonnet 5, `max` on Kimi K3, `xhigh` on GPT-5.2 and later and grok-4.7); elsewhere the model's highest setting is sent and the span carries `llm.reasoning.weakened` (`npm run doctor -- --matrix` lists each path, [ADR 0117](./wiki/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)). Unset, each adapter keeps its own default. |
 | `sampling` | agent | `{ temperature, top_p, max_output_tokens, stop }`, the fields the engine sends to every provider; each adapter sends the ones its API takes ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
 | `output` | agent | `{ schema, mime }`. `mime` is `application/json` (JSON mode, with or without a schema) or `text/plain` (the default). `schema` is the structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). Worked example: `examples/structured_critic.yaml`. A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
-| `model_overrides` | agent | A prompt nuance for one provider: keyed by `gemini`, `anthropic`, `openai`, `xai`, `moonshot` or `ollama`, each entry holds `instruction` (replaces the agent's instruction on that provider) or `instruction_append` (added after a blank line). The entry for the provider of the agent's `model` applies, before the skills index is appended; a `fallback_model` gets the primary's instruction. |
+| `model_overrides` | agent | A prompt nuance for one provider: keyed by `gemini`, `anthropic`, `openai`, `xai`, `moonshot`, `deepseek` or `ollama`, each entry holds `instruction` (replaces the agent's instruction on that provider) or `instruction_append` (added after a blank line). The entry for the provider of the agent's `model` applies, before the skills index is appended; a `fallback_model` gets the primary's instruction. |
 | `tool_choice` | agent | Which tools the model may call: `auto` (the default), `none`, `required` (some tool), or `{ name: <tool> }` (that tool). A provider that rejects forcing sends a weaker choice and marks the span `llm.tool_choice.weakened` ([ADR 0117](./wiki/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)). |
 | `generateContentConfig` / `outputSchema` | agent | The deprecated v1 spelling of `sampling`, `output.mime`, `reasoning` (as `thinkingConfig` / `reasoningEffort`), `tool_choice` (as `toolConfig.functionCallingConfig`) and `output.schema`. Both still load and behave the same; a load that finds either prints one deprecation line per file per process (`LoadSyndicateOptions.onWarning`, default `console.warn`), and a v2 key beside its v1 spelling on one agent is a load error. Only `toolConfig.functionCallingConfig.mode: VALIDATED` and Gemini's dynamic budget (`thinkingBudget: -1`) have no v2 form; `topK`, `seed`, the penalties, `candidateCount`, `safetySettings` and `includeThoughts` reach no provider, and the codemod drops `includeThoughts`. `npx melchizedek-codemod [--check] <file|dir>` rewrites a v1 file to v2, comments kept ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
@@ -291,7 +291,7 @@ in `examples/specs/`.
 > dialect; every non-Gemini adapter normalizes them back to
 > standard lowercase JSON-Schema at request-build time
 > (`lib/models/schemaNormalize.ts`). MCP tools therefore work on any
-> provider's agents — Gemini, Claude, GPT, Grok, or Kimi.
+> provider's agents — Gemini, Claude, GPT, Grok, Kimi, or DeepSeek.
 
 ## 4. Sessions & long-term memory
 
@@ -412,6 +412,7 @@ accordingly — model optionality is a single YAML line per agent:
 | `gpt-*`, o-series | OpenAI | `lib/models/gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
 | `grok-*` | xAI | `lib/models/grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
 | `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiAdapter.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
+| `deepseek-*` | DeepSeek | `lib/models/deepseekAdapter.ts` (chat completions) | `DEEPSEEK_API_KEY` | ⚠ omitted + warning |
 | `ollama/*` | Local Ollama | `lib/models/ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
 | *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
 
@@ -462,6 +463,40 @@ Vercel AI Gateway; with no direct key, `MODEL_GATEWAY` maps it to
 the request body the adapter sends; one plain turn was verified live on
 2026-10-03 (`npm run demo:models`, kimi-k3 at low effort, 17.9 s), tool
 loops and search were not.
+
+**DeepSeek.** `deepseek-*` ids route to `DeepSeekAdapter`
+(`lib/models/deepseekAdapter.ts`, on the chat-completions base), against
+`https://api.deepseek.com` (`DEEPSEEK_BASE_URL` for a proxy). Get a key at
+platform.deepseek.com/api_keys. The family (USD per 1M tokens, off-peak,
+checked 2026-10-22; peak, 01:00–04:00 and 06:00–10:00 UTC on weekdays, is
+exactly double): `deepseek-flash` (DeepSeek-V4.1-Flash, the default), 1M
+context, 384K output, vision, $0.15 in / $0.003 cache hit / $0.60 out;
+`deepseek-v4-pro` (DeepSeek-V4-Pro), the same window, text only, $0.66 /
+$0.022 / $1.98. The retired `deepseek-v4-flash` and
+`deepseek-v4-flash-vision-exp` are still accepted (served by V4.1-Flash, at
+Flash's price); `deepseek-chat` and `deepseek-reasoner` were retired after
+2026-07-24, and a 404 names the current ids. The price rows (migration
+0019) hold the peak rates, so a budget never underestimates a call. What
+works: tool calling and delegation, SSE streaming, images as base64 on
+`deepseek-flash`, MCP tools, `reasoning_content` surfaced as THINKING, and
+thinking across a tool loop: DeepSeek returns 400 on a request with tools
+unless every earlier assistant message carries its `reasoning_content`, so
+the adapter sends it on all of them, earlier turns included (the same
+model's stored state, an empty string where none is stored). Reasoning:
+both models think by default at effort `high`, and nothing is pinned;
+`reasoning: none` sends `thinking: { type: "disabled" }`, any other level
+`thinking: enabled` with `reasoning_effort` `low` | `high` | `max`
+(`medium` as `high`, `xhigh` rounded up to `max`). Temperature and the
+penalties are ignored while it thinks. What does not: a strict schema
+(DeepSeek has JSON mode, so an `output.schema` goes as `json_object` with
+the schema asked for in the system message, and the engine validates the
+reply; beside tools it is `set_model_response`), forced `tool_choice`
+(weakened to auto: unverified in thinking mode), and native `web_search`
+(DeepSeek's Search and Fetch are separate REST APIs; dropped with a
+warning, `web_extract` works). Through `MODEL_GATEWAY` the ids go as
+`deepseek/<id>`, and the gateway carries no reasoning state. The row in the
+capability matrix is asserted against the request body the adapter sends;
+it has not been run live.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,
@@ -550,7 +585,7 @@ line each. `config/agents/examples/claude.yaml` is the minimal Claude example;
 provider, and `npm run demo:models` proves the whole surface: one
 prompt to every available provider, printing input, thinking (qwen3
 `<think>` blocks, Claude extended thinking, GPT reasoning summaries,
-Grok reasoning, Kimi reasoning_content), output, and a per-request token/latency trace; add
+Grok reasoning, Kimi and DeepSeek reasoning_content), output, and a per-request token/latency trace; add
 `-- --search` to watch four native web searches plus the local
 omission. Providers without keys are skipped, never fatal. Each agent
 runs as a one-agent syndicate through `runSyndicateTurn`.
@@ -590,7 +625,7 @@ in a `FallbackAdapter`.
 
 `melchizedek-agents/model` is the model layer on its own (ADR 0068): the
 contract's types,
-`ClaudeAdapter`, `GptAdapter`, `GrokAdapter`, `KimiAdapter`,
+`ClaudeAdapter`, `GptAdapter`, `GrokAdapter`, `KimiAdapter`, `DeepSeekAdapter`,
 `OllamaAdapter`, `GatewayAdapter`, `GeminiAdapter`, the
 `ChatCompletionsAdapter` base, `resolveAdapter`,
 `resolveAdapterWithFallback`, `FallbackAdapter` and the circuit breaker's
@@ -662,7 +697,8 @@ Prompt-cache tokens are parts of the input: each `llm.request` records
 calls), and `syndicate.usage` carries `cache_read` / `cache_write` per
 model. `model_pricing.cache_read_per_mtok` / `cache_write_per_mtok` price
 them (migration 0017; NULL prices them as input), seeded for Anthropic and
-OpenAI from their price lists (ADR 0139).
+OpenAI from their price lists (ADR 0139). Migration 0019 adds DeepSeek (at
+its peak rate) and Moonshot Kimi rows.
 Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
@@ -1644,7 +1680,7 @@ the canonical minimal block on the engine's model contract:
 `resolveAdapter(modelId)` from `melchizedek-agents/model`, then
 `adapter.generate({ model, system, messages, stream })`, reading partial
 and final responses. The id's prefix picks the provider (`gemini-*`,
-`claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `ollama/*`), the key comes from
+`claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `deepseek-*`, `ollama/*`), the key comes from
 the environment. A turn
 with tools, sessions and telemetry is `runSyndicateTurn`.
 

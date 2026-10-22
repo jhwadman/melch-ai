@@ -88,6 +88,18 @@ export const DEFAULT_KIMI_MODEL = 'kimi-k3';
 export const DEFAULT_KIMI_REASONING_EFFORT = 'high';
 
 /**
+ * Default DeepSeek model used when a deepseek-* model is requested but no
+ * specific identifier is provided. Requires DEEPSEEK_API_KEY
+ * (lib/models/deepseekAdapter.ts). deepseek-flash (DeepSeek-V4.1-Flash) is
+ * the cheap tier with vision, at $0.15 / $0.60 per 1M off-peak;
+ * deepseek-v4-pro is the deeper, text-only tier at about four times that
+ * (the family table and peak pricing are in the adapter's header).
+ * No reasoning effort is pinned: DeepSeek's own default is `high`, the
+ * middle of its three levels (low | high | max), not its slowest.
+ */
+export const DEFAULT_DEEPSEEK_MODEL = 'deepseek-flash';
+
+/**
  * Model calls one turn may make, subagents included, when the syndicate sets
  * no `max_steps`. A runaway tool loop stops here instead of at the provider's
  * bill. Every shipped example that sets a cap sets 12 to 30; a syndicate that

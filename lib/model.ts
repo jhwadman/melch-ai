@@ -36,6 +36,8 @@ export { ChatCompletionsAdapter } from './models/chatCompletionsAdapter.ts';
 export type { ChatCompletionsAdapterOptions } from './models/chatCompletionsAdapter.ts';
 export { KimiAdapter } from './models/kimiAdapter.ts';
 export type { KimiAdapterOptions } from './models/kimiAdapter.ts';
+export { DeepSeekAdapter } from './models/deepseekAdapter.ts';
+export type { DeepSeekAdapterOptions } from './models/deepseekAdapter.ts';
 export { OllamaAdapter } from './models/ollamaAdapter.ts';
 export type { OllamaAdapterOptions } from './models/ollamaAdapter.ts';
 export { GatewayAdapter } from './models/gatewayAdapter.ts';

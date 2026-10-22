@@ -29,6 +29,7 @@ const ENV_KEYS = [
   'OPENAI_API_KEY',
   'XAI_API_KEY',
   'MOONSHOT_API_KEY',
+  'DEEPSEEK_API_KEY',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
 ];
@@ -56,6 +57,7 @@ test('the providers line names each provider\'s own key when it is unset', () =>
     const line = text.split('\n').find((l) => l.startsWith('providers'))!;
     assert.match(line, /Moonshot Kimi MOONSHOT_API_KEY not set/);
     assert.match(line, /xAI Grok XAI_API_KEY not set/);
+    assert.match(line, /DeepSeek DEEPSEEK_API_KEY not set/);
     assert.match(line, /Ollama \(local\) local/);
   });
 });

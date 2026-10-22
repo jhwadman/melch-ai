@@ -62,6 +62,7 @@ import {
   DEFAULT_GPT_MODEL,
   DEFAULT_GROK_MODEL,
   DEFAULT_KIMI_MODEL,
+  DEFAULT_DEEPSEEK_MODEL,
   DEFAULT_OLLAMA_MODEL,
 } from '../lib/config.ts';
 import { loadEnv } from '../lib/loadEnv.ts';
@@ -178,6 +179,7 @@ const DEFAULT_MODEL: Record<ProviderId, string> = {
   openai: DEFAULT_GPT_MODEL,
   xai: DEFAULT_GROK_MODEL,
   moonshot: DEFAULT_KIMI_MODEL,
+  deepseek: DEFAULT_DEEPSEEK_MODEL,
   ollama: DEFAULT_OLLAMA_MODEL,
 };
 
