@@ -4,6 +4,15 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**Price rows for `grok-4.3`, `gemini-embedding-001` and `gemini-3.5-flash`**
+(migration `0020_embedding_flash_grok_pricing`). Ledgers held calls of these
+models priced NULL for want of a row. `grok-4.3` is checked against xAI's
+list (its rate under 200k prompt tokens); the two Gemini rows come from
+sources other than Google's current page, which no longer lists them, so
+their `verified_at` is NULL. An existing row is never overwritten.
+
 ## 1.11.0 — 2026-10-22
 
 A minor release: DeepSeek joins the providers, and Kimi calls are priced.
