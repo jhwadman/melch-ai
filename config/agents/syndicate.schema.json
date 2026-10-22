@@ -419,6 +419,35 @@
                 }
               ]
             },
+            "deepseek": {
+              "type": "object",
+              "properties": {
+                "instruction": {
+                  "description": "Replaces the agent's instruction on this provider.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "instruction_append": {
+                  "description": "Appended to the agent's instruction, after a blank line, on this provider.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false,
+              "description": "The instruction on one provider: exactly one of instruction or instruction_append.",
+              "oneOf": [
+                {
+                  "required": [
+                    "instruction"
+                  ]
+                },
+                {
+                  "required": [
+                    "instruction_append"
+                  ]
+                }
+              ]
+            },
             "ollama": {
               "type": "object",
               "properties": {
@@ -1449,6 +1478,35 @@
                 ]
               },
               "moonshot": {
+                "type": "object",
+                "properties": {
+                  "instruction": {
+                    "description": "Replaces the agent's instruction on this provider.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "instruction_append": {
+                    "description": "Appended to the agent's instruction, after a blank line, on this provider.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The instruction on one provider: exactly one of instruction or instruction_append.",
+                "oneOf": [
+                  {
+                    "required": [
+                      "instruction"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "instruction_append"
+                    ]
+                  }
+                ]
+              },
+              "deepseek": {
                 "type": "object",
                 "properties": {
                   "instruction": {

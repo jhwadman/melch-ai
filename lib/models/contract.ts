@@ -326,9 +326,11 @@ type SetupErrorCode = 'MISSING_API_KEY' | 'ENDPOINT_MISCONFIGURED' | 'SDK_NOT_IN
 
 /** The chat-completions failures, under the provider's id (the gateway names the upstream provider). */
 type ChatErrorCode =
-  | `${'MOONSHOT' | 'OLLAMA' | 'GEMINI' | 'ANTHROPIC' | 'OPENAI' | 'XAI'}_${'MAX_TOKENS' | 'EMPTY_RESPONSE' | 'UNREACHABLE'}`
+  | `${'MOONSHOT' | 'DEEPSEEK' | 'OLLAMA' | 'GEMINI' | 'ANTHROPIC' | 'OPENAI' | 'XAI'}_${'MAX_TOKENS' | 'EMPTY_RESPONSE' | 'UNREACHABLE'}`
   | 'MOONSHOT_MISSING_KEY'
   | 'MOONSHOT_HTTP_ERROR'
+  | 'DEEPSEEK_MISSING_KEY'
+  | 'DEEPSEEK_HTTP_ERROR'
   | 'OLLAMA_HTTP_ERROR'
   | 'GATEWAY_NOT_CONFIGURED'
   | 'GATEWAY_KEY_MISSING'

@@ -266,6 +266,23 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
       "Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract)",
     ),
   },
+  deepseek: {
+    delegation: ok(),
+    memory_tools: ok(),
+    structured_output: degraded(
+      'JSON mode (response_format json_object), not a strict schema: the schema is asked for in the system message and the engine validates the reply',
+    ),
+    structured_output_with_tools: degraded(setModelResponseNote('DeepSeek takes JSON mode only, no strict schema')),
+    thinking_with_tools: ok(
+      'test',
+      "reasoning_content is sent back on every assistant message of a request with tools, earlier turns included, as DeepSeek requires (else a 400): the same model's stored state, an empty string where none is stored (ADR 0046); effort travels as reasoning_effort beside a thinking switch",
+    ),
+    streaming: ok(),
+    vision: ok('test', 'user-turn images only, sent as base64; deepseek-flash only (deepseek-v4-pro is text-only)'),
+    native_search: unsupported(
+      "DeepSeek's Search and Fetch are separate per-request REST APIs, not a chat request field; the web_search sentinel is dropped (use web_extract)",
+    ),
+  },
   ollama: {
     delegation: ok(),
     memory_tools: ok(),
@@ -318,6 +335,7 @@ export const REASONING_ABOVE_HIGH: Readonly<Record<MatrixRow, string>> = {
   openai: 'xhigh as asked on GPT-5.2 and later, and max goes as xhigh there, weakened; high, weakened, on the o-series, GPT-5 and GPT-5.1',
   xai: 'xhigh as asked on grok-4.7, and max goes as xhigh there, weakened; high, weakened, on grok-4.5 and grok-4.6',
   moonshot: 'max as asked on kimi-k3, and xhigh rounds up to max; the K2 generation takes a thinking switch, which these leave on',
+  deepseek: 'max as asked, and xhigh rounds up to max (DeepSeek has low | high | max), each beside thinking enabled',
   ollama: 'reasoning_effort high, weakened',
   gateway: 'reasoning_effort high, weakened, whatever the id: the words above high are not accepted across gateways',
 };

@@ -59,7 +59,8 @@ function reasoningEffort(model: string, level: ReasoningLevel): string {
     case 'xai':
       return level === 'none' ? 'low' : level; // Grok 4.5/4.7 cannot stop reasoning
     case 'moonshot':
-      // K3 has low | high | max: a missing word rounds up.
+    case 'deepseek':
+      // K3 and DeepSeek have low | high | max: a missing word rounds up.
       return level === 'medium' ? 'high' : level === 'xhigh' ? 'max' : level;
     default:
       return level;
@@ -70,7 +71,7 @@ function reasoningEffort(model: string, level: ReasoningLevel): string {
  * The highest level the direct adapter for `model` sends as asked (ADR
  * 0117); a level above it goes as this one. `max` where every level
  * passes: Claude's adaptive generations (the Claude adapter sends its budget
- * generations `high`'s budget) and Kimi K3. OpenAI's GPT-5.2 and later and
+ * generations `high`'s budget), Kimi K3 and DeepSeek. OpenAI's GPT-5.2 and later and
  * grok-4.7 stop at `xhigh`; other OpenAI and Grok ids, Gemini and Ollama at
  * `high`. A gateway stops at `high` whatever the id (gatewayAdapter.ts).
  */
@@ -78,6 +79,7 @@ export function effortCeiling(model: string): ReasoningLevel {
   switch (providerForModel(model)) {
     case 'anthropic':
     case 'moonshot':
+    case 'deepseek':
       return 'max';
     case 'openai':
       return openAiTakesXhigh(model) ? 'xhigh' : 'high';

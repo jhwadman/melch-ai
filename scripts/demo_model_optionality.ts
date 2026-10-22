@@ -11,10 +11,11 @@
  *   ollama/qwen3:8b → Ollama (local)      claude-* → Anthropic
  *   grok-*          → xAI                 gpt-*    → OpenAI
  *   gemini-*        → Google              kimi-*   → Moonshot
+ *   deepseek-*      → DeepSeek
  *
  * For each provider it prints: INPUT, THINKING (when the model exposes it —
  * qwen3's <think> blocks, Claude extended thinking, GPT reasoning summaries,
- * Grok reasoning summaries, Kimi's reasoning_content), OUTPUT, and a TRACE footer (wall time, input /
+ * Grok reasoning summaries, Kimi's and DeepSeek's reasoning_content), OUTPUT, and a TRACE footer (wall time, input /
  * output / thinking tokens) read from the same llm.request OpenTelemetry
  * spans every entrypoint emits. Providers whose key (or local server) is
  * absent are SKIPPED — never fatal, so the demo runs on any machine.
@@ -22,7 +23,7 @@
  * Flags:
  *   --search   also declare the provider-agnostic web_search tool on every
  *              agent: four providers enable their NATIVE search; the local
- *              model and Kimi log the omit warning (and local stays keyless).
+ *              model, Kimi and DeepSeek log the omit warning (and local stays keyless).
  *
  * Usage:
  *   npm run demo:models

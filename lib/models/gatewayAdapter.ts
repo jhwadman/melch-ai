@@ -12,7 +12,7 @@
  *
  * WHAT STAYS TRUE THROUGH THE GATEWAY:
  *   - Attribution. `provider` is the YAML id's provider (anthropic, openai,
- *     gemini, xai, moonshot), never "gateway", so the ledger and any
+ *     gemini, xai, moonshot, deepseek), never "gateway", so the ledger and any
  *     per-agent cost view keep the same provider column (ADR 0009). The
  *     transport is a separate span attribute: llm.transport = gateway:<id>.
  *   - Tool calling, structured output, reasoning (as `reasoning_effort`, the

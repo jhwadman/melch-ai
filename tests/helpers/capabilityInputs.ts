@@ -31,6 +31,7 @@ import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../../lib/models/gemini
 import { GptAdapter } from '../../lib/models/gptAdapter.ts';
 import { GrokAdapter } from '../../lib/models/grokAdapter.ts';
 import { KimiAdapter } from '../../lib/models/kimiAdapter.ts';
+import { DeepSeekAdapter } from '../../lib/models/deepseekAdapter.ts';
 import { OllamaAdapter } from '../../lib/models/ollamaAdapter.ts';
 import { GatewayAdapter } from '../../lib/models/gatewayAdapter.ts';
 import { contractToolDeclaration } from '../../lib/models/schemaNormalize.ts';
@@ -46,6 +47,7 @@ export const FAKE_ENV: Record<AdapterRow, Record<string, string>> = {
   openai: { OPENAI_API_KEY: 'fixture-openai-0123456789abcdef' }, // gitleaks:allow (test fixture)
   xai: { XAI_API_KEY: 'fixture-xai-0123456789abcdef' }, // gitleaks:allow (test fixture)
   moonshot: { MOONSHOT_API_KEY: 'fixture-moonshot-0123456789abcdef' }, // gitleaks:allow (test fixture)
+  deepseek: { DEEPSEEK_API_KEY: 'fixture-deepseek-0123456789abcdef' }, // gitleaks:allow (test fixture)
   ollama: {},
   gateway: { MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef' }, // gitleaks:allow (test fixture)
 };
@@ -60,6 +62,7 @@ const ALL_ENV = [
   'OPENAI_PLATFORM',
   'OPENAI_BASE_URL',
   'MOONSHOT_BASE_URL',
+  'DEEPSEEK_BASE_URL',
   'OLLAMA_BASE_URL',
   'GOOGLE_GENAI_API_KEY',
   'GEMINI_API_KEY',
@@ -77,6 +80,7 @@ export const MODEL: Record<AdapterRow, string> = {
   openai: 'gpt-5-mini',
   xai: 'grok-4.5',
   moonshot: 'kimi-k3',
+  deepseek: 'deepseek-flash',
   ollama: 'ollama/qwen3:8b',
   // A provider whose direct key is absent, so the gateway serves it.
   gateway: 'claude-sonnet-4-6',
@@ -99,6 +103,8 @@ export function adapterFor(row: AdapterRow, model = MODEL[row]): ModelAdapter {
       return new GrokAdapter({ model });
     case 'moonshot':
       return new KimiAdapter({ model });
+    case 'deepseek':
+      return new DeepSeekAdapter({ model });
     case 'ollama':
       return new OllamaAdapter({ model });
     case 'gateway':
@@ -262,18 +268,19 @@ export const DIALECT: Record<AdapterRow, Dialect> = {
   openai: 'responses',
   xai: 'responses',
   moonshot: 'chat',
+  deepseek: 'chat',
   ollama: 'chat',
   gateway: 'chat',
 };
 
 /**
  * The state the row's own adapter wrote on the call: reasoning items on the
- * Responses rows, reasoning_content on Moonshot, Anthropic's signed block
+ * Responses rows, reasoning_content on Moonshot and DeepSeek, Anthropic's signed block
  * everywhere else (which the other chat-completions adapters must ignore).
  */
 function stateOnCall(row: AdapterRow): ProviderState {
   if (DIALECT[row] === 'responses') return { provider: row, kind: 'reasoning_items', model: MODEL[row], payload: [REASONING_ITEM] };
-  if (row === 'moonshot') return { provider: 'moonshot', kind: 'reasoning_content', model: MODEL.moonshot, payload: KIMI_REASONING };
+  if (row === 'moonshot' || row === 'deepseek') return { provider: row, kind: 'reasoning_content', model: MODEL[row], payload: KIMI_REASONING };
   return { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] };
 }
 

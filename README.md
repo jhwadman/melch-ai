@@ -2,7 +2,7 @@
 
 A multi-model, multi-agent orchestration framework with its own agent loop, model contract, tools, sessions and workflow engine. Agent hierarchies, prompts, models, tools, and delegation rules are declared in YAML files called **Syndicates**; the engine in `lib/` runs whatever you put in `config/agents/`.
 
-Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for their provider's API, and open-weight models run locally through Ollama with no API key. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
+Gemini, Claude, GPT, Grok, Kimi, and DeepSeek each run on the engine's own adapter for their provider's API, and open-weight models run locally through Ollama with no API key. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
 
 > Companion repository for the curriculum at [lyceumagents.com/curriculum](https://lyceumagents.com/curriculum/). The framework works standalone or alongside the course.
 
@@ -11,7 +11,7 @@ Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for the
 ## Features
 
 - **Declarative YAML configuration** — Orchestrators, subagents, routing, output schemas, and tool assignments in one readable document. Tools and guards are registered in code; YAML names them.
-- **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, and local `ollama/*`). Switching an agent's model is a one-line change.
+- **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `deepseek-*`, and local `ollama/*`). Switching an agent's model is a one-line change.
 - **MCP integration** — Give an agent an `mcp_server_url:`, or several servers under `mcp_servers:`, and their tools are discovered over Streamable HTTP (or legacy SSE) and wrapped as agent tools at runtime. URLs are SSRF-guarded; an OAuth server with no pre-issued client is discovered and registered at, within the operator's host allowlist. In the other direction, `melchizedek-mcp` serves your syndicates as MCP tools to Claude Code, Codex and other MCP clients.
 - **Persistent sessions & long-term memory** — Optional Supabase backend for session persistence and pgvector memory: transcripts are distilled into structured records and recalled by similarity in later sessions. Without it, sessions run in memory.
 - **Native tools** — Web search, image generation, and a blind image-inventory tool that accepts only a file path, so the expected result can never reach the observer.
@@ -56,7 +56,7 @@ npm run chat:syndicate  # interactive REPL with the default syndicate (Gemini)
 npm run doctor          # shows which syndicates your current keys unlock
 ```
 
-Other providers are optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, and `MOONSHOT_API_KEY` unlock the syndicates that use them (for example `npm run syndicate:claude`).
+Other providers are optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, and `DEEPSEEK_API_KEY` unlock the syndicates that use them (for example `npm run syndicate:claude`).
 
 Test the providers you have keys for:
 
@@ -209,7 +209,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `image_production.yaml` | Spec-first image generation, a blind inventory, and a separate spec auditor | [2.04 · Multimodal Agents](https://lyceumagents.com/curriculum/multimodal-agents/) |
 | `current_events.yaml` | Current-event aggregation and fact-checking: an X researcher and a web researcher report to a tool-free arbiter | [2.05 · Fact-Checking Arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
 | `claude.yaml` | Minimal configuration using the Anthropic adapter | — |
-| `model_zoo.yaml` | One agent per provider (Qwen, Claude, Grok, GPT, Gemini, Kimi) | — |
+| `model_zoo.yaml` | One agent per provider (Qwen, Claude, Grok, GPT, Gemini, Kimi, DeepSeek) | — |
 | `research.yaml` | Plan-and-dispatch over keyless clinical and literature sources, with an identifier and retraction guard | — |
 | `scriptorium.yaml` | Agents over the `wiki/` bundle: answer with citations, author through a validated save gate | — |
 | `cartographers.yaml` | Agents that record the judgments in the wiki's prose as graph relations | — |

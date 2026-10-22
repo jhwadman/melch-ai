@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-10-22
 sources:
   - resource: config/agents/examples/model_zoo.yaml
 ---
@@ -29,4 +29,5 @@ The Model Zoo syndicate serves as a proof of model optionality, demonstrating ho
 | gpt | `gpt-5-mini` | — | — |
 | gemini | `gemini-3.5-flash-lite` | — | — |
 | kimi | `kimi-k3` | — | — |
+| deepseek | `deepseek-flash` | — | — |
 <!-- /wiki:generated -->
