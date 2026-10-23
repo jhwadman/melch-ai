@@ -28,7 +28,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 237 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 238 | a repo file that is not a source module (DDL, config, prose) |
 | `doc` | `/dir/doc.md` | 212 | a concept document in the bundle — identity is its bundle path |
 | `module` | `module:<name>` | 210 | one source module |
 | `env` | `env:<name>` | 114 | an environment variable the code reads |
@@ -50,7 +50,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1215 | declared in the document’s `sources:` frontmatter |
+| `derives_from` | extracted | A derives from B | 1216 | declared in the document’s `sources:` frontmatter |
 | `imports` | extracted | A imports B | 962 | a static import edge between source files |
 | `links_to` | extracted | A links to B | 814 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 171 | this environment variable must be set for the node to work |

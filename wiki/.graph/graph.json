@@ -5,15 +5,15 @@
     "at": "2026-10-22"
   },
   "stats": {
-    "nodes": 1043,
-    "edges": 4158,
+    "nodes": 1044,
+    "edges": 4159,
     "byKind": {
       "doc": 212,
       "provider": 7,
       "env": 114,
       "model": 11,
       "tool": 35,
-      "file": 237,
+      "file": 238,
       "syndicate": 35,
       "agent": 94,
       "mcp-server": 5,
@@ -36,7 +36,7 @@
       "imports": 962,
       "reads_table": 29,
       "runs": 74,
-      "derives_from": 1216,
+      "derives_from": 1217,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3674,
+      "extracted": 3675,
       "inferred": 484
     },
     "isolated": 5
@@ -2148,7 +2148,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 18404
+        "words": 18770
       }
     },
     {
@@ -2364,7 +2364,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2572
+        "words": 2614
       }
     },
     {
@@ -4849,6 +4849,13 @@
       "kind": "file",
       "label": "0020_embedding_flash_grok_pricing.sql",
       "source": "db/migrations/0020_embedding_flash_grok_pricing.sql",
+      "attrs": {}
+    },
+    {
+      "id": "file:db/migrations/0021_correct_gemini_flash_grok_rates.sql",
+      "kind": "file",
+      "label": "0021_correct_gemini_flash_grok_rates.sql",
+      "source": "db/migrations/0021_correct_gemini_flash_grok_rates.sql",
       "attrs": {}
     },
     {
@@ -18153,6 +18160,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0021_correct_gemini_flash_grok_rates.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18163,14 +18177,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:41"
+      "evidence": "/memory/schema.md:42"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3212"
+      "evidence": "/memory/schema.md:3266"
     },
     {
       "from": "/memory/sessions.md",
