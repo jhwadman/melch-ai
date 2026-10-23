@@ -4,7 +4,7 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.11.1 — 2026-10-22
 
 **Price rows for `grok-4.3`, `gemini-embedding-001` and `gemini-3.5-flash`**
 (migration `0020_embedding_flash_grok_pricing`). Ledgers held calls of these
