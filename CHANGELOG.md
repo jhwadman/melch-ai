@@ -4,7 +4,7 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.13.0 — 2026-10-24
 
 **A Prompt Writer template.** `templates/prompt_writer.yaml` writes
 production prompts for an agent or a whole syndicate from a plain
