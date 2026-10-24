@@ -1,6 +1,6 @@
 # Production templates
 
-Ten syndicate files built to be copied into production, one per job. The
+Eleven syndicate files built to be copied into production, one per job. The
 starter pack in `../examples/` teaches the framework, and the Lyceum
 course walks through it file by file. These templates are the files you
 adapt and ship. Each header says what the file is for, how it is shaped,
@@ -14,6 +14,7 @@ first.
 | `research_brief.yaml` | Orchestration | A decision-ready brief with every claim traceable | three layers: Editor → nested ResearchDesk → Scout, Reader; Writer; tool-less Verifier | short-term | the open web |
 | `review_panel.yaml` | Orchestration | Ship, fix or hold a proposed change, from a coding harness | panel: Correctness, Risk, Operability → Chair | short-term | only the material it is given |
 | `draft_review.yaml` | Orchestration | Outbound writing checked against your policy | bounded loop: Drafter ↔ Reviewer | short-term | only the brief |
+| `prompt_writer.yaml` | Orchestration | Production prompts for an agent or a syndicate, from a description or a broken prompt, written to the Lyceum prompt standard | bounded loop: Editor → Architect → Writer ↔ Auditor, a shared checklist and YAML skeleton | session | nothing; writes prompts, never runs them |
 | `intake_extractor.yaml` | Memory: short-term | Inbound document → structured JSON record, nothing kept | one agent with an `output.schema` | short-term, `includeContents: none` | only the document |
 | `case_desk.yaml` | Memory: session | Work one operational case across many turns | Lead + Runbooks + Reader, a CASE STATE block every turn | session | your runbooks, pasted links |
 | `account_memory.yaml` | Memory: long-term | Remember every client's asks, decisions and commitments | Lead + Writer, `preload_memory` / `load_memory` | long-term, domain `memory_extraction_rules` | its own memory silo |

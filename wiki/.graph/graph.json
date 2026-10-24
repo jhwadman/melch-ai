@@ -5,17 +5,17 @@
     "at": "2026-10-24"
   },
   "stats": {
-    "nodes": 1070,
-    "edges": 4266,
+    "nodes": 1078,
+    "edges": 4279,
     "byKind": {
-      "doc": 219,
+      "doc": 220,
       "provider": 8,
       "env": 116,
-      "model": 12,
+      "model": 13,
       "tool": 35,
-      "file": 246,
-      "syndicate": 36,
-      "agent": 95,
+      "file": 247,
+      "syndicate": 37,
+      "agent": 99,
       "mcp-server": 5,
       "table": 20,
       "module": 213,
@@ -23,20 +23,20 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 843,
+      "links_to": 844,
       "requires_env": 175,
-      "routes_to": 12,
-      "defined_in": 83,
-      "documents": 60,
-      "contains": 95,
-      "uses_model": 95,
+      "routes_to": 13,
+      "defined_in": 84,
+      "documents": 61,
+      "contains": 99,
+      "uses_model": 99,
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
       "imports": 983,
       "reads_table": 30,
       "runs": 76,
-      "derives_from": 1261,
+      "derives_from": 1262,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3782,
+      "extracted": 3795,
       "inferred": 484
     },
     "isolated": 5
@@ -325,6 +325,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 376
+      }
+    },
+    {
+      "id": "/agents/prompt_writer.md",
+      "kind": "doc",
+      "label": "Prompt Writer",
+      "source": "/agents/prompt_writer.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 379
       }
     },
     {
@@ -3309,6 +3321,49 @@
       }
     },
     {
+      "id": "agent:prompt_writer/Architect",
+      "kind": "agent",
+      "label": "Architect",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "prompt_writer",
+        "description": "Turns a user request, a pasted prompt to repair, or a session iteration into a structured design sheet before any prompt is written."
+      }
+    },
+    {
+      "id": "agent:prompt_writer/Auditor",
+      "kind": "agent",
+      "label": "Auditor",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "prompt_writer",
+        "description": "Checks a draft prompt package against the Architect's design sheet and the numbered PROMPT STANDARD CHECKLIST, rule by rule."
+      }
+    },
+    {
+      "id": "agent:prompt_writer/Editor",
+      "kind": "agent",
+      "label": "Editor",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "prompt_writer"
+      }
+    },
+    {
+      "id": "agent:prompt_writer/Writer",
+      "kind": "agent",
+      "label": "Writer",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "prompt_writer",
+        "description": "Writes or revises the complete production agent prompts—and the full Melchizedek syndicate YAML when requested—from the Architect's design sheet."
+      }
+    },
+    {
       "id": "agent:research_brief/Editor",
       "kind": "agent",
       "label": "Editor",
@@ -4771,6 +4826,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/templates/prompt_writer.yaml",
+      "kind": "file",
+      "label": "prompt_writer.yaml",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/templates/README.md",
       "kind": "file",
       "label": "README.md",
@@ -6198,6 +6260,12 @@
       "kind": "model",
       "label": "gemini-3.8-flash",
       "source": "lib/config.ts (WIKI_AGENT_MODEL)"
+    },
+    {
+      "id": "model:gemini-4-argon",
+      "kind": "model",
+      "label": "gemini-4-argon",
+      "source": "config/agents/templates/prompt_writer.yaml"
     },
     {
       "id": "model:gpt-5-mini",
@@ -8922,6 +8990,17 @@
       }
     },
     {
+      "id": "syndicate:prompt_writer",
+      "kind": "syndicate",
+      "label": "Prompt Writer",
+      "source": "config/agents/templates/prompt_writer.yaml",
+      "attrs": {
+        "memory": "session-only",
+        "agents": 4,
+        "mode": "delegate"
+      }
+    },
+    {
       "id": "syndicate:research",
       "kind": "syndicate",
       "label": "Research",
@@ -9973,6 +10052,27 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/pipeline.md:17"
+    },
+    {
+      "from": "/agents/prompt_writer.md",
+      "to": "file:config/agents/templates/prompt_writer.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/prompt_writer.md frontmatter"
+    },
+    {
+      "from": "/agents/prompt_writer.md",
+      "to": "syndicate:prompt_writer",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/prompt_writer.md"
+    },
+    {
+      "from": "/agents/prompt_writer.md",
+      "to": "/agents/draft_review.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/prompt_writer.md:21"
     },
     {
       "from": "/agents/research_brief.md",
@@ -25340,6 +25440,34 @@
       "evidence": "config/agents/examples/pipeline.yaml"
     },
     {
+      "from": "agent:prompt_writer/Architect",
+      "to": "model:gemini-4-argon",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "agent:prompt_writer/Auditor",
+      "to": "model:gemini-4-argon",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "agent:prompt_writer/Editor",
+      "to": "model:gemini-4-argon",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "agent:prompt_writer/Writer",
+      "to": "model:gemini-4-argon",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
       "from": "agent:research_brief/Editor",
       "to": "model:gemini-3.8-flash",
       "rel": "uses_model",
@@ -25870,6 +25998,13 @@
       "rel": "routes_to",
       "tier": "extracted",
       "evidence": "lib/config.ts (WIKI_AGENT_MODEL)"
+    },
+    {
+      "from": "model:gemini-4-argon",
+      "to": "provider:gemini",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
     },
     {
       "from": "model:gpt-5-mini",
@@ -35334,6 +35469,41 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:prompt_writer",
+      "to": "agent:prompt_writer/Architect",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "syndicate:prompt_writer",
+      "to": "agent:prompt_writer/Auditor",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "syndicate:prompt_writer",
+      "to": "agent:prompt_writer/Editor",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "syndicate:prompt_writer",
+      "to": "agent:prompt_writer/Writer",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "syndicate:prompt_writer",
+      "to": "file:config/agents/templates/prompt_writer.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/templates/prompt_writer.yaml"
     },
     {
       "from": "syndicate:research_brief",

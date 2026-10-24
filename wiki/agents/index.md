@@ -24,6 +24,7 @@
 - [Model Zoo](/agents/model_zoo.md) — The Model Zoo syndicate.
 - [Patient Advocate](/agents/patient_advocate.md) — The Patient Advocate syndicate.
 - [Editorial Pipeline](/agents/pipeline.md) — The Editorial Pipeline syndicate.
+- [Prompt Writer](/agents/prompt_writer.md) — The Prompt Writer syndicate.
 - [Research Brief](/agents/research_brief.md) — The Research Brief syndicate.
 - [Research Desk](/agents/research_desk.md) — Returns sourced research notes on one question: at most 20 dated claims, each with its quote, publisher, URL and how directly the page supports it, plus disagreements and gaps.
 - [Research](/agents/research.md) — The Research syndicate.
