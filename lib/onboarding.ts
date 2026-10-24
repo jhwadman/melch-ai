@@ -289,7 +289,8 @@ export const LEVELS: readonly Level[] = [
       clone: ['npm run chat:syndicate'],
     },
     notes: [
-      "web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, and xAI's x_search and Collections are dropped; the doctor marks each.",
+      "web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, MODEL_GATEWAY_SEARCH_RESULTS (default 3) bounds what it folds into the prompt, and xAI's x_search and Collections are dropped; the doctor marks each.",
+      "A gateway is for billing and breadth, not for grounding: for a search-heavy agent, keep the provider that does the searching on its own key (its native search, citations and all) and let the gateway serve the rest; a direct key beside the gateway key does that by default, and MODEL_GATEWAY_EXCEPT keeps it so under MODEL_GATEWAY_PREFER=gateway.",
       'Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001). OpenRouter has no Gemini one: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small at 768 through it; a store already embedded with Gemini must be re-embedded if the model changes, and the store refuses a different model at start (the doctor\'s memory line says what would embed).',
     ],
     skill: 'melchizedek-onboard-keys',

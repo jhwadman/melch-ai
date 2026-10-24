@@ -5,26 +5,26 @@
     "at": "2026-10-24"
   },
   "stats": {
-    "nodes": 1067,
-    "edges": 4246,
+    "nodes": 1070,
+    "edges": 4266,
     "byKind": {
-      "doc": 218,
+      "doc": 219,
       "provider": 8,
       "env": 116,
       "model": 12,
       "tool": 35,
-      "file": 245,
+      "file": 246,
       "syndicate": 36,
       "agent": 95,
       "mcp-server": 5,
       "table": 20,
-      "module": 212,
+      "module": 213,
       "script": 52,
       "external": 13
     },
     "byRelation": {
-      "links_to": 837,
-      "requires_env": 174,
+      "links_to": 843,
+      "requires_env": 175,
       "routes_to": 12,
       "defined_in": 83,
       "documents": 60,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 977,
+      "imports": 983,
       "reads_table": 30,
       "runs": 76,
-      "derives_from": 1254,
+      "derives_from": 1261,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3762,
+      "extracted": 3782,
       "inferred": 484
     },
     "isolated": 5
@@ -2184,7 +2184,19 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 403
+        "words": 379
+      }
+    },
+    {
+      "id": "/decisions/0148-search-budget-and-reembed.md",
+      "kind": "doc",
+      "label": "ADR 0148: A gateway's search is bounded by a result count, and a memory store can be re-embedded",
+      "source": "/decisions/0148-search-budget-and-reembed.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 542
       }
     },
     {
@@ -2196,7 +2208,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1863
+        "words": 1927
       }
     },
     {
@@ -2208,7 +2220,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 19413
+        "words": 19480
       }
     },
     {
@@ -2352,7 +2364,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 6477
+        "words": 6550
       }
     },
     {
@@ -3897,7 +3909,7 @@
       "id": "env:DATABASE_URL",
       "kind": "env",
       "label": "DATABASE_URL",
-      "source": "scripts/mcp_server.ts",
+      "source": "scripts/memory_admin.ts",
       "attrs": {}
     },
     {
@@ -5583,6 +5595,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/memoryReembed.test.ts",
+      "kind": "file",
+      "label": "memoryReembed.test.ts",
+      "source": "tests/memoryReembed.test.ts"
+    },
+    {
       "id": "file:tests/memoryTools.test.ts",
       "kind": "file",
       "label": "memoryTools.test.ts",
@@ -6488,12 +6506,21 @@
       }
     },
     {
+      "id": "module:lib/memory/reembed.ts",
+      "kind": "module",
+      "label": "lib/memory/reembed.ts",
+      "source": "lib/memory/reembed.ts",
+      "attrs": {
+        "lines": 95
+      }
+    },
+    {
       "id": "module:lib/memory/store.ts",
       "kind": "module",
       "label": "lib/memory/store.ts",
       "source": "lib/memory/store.ts",
       "attrs": {
-        "lines": 186
+        "lines": 209
       }
     },
     {
@@ -6628,7 +6655,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 379
+        "lines": 413
       }
     },
     {
@@ -6637,7 +6664,7 @@
       "label": "lib/models/gatewayAdapter.ts",
       "source": "lib/models/gatewayAdapter.ts",
       "attrs": {
-        "lines": 127
+        "lines": 128
       }
     },
     {
@@ -6889,7 +6916,7 @@
       "label": "lib/onboarding.ts",
       "source": "lib/onboarding.ts",
       "attrs": {
-        "lines": 683
+        "lines": 684
       }
     },
     {
@@ -7240,7 +7267,7 @@
       "label": "lib/storage/postgres/memoryStore.ts",
       "source": "lib/storage/postgres/memoryStore.ts",
       "attrs": {
-        "lines": 123
+        "lines": 147
       }
     },
     {
@@ -8005,7 +8032,7 @@
       "label": "scripts/memory_admin.ts",
       "source": "scripts/memory_admin.ts",
       "attrs": {
-        "lines": 271
+        "lines": 329
       }
     },
     {
@@ -18307,10 +18334,87 @@
     },
     {
       "from": "/decisions/0147-memory-embedder-recorded-and-doctored.md",
+      "to": "/decisions/0148-search-budget-and-reembed.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0147-memory-embedder-recorded-and-doctored.md:30"
+    },
+    {
+      "from": "/decisions/0147-memory-embedder-recorded-and-doctored.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0147-memory-embedder-recorded-and-doctored.md:32"
+      "evidence": "/decisions/0147-memory-embedder-recorded-and-doctored.md:33"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "file:db/migrations/0023_memory_embedder.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "file:tests/gateway.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "file:tests/memoryReembed.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "module:lib/memory/reembed.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "module:lib/memory/store.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "module:scripts/memory_admin.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md frontmatter"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "/decisions/0147-memory-embedder-recorded-and-doctored.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md:29"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md:32"
+    },
+    {
+      "from": "/decisions/0148-search-budget-and-reembed.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0148-search-budget-and-reembed.md:32"
     },
     {
       "from": "/memory/architecture.md",
@@ -18451,6 +18555,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:37"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0148-search-budget-and-reembed.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:82"
     },
     {
       "from": "/memory/architecture.md",
@@ -18688,7 +18799,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3376"
+      "evidence": "/memory/schema.md:3389"
     },
     {
       "from": "/memory/sessions.md",
@@ -20275,6 +20386,13 @@
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0146-gateway-search-and-embeddings.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:42"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0148-search-budget-and-reembed.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:42"
@@ -27378,6 +27496,20 @@
       "evidence": "lib/memory/providers.ts"
     },
     {
+      "from": "module:lib/memory/reembed.ts",
+      "to": "module:lib/memory/providers.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/reembed.ts"
+    },
+    {
+      "from": "module:lib/memory/reembed.ts",
+      "to": "module:lib/memory/store.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/reembed.ts"
+    },
+    {
       "from": "module:lib/memory/store.ts",
       "to": "table:adk_memory_facts",
       "rel": "reads_table",
@@ -33259,8 +33391,43 @@
     },
     {
       "from": "module:scripts/memory_admin.ts",
+      "to": "module:lib/memory/providers.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/memory_admin.ts",
+      "to": "module:lib/memory/reembed.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/memory_admin.ts",
+      "to": "module:lib/memory/store.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/memory_admin.ts",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/memory_admin.ts",
       "to": "table:adk_memory_facts",
       "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/memory_admin.ts",
+      "to": "env:DATABASE_URL",
+      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/memory_admin.ts"
     },

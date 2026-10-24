@@ -70,6 +70,12 @@ export interface MemoryStore {
   embedderRecord?(): Promise<EmbedderRecord | null>;
   /** Records the embedder once; a later call changes nothing. */
   recordEmbedder?(record: EmbedderRecord): Promise<void>;
+  /** Overwrites the recorded embedder: what a completed re-embed writes (lib/memory/reembed.ts, ADR 0148). */
+  setEmbedder?(record: EmbedderRecord): Promise<void>;
+  /** Facts in id order after `cursor` (null from the start), at most `limit`; for a re-embed. */
+  listFacts?(cursor: string | null, limit: number): Promise<Array<{ id: string; fact: string }>>;
+  /** Writes new vectors to the rows named. */
+  updateEmbeddings?(rows: Array<{ id: string; embedding: number[] }>): Promise<void>;
   /** Deletes facts in `namespace` older than `days`; returns how many (migration 0008). */
   pruneNamespace?(namespace: string, days: number): Promise<number>;
 }
@@ -170,6 +176,23 @@ export function supabaseMemoryStore(supabase: SupabaseClient): MemoryStore {
     async recordEmbedder(record) {
       const { error } = await supabase.rpc('melchizedek_memory_record_embedder', { p_provider: record.provider, p_model: record.model, p_dimensions: record.dimensions });
       if (error) throw new Error(error.message);
+    },
+    async setEmbedder(record) {
+      const { error } = await supabase.rpc('melchizedek_memory_set_embedder', { p_provider: record.provider, p_model: record.model, p_dimensions: record.dimensions });
+      if (error) throw new Error(error.message);
+    },
+    async listFacts(cursor, limit) {
+      let q = supabase.from('adk_memory_facts').select('id, fact').order('id', { ascending: true }).limit(limit);
+      if (cursor) q = q.gt('id', cursor);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return ((data ?? []) as Array<{ id: string; fact: string }>).map((r) => ({ id: String(r.id), fact: r.fact }));
+    },
+    async updateEmbeddings(rows) {
+      for (const row of rows) {
+        const { error } = await supabase.from('adk_memory_facts').update({ embedding: row.embedding, updated_at: new Date().toISOString() }).eq('id', row.id);
+        if (error) throw new Error(error.message);
+      }
     },
     async pruneNamespace(namespace, days) {
       const { data, error } = await supabase.rpc('melchizedek_prune_memory', { p_namespace: namespace, p_days: days });

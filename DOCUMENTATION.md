@@ -562,8 +562,18 @@ has one (OpenAI, Anthropic, Google, xAI) and Exa elsewhere
 (`MODEL_GATEWAY_SEARCH` picks `native`, `exa`, `firecrawl`, `parallel` or
 `perplexity`), and returns `url_citation` annotations the adapter keeps as
 the final's `grounding.citations`. `MODEL_GATEWAY_SEARCH=off` drops the tool
-as before. Each gateway bills its search on top of the tokens (Exa about
-$0.007 a request on OpenRouter; Vercel prices its engines). xAI's `x_search`
+as before. `MODEL_GATEWAY_SEARCH_RESULTS` (default 3) is passed as each
+engine's count, Exa on its instant type and Perplexity under a cap of
+2,000 tokens a result (ADR 0148), because the gateway folds the results into
+the prompt as input tokens: measured live, Exa at three results carried
+7,000 to 17,600 prompt tokens for a one-line question (unbounded, 13,000 to
+20,000), Perplexity at three 6,200. Each gateway also bills its search on
+top of the tokens (Exa about $0.007 a request on OpenRouter; Vercel prices
+its engines). A gateway is for billing and breadth, not for grounding: for a
+search-heavy agent, keep the provider that does the searching on its own key
+(its native search and citations) and let the gateway serve the rest, which
+a direct key beside the gateway key does by default and
+`MODEL_GATEWAY_EXCEPT` keeps under `MODEL_GATEWAY_PREFER=gateway`. xAI's `x_search`
 and `collections_search` have no gateway form and are dropped. Long-term
 memory's embedder follows the same rule: with no key for the embedding
 provider, or under `MODEL_GATEWAY_PREFER=gateway`, it embeds through the
@@ -579,8 +589,12 @@ caveat the store now enforces (migration 0023, ADR 0147): a memory store
 records the provider, model and dimension its vectors come from on its
 first write and refuses a different model at start, since two models'
 vectors do not compare even at the same size; switching means re-embedding
-every stored fact. `npm run doctor` prints a `memory` line saying what
-would embed here, or what to set.
+every stored fact, which `npm run memory -- reembed` does (a dry run first;
+`--yes` writes): with `MEMORY_EMBEDDING_*` set to the new embedder it walks
+the facts in id order, writes each page's vectors back and records the new
+model last, under an advisory lock on `DATABASE_URL`, so an interrupted run
+leaves the old record in place (ADR 0148). `npm run doctor` prints a
+`memory` line saying what would embed here, or what to set.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,

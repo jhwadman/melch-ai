@@ -60,6 +60,10 @@
  *                          (unset = on with the gateway's default: Vercel runs
  *                          its exa_search server tool, OpenRouter its web
  *                          plugin, the provider's own search where it has one)
+ *   MODEL_GATEWAY_SEARCH_RESULTS  how many results the gateway's search
+ *                          returns per call (default 3), passed as each
+ *                          engine's count, since the results are folded into
+ *                          the prompt and billed as input tokens (ADR 0148)
  *
  * WHAT A GATEWAY GIVES BACK (ADR 0146): both gateways run a web search of
  *   their own on any model, so a web_search sentinel is not dropped on the
@@ -107,8 +111,8 @@ export interface GatewayInfo {
     engines: readonly string[];
     /** The engine used when none is named; undefined leaves the choice to the gateway. */
     default?: string;
-    /** The chat-completions body fields that turn the search on. `tools` is appended to the function tools. */
-    body: (engine: string | undefined) => Record<string, unknown>;
+    /** The chat-completions body fields that turn the search on, with `results` as the engine's count. `tools` is appended to the function tools. */
+    body: (engine: string | undefined, results: number) => Record<string, unknown>;
     /** Whether the gateway returns citations the adapter can keep. */
     citations: boolean;
   };
@@ -122,6 +126,9 @@ export const GATEWAY_BASE_URL_ENV = 'MODEL_GATEWAY_BASE_URL';
 export const GATEWAY_MODEL_MAP_ENV = 'MODEL_GATEWAY_MODEL_MAP';
 export const GATEWAY_PREFER_ENV = 'MODEL_GATEWAY_PREFER';
 export const GATEWAY_SEARCH_ENV = 'MODEL_GATEWAY_SEARCH';
+export const GATEWAY_SEARCH_RESULTS_ENV = 'MODEL_GATEWAY_SEARCH_RESULTS';
+/** Results a gateway's search returns per call when the operator sets no count (ADR 0148). */
+export const DEFAULT_SEARCH_RESULTS = 3;
 export const GATEWAY_EXCEPT_ENV = 'MODEL_GATEWAY_EXCEPT';
 
 export type GatewayPreference = 'direct' | 'gateway';
@@ -144,7 +151,21 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
       // vercel.com/docs/ai-gateway/models-and-providers/web-search: server tools the gateway runs; no config, so the model writes the query.
       engines: ['exa', 'perplexity', 'parallel', 'browserbase', 'tako'],
       default: 'exa',
-      body: (engine) => ({ tools: [{ type: `vercel:${engine ?? 'exa'}_search` }] }),
+      // The count as each engine's own field, Exa on its instant type, Perplexity and Parallel with a token or
+      // character cap beside it (an unbounded Exa search measured about 20,000 prompt tokens on 2026-10-23).
+      // Vercel uses the config as developer defaults, so the model's query is never set here.
+      body: (engine, results) => {
+        const e = engine ?? 'exa';
+        const config =
+          e === 'exa'
+            ? { type: 'instant', num_results: results }
+            : e === 'perplexity'
+              ? { max_results: results, max_tokens: results * 2000, max_tokens_per_page: 2000 }
+              : e === 'parallel'
+                ? { mode: 'agentic', max_results: results, excerpts: { max_chars_total: results * 8000 } }
+                : undefined;
+        return { tools: [{ type: `vercel:${e}_search`, ...(config ? { config } : {}) }] };
+      },
       citations: false,
     },
     // GET /v1/models lists both; the gateway honours `dimensions` on each (checked 2026-10-23: 768 asked, 768 returned).
@@ -164,7 +185,8 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
     search: {
       // openrouter.ai/docs/features/web-search: the web plugin; unset engine = the provider's native search where it has one, else Exa.
       engines: ['native', 'exa', 'firecrawl', 'parallel', 'perplexity'],
-      body: (engine) => ({ plugins: [{ id: 'web', ...(engine ? { engine } : {}) }] }),
+      // The plugin returns snippets, not pages: max_results (its default 5) is its one bound.
+      body: (engine, results) => ({ plugins: [{ id: 'web', ...(engine ? { engine } : {}), max_results: results }] }),
       citations: true,
     },
     // OpenRouter lists openai/text-embedding-3-* and no Gemini embedding model (checked 2026-10-23).
@@ -204,12 +226,24 @@ export function gatewayConfig(env: NodeJS.ProcessEnv = process.env): GatewayConf
  * engine this gateway lacks (gatewaySearchProblem says so). `engine` is the
  * one named, else the gateway's default.
  */
-export function gatewaySearch(gateway: GatewayInfo, env: NodeJS.ProcessEnv = process.env): { engine: string | undefined; body: Record<string, unknown>; citations: boolean } | null {
+export function gatewaySearch(gateway: GatewayInfo, env: NodeJS.ProcessEnv = process.env): { engine: string | undefined; results: number; body: Record<string, unknown>; citations: boolean } | null {
   const raw = (credentialValue(GATEWAY_SEARCH_ENV, env) ?? '').trim().toLowerCase();
   if (raw === 'off' || raw === 'false' || raw === '0') return null;
   if (raw && !gateway.search.engines.includes(raw)) return null;
   const engine = raw || gateway.search.default;
-  return { engine, body: gateway.search.body(engine), citations: gateway.search.citations };
+  const results = gatewaySearchResults(env);
+  return { engine, results, body: gateway.search.body(engine, results), citations: gateway.search.citations };
+}
+
+/** MODEL_GATEWAY_SEARCH_RESULTS as an integer between 1 and 10; the default when unset or malformed. */
+export function gatewaySearchResults(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number((credentialValue(GATEWAY_SEARCH_RESULTS_ENV, env) ?? '').trim());
+  return Number.isFinite(n) && n > 0 ? bounded(n, 1, 10) : DEFAULT_SEARCH_RESULTS;
+}
+
+/** `n` rounded and held within [lo, hi]. */
+function bounded(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
 /** A MODEL_GATEWAY_SEARCH value the configured gateway cannot honour, named; undefined when it is off, unset or valid. */

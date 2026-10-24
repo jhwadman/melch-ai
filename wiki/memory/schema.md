@@ -2487,6 +2487,9 @@ ON CONFLICT (version) DO NOTHING;
 --   melchizedek_memory_embedder()                  the row, or none
 --   melchizedek_memory_record_embedder(p, m, d)    record it once; a later
 --                                                  call changes nothing
+--   melchizedek_memory_set_embedder(p, m, d)       overwrite it: what a
+--                                                  completed re-embed writes
+--                                                  (lib/memory/reembed.ts)
 -- Nothing secret, nothing personal. Idempotent; safe to re-run.
 -- ============================================================================
 
@@ -2515,6 +2518,16 @@ AS $$
   INSERT INTO melchizedek_memory_embedder (one, provider, model, dimensions)
   VALUES (TRUE, p_provider, p_model, p_dimensions)
   ON CONFLICT (one) DO NOTHING;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_memory_set_embedder(p_provider text, p_model text, p_dimensions integer)
+RETURNS void
+LANGUAGE sql
+SET search_path = public
+AS $$
+  INSERT INTO melchizedek_memory_embedder (one, provider, model, dimensions, recorded_at)
+  VALUES (TRUE, p_provider, p_model, p_dimensions, now())
+  ON CONFLICT (one) DO UPDATE SET provider = EXCLUDED.provider, model = EXCLUDED.model, dimensions = EXCLUDED.dimensions, recorded_at = now();
 $$;
 
 INSERT INTO melchizedek_schema_version (version, name)

@@ -114,6 +114,30 @@ export function postgresMemoryStore(pool: Pool): MemoryStore {
       await pool.query('SELECT melchizedek_memory_record_embedder($1, $2, $3)', [record.provider, record.model, record.dimensions]);
     },
 
+    async setEmbedder(record) {
+      await pool.query('SELECT melchizedek_memory_set_embedder($1, $2, $3)', [record.provider, record.model, record.dimensions]);
+    },
+
+    async listFacts(cursor, limit) {
+      const r = cursor
+        ? await pool.query('SELECT id, fact FROM adk_memory_facts WHERE id > $1::uuid ORDER BY id LIMIT $2', [cursor, limit])
+        : await pool.query('SELECT id, fact FROM adk_memory_facts ORDER BY id LIMIT $1', [limit]);
+      return r.rows.map((row) => ({ id: String(row.id), fact: String(row.fact) }));
+    },
+
+    async updateEmbeddings(rows) {
+      if (rows.length === 0) return;
+      const values: unknown[] = [];
+      const tuples = rows.map((row, i) => {
+        values.push(row.id, vectorLiteral(row.embedding));
+        return `($${i * 2 + 1}::uuid, $${i * 2 + 2}::vector)`;
+      });
+      await pool.query(
+        `UPDATE adk_memory_facts AS f SET embedding = v.embedding, updated_at = now() FROM (VALUES ${tuples.join(', ')}) AS v(id, embedding) WHERE f.id = v.id`,
+        values,
+      );
+    },
+
     async pruneNamespace(namespace, days) {
       const r = await pool.query('SELECT melchizedek_prune_memory($1, $2) AS n', [namespace, days]);
       return Number(r.rows[0]?.n ?? 0);

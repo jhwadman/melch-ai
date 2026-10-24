@@ -27,6 +27,7 @@ sources:
 
 **Instead of:** a different automatic embedding default on OpenRouter (a silent switch of model behind a store); a setting with no record in the store (the caveat stays a caveat); recording the model at start rather than on the first write (an empty store would then be pinned to a model it never used); comparing exact ids (the gateway's `google/` prefix would refuse the same model); failing `--check` on a missing embedder (a deployment without memory syndicates is fine; the line is a warning when none is long-term)
 **Supersedes:** none ([ADR 0020](/decisions/0020-memory-contract.md) item 5's dimension check stays; this adds the model beside it)
-**Open:** a re-embed command (`melchizedek-db` could re-embed every fact with the new model under a lock, then update the record); the app's Long-term memory setting offering the OpenAI model through the gateway with the same caveat (melch-app); recording per namespace should a deployment ever embed namespaces with different models
+**Superseded by:** [ADR 0148](/decisions/0148-search-budget-and-reembed.md) (the re-embed command, `npm run memory -- reembed`)
+**Open:** recording per namespace should a deployment ever embed namespaces with different models
 
 How it works: [Memory architecture](/memory/architecture.md)

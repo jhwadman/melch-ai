@@ -36,6 +36,7 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_PREFER',
   'MODEL_GATEWAY_EXCEPT',
   'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 function withEnv<T>(vars: Record<string, string>, fn: () => T): T {

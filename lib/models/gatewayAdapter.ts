@@ -109,6 +109,7 @@ export class GatewayAdapter extends ChatCompletionsAdapter {
     const search = gatewaySearch(this.#cfg.gateway);
     if (!search) return null;
     setLlmSpanAttribute('llm.web_search.gateway', `${this.#cfg.gateway.id}:${search.engine ?? 'default'}`);
+    setLlmSpanAttribute('llm.web_search.results', search.results);
     return search.body;
   }
 

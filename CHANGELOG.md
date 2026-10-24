@@ -75,6 +75,20 @@ so the vectors stay the model's own. `GatewayInfo` gains `search` and
 `gatewayWanted` take an optional `env`. The capability matrix's gateway
 row reads `native_search` as degraded, with the note.
 
+**A gateway's search is bounded, and a memory store can be re-embedded**
+(ADR 0148). `MODEL_GATEWAY_SEARCH_RESULTS` (default 3) is passed as each
+gateway search engine's count, Exa on its instant type and Perplexity under
+a token cap, since the results are billed as prompt tokens (an unbounded Exa
+search measured about 20,000 of them). `npm run memory -- reembed` re-embeds
+every stored fact with the environment's embedder in id-ordered pages and
+records the new model last (`MemoryStore` gains `listFacts`,
+`updateEmbeddings`, `setEmbedder`; migration 0023 gains
+`melchizedek_memory_set_embedder`), under an advisory lock on
+`DATABASE_URL`. The setup note and the env template state the posture: a
+gateway is for billing and breadth, not for grounding; keep the searching
+provider on its own key. The lockfile moves `body-parser`, `fast-uri` and
+`ip-address` past their advisories (no API change).
+
 **A memory store records its embedding model; the doctor says what embeds**
 (ADR 0147, migration `0023_memory_embedder`). On its first successful write
 the memory service records the provider, model and dimension the store's

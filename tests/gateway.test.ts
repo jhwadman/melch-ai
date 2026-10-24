@@ -46,6 +46,7 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_PREFER',
   'MODEL_GATEWAY_EXCEPT',
   'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 /** Runs fn with ONLY the given env vars set (of the ones this suite touches). */
@@ -374,14 +375,26 @@ test('describeCapabilities: native on the direct path, dropped through a gateway
   });
 });
 
-test('gatewaySearch gives each gateway its body: a server tool for Vercel, the web plugin for OpenRouter', () => {
+test('gatewaySearch gives each gateway its body with the result count as the engine\'s own field (ADR 0148)', () => {
   withEnv({}, () => {
-    assert.deepEqual(gatewaySearch(GATEWAYS.vercel), { engine: 'exa', body: { tools: [{ type: 'vercel:exa_search' }] }, citations: false });
-    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter), { engine: undefined, body: { plugins: [{ id: 'web' }] }, citations: true });
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel), { engine: 'exa', results: 3, body: { tools: [{ type: 'vercel:exa_search', config: { type: 'instant', num_results: 3 } }] }, citations: false });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter), { engine: undefined, results: 3, body: { plugins: [{ id: 'web', max_results: 3 }] }, citations: true });
   });
-  withEnv({ MODEL_GATEWAY_SEARCH: 'perplexity' }, () => {
-    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:perplexity_search' }] });
-    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter)?.body, { plugins: [{ id: 'web', engine: 'perplexity' }] });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'perplexity', MODEL_GATEWAY_SEARCH_RESULTS: '2' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:perplexity_search', config: { max_results: 2, max_tokens: 4000, max_tokens_per_page: 2000 } }] });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter)?.body, { plugins: [{ id: 'web', engine: 'perplexity', max_results: 2 }] });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'parallel' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:parallel_search', config: { mode: 'agentic', max_results: 3, excerpts: { max_chars_total: 24000 } } }] });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'tako' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:tako_search' }] }, 'an engine with no known config is sent bare');
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH_RESULTS: '40' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel)?.results, 10, 'held to 10');
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH_RESULTS: 'many' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel)?.results, 3, 'a malformed count is the default');
   });
   withEnv({ MODEL_GATEWAY_SEARCH: 'off' }, () => {
     assert.equal(gatewaySearch(GATEWAYS.vercel), null);

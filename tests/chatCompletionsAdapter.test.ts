@@ -49,6 +49,7 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
   'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 /** Sets (or, for undefined, clears) env vars for the body, every other key here cleared. */
@@ -519,7 +520,7 @@ test('native tools are dropped on a local path, marked on the span, never sent; 
   assert.equal(span.attributes['llm.transport'], 'direct');
   // OpenRouter: the web plugin, beside the function tools; x_search still dropped.
   const orBody = await bodyOf(gateway('grok-4.7'), req('grok-4.7', { nativeTools: ['web_search', 'x_search'], tools: [SCOUT] }), GATEWAY_ENV);
-  assert.deepEqual(orBody.plugins, [{ id: 'web' }]);
+  assert.deepEqual(orBody.plugins, [{ id: 'web', max_results: 3 }]);
   assert.deepEqual(orBody.tools.map((t: any) => t.function.name), ['Scout']);
   const gw = await spanOf(gateway('grok-4.7'), req('grok-4.7', { nativeTools: ['web_search', 'x_search'] }), GATEWAY_ENV);
   assert.equal(gw.attributes['llm.web_search.native'], true);
@@ -533,7 +534,7 @@ test('native tools are dropped on a local path, marked on the span, never sent; 
   assert.deepEqual(vBody.tools.map((t: any) => t.function?.name ?? t.type), ['Scout', 'vercel:exa_search']);
   assert.equal(vBody.plugins, undefined);
   const pBody = await bodyOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'] }), { ...VERCEL, MODEL_GATEWAY_SEARCH: 'perplexity' });
-  assert.deepEqual(pBody.tools, [{ type: 'vercel:perplexity_search' }]);
+  assert.deepEqual(pBody.tools, [{ type: 'vercel:perplexity_search', config: { max_results: 3, max_tokens: 6000, max_tokens_per_page: 2000 } }]);
   // Off: dropped as before, and the warning names the switch.
   const offBody = await bodyOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'], tools: [SCOUT] }), { ...VERCEL, MODEL_GATEWAY_SEARCH: 'off' });
   assert.deepEqual(offBody.tools.map((t: any) => t.function.name), ['Scout']);
