@@ -27,6 +27,16 @@
  *   MEMORY_EMBEDDING_API_KEY      openai-compatible key (else none)
  * The vector column is fixed at creation (db/), so changing the model or the
  * dimension needs a re-embed, not just a new variable.
+ *
+ * THE GATEWAY (ADR 0146): with no key for the embedding provider, or with
+ *   MODEL_GATEWAY_PREFER=gateway, the embedder goes through the configured
+ *   gateway's /embeddings when that gateway carries the SAME model (Vercel
+ *   carries google/gemini-embedding-001 and openai/text-embedding-3-small
+ *   and honours `dimensions`; OpenRouter carries OpenAI's). The vectors are
+ *   the model's own, so a store embedded directly and one embedded through
+ *   the gateway agree. A gateway that lacks the model changes nothing: the
+ *   direct path stays, keyless and failing loudly, never a different model
+ *   behind the store's back.
  */
 
 import { endpointFromEnv } from '../models/endpoints.ts';
@@ -42,7 +52,8 @@ import { providerForModel } from '../models/providerMap.ts';
 import { resolveModel } from '../models/registry.ts';
 import { startEngineSpan, traceLlmGeneration } from '../observability/tracer.ts';
 import { trimTrailingSlashes } from '../models/urls.ts';
-import { credentialEnv } from '../models/credentialSource.ts';
+import { credentialEnv, credentialValue } from '../models/credentialSource.ts';
+import { GATEWAY_KEY_ENV, gatewayEmbedding, gatewayWanted } from '../models/gateway.ts';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -279,10 +290,20 @@ export function memoryProvidersFromEnv(
   switch (provider) {
     case 'gemini': {
       const apiKey = geminiKey || env.GOOGLE_GENAI_API_KEY || env.GEMINI_API_KEY || '';
+      const via = gatewayEmbedding('gemini', model ?? EMBEDDING_MODEL, env);
+      if (via && (!apiKey || gatewayWanted('gemini', env))) {
+        embedder = openAiCompatibleEmbedder({ provider: 'gemini', baseUrl: via.baseUrl, model: via.model, dimensions, apiKey: credentialValue(GATEWAY_KEY_ENV, env) });
+        break;
+      }
       embedder = geminiEmbedder({ apiKey, model, dimensions });
       break;
     }
-    case 'openai':
+    case 'openai': {
+      const via = !env.MEMORY_EMBEDDING_BASE_URL?.trim() ? gatewayEmbedding('openai', model ?? DEFAULT_EMBEDDING_MODELS.openai, env) : undefined;
+      if (via && (!env.OPENAI_API_KEY || gatewayWanted('openai', env))) {
+        embedder = openAiCompatibleEmbedder({ provider: 'openai', baseUrl: via.baseUrl, model: via.model, dimensions, apiKey: credentialValue(GATEWAY_KEY_ENV, env) });
+        break;
+      }
       embedder = openAiCompatibleEmbedder({
         provider: 'openai',
         baseUrl: env.MEMORY_EMBEDDING_BASE_URL?.trim() || 'https://api.openai.com/v1',
@@ -291,6 +312,7 @@ export function memoryProvidersFromEnv(
         apiKey: env.OPENAI_API_KEY,
       });
       break;
+    }
     case 'ollama':
       embedder = openAiCompatibleEmbedder({
         provider: 'ollama',

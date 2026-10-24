@@ -289,8 +289,8 @@ export const LEVELS: readonly Level[] = [
       clone: ['npm run chat:syndicate'],
     },
     notes: [
-      'Native search is lost on the gateway path (Gemini grounding, Anthropic and OpenAI web_search, xAI x_search); the doctor marks each dropped tool.',
-      'Long-term memory embeds through Gemini by default, which the gateway does not serve: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai or ollama.',
+      "web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, and xAI's x_search and Collections are dropped; the doctor marks each.",
+      'Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001; OpenRouter has no Gemini one, so set GOOGLE_GENAI_API_KEY there, or MEMORY_EMBEDDING_PROVIDER=openai or ollama).',
     ],
     skill: 'melchizedek-onboard-keys',
     detectable: true,

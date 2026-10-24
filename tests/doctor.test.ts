@@ -35,6 +35,7 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_API_KEY',
   'MODEL_GATEWAY_PREFER',
   'MODEL_GATEWAY_EXCEPT',
+  'MODEL_GATEWAY_SEARCH',
 ];
 
 function withEnv<T>(vars: Record<string, string>, fn: () => T): T {
@@ -115,6 +116,12 @@ test('a gateway key alone readies every cloud example via the gateway and names 
     assert.equal(result.gateway?.usable, true);
     const ares = result.syndicates.find((s) => s.file === 'examples/ares.yaml')!;
     assert.equal(ares.verdict.state, 'via-gateway');
+    // google_search runs as the gateway's own search (ADR 0146): nothing lost on this file.
+    assert.equal(ares.verdict.detail, 'via gateway:vercel');
+    assert.ok(ares.rows.some((r) => r.report.native.includes('google_search') && r.report.gatewaySearch === 'vercel:exa'));
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    const ares = runDoctor({ agentsDir: AGENTS }).syndicates.find((s) => s.file === 'examples/ares.yaml')!;
     assert.match(ares.verdict.detail, /google_search lost/);
   });
 });

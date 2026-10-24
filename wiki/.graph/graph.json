@@ -5,15 +5,15 @@
     "at": "2026-10-24"
   },
   "stats": {
-    "nodes": 1061,
-    "edges": 4215,
+    "nodes": 1063,
+    "edges": 4230,
     "byKind": {
-      "doc": 216,
+      "doc": 217,
       "provider": 8,
       "env": 116,
       "model": 12,
       "tool": 35,
-      "file": 242,
+      "file": 243,
       "syndicate": 36,
       "agent": 95,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 828,
+      "links_to": 834,
       "requires_env": 173,
       "routes_to": 12,
       "defined_in": 82,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 974,
+      "imports": 976,
       "reads_table": 29,
       "runs": 76,
-      "derives_from": 1238,
+      "derives_from": 1245,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3731,
+      "extracted": 3746,
       "inferred": 484
     },
     "isolated": 5
@@ -2164,6 +2164,18 @@
       }
     },
     {
+      "id": "/decisions/0146-gateway-search-and-embeddings.md",
+      "kind": "doc",
+      "label": "ADR 0146: A gateway runs its own web search for web_search, and embeds for memory when it carries the same model",
+      "source": "/decisions/0146-gateway-search-and-embeddings.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 447
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2172,7 +2184,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1691
+        "words": 1732
       }
     },
     {
@@ -2316,7 +2328,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8456
+        "words": 8498
       }
     },
     {
@@ -2328,7 +2340,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 6286
+        "words": 6477
       }
     },
     {
@@ -5387,7 +5399,8 @@
       "id": "file:tests/gateway.test.ts",
       "kind": "file",
       "label": "gateway.test.ts",
-      "source": "tests/gateway.test.ts"
+      "source": "tests/gateway.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/geminiAdapter.test.ts",
@@ -5535,6 +5548,12 @@
       "kind": "file",
       "label": "mcpTools.test.ts",
       "source": "tests/mcpTools.test.ts"
+    },
+    {
+      "id": "file:tests/memoryProviders.test.ts",
+      "kind": "file",
+      "label": "memoryProviders.test.ts",
+      "source": "tests/memoryProviders.test.ts"
     },
     {
       "id": "file:tests/memoryTools.test.ts",
@@ -6438,7 +6457,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 352
+        "lines": 374
       }
     },
     {
@@ -6483,7 +6502,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 516
+        "lines": 529
       }
     },
     {
@@ -6492,7 +6511,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 999
+        "lines": 1025
       }
     },
     {
@@ -6582,7 +6601,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 299
+        "lines": 379
       }
     },
     {
@@ -6591,7 +6610,7 @@
       "label": "lib/models/gatewayAdapter.ts",
       "source": "lib/models/gatewayAdapter.ts",
       "attrs": {
-        "lines": 112
+        "lines": 127
       }
     },
     {
@@ -18125,6 +18144,69 @@
       "evidence": "/decisions/0145-gateway-preference.md:28"
     },
     {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "file:tests/gateway.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "file:tests/memoryProviders.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "module:lib/memory/providers.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md frontmatter"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md:28"
+    },
+    {
+      "from": "/decisions/0146-gateway-search-and-embeddings.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0146-gateway-search-and-embeddings.md:31"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18249,6 +18331,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:68"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0146-gateway-search-and-embeddings.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:37"
     },
     {
       "from": "/memory/architecture.md",
@@ -19841,6 +19930,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0146-gateway-search-and-embeddings.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:296"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -20052,6 +20148,20 @@
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0145-gateway-preference.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:42"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0146-gateway-search-and-embeddings.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:42"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:42"
@@ -27030,6 +27140,13 @@
     },
     {
       "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27892,6 +28009,13 @@
     {
       "from": "module:lib/models/gatewayAdapter.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayAdapter.ts"

@@ -57,6 +57,24 @@ not funded falls back to the other; the doctor names a misspelt preference
 or an unknown provider. `gatewayPreference`, `gatewayExceptions` and
 `providerTransport` are exported from `melchizedek-agents/registry`.
 
+**A gateway searches and embeds** (ADR 0146). On the gateway path an
+agent's `web_search` is no longer dropped: Vercel AI Gateway runs its
+server search tool (`vercel:exa_search` by default) and OpenRouter its web
+plugin (the provider's native search where the model has one, else Exa),
+whose `url_citation` annotations the chat-completions base now keeps as the
+final's `grounding.citations` (`groundingOf`). `MODEL_GATEWAY_SEARCH` names
+the engine or turns it off; `x_search` and `collections_search` stay
+dropped. Long-term memory's embedder goes through the gateway's
+`/embeddings` when the gateway carries the same model (Vercel:
+`google/gemini-embedding-001`, `openai/text-embedding-3-small`; OpenRouter:
+OpenAI's) and the provider's own key is absent or the gateway is preferred,
+so the vectors stay the model's own. `GatewayInfo` gains `search` and
+`embeddings`; `gatewaySearch`, `gatewaySearchProblem` and
+`gatewayEmbedding` are exported from `melchizedek-agents/models/gateway`;
+`gatewayConfig`, `gatewayPreference`, `gatewayExceptions` and
+`gatewayWanted` take an optional `env`. The capability matrix's gateway
+row reads `native_search` as degraded, with the note.
+
 **One gateway key is the first thing offered.** `.env.example` opens with
 the `MODEL_GATEWAY` block (one Vercel AI Gateway or OpenRouter key for every
 cloud model whose direct key is absent), the README's cloud quick start

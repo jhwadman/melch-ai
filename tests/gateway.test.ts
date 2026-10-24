@@ -17,8 +17,10 @@ import assert from 'node:assert';
 import {
   GATEWAYS,
   gatewayConfig,
+  gatewayEmbedding,
   gatewayExceptions,
   gatewayPreference,
+  gatewaySearch,
   gatewayProblem,
   gatewayWireModel,
   planTransport,
@@ -43,6 +45,7 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_MODEL_MAP',
   'MODEL_GATEWAY_PREFER',
   'MODEL_GATEWAY_EXCEPT',
+  'MODEL_GATEWAY_SEARCH',
 ];
 
 /** Runs fn with ONLY the given env vars set (of the ones this suite touches). */
@@ -343,12 +346,60 @@ test('describeCapabilities: native on the direct path, dropped through a gateway
     assert.deepEqual(r.portable, ['wiki_search']);
     assert.equal(capabilitySummary('A', r), undefined);
   });
+  // Through a gateway, web_search runs as the gateway's own search (ADR 0146); x_search has no gateway form.
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     const r = describeCapabilities('grok-4.7', ['web_search', 'x_search', 'web_extract']);
     assert.equal(r.transport, 'gateway');
-    assert.deepEqual(r.dropped, ['web_search', 'x_search']);
+    assert.deepEqual(r.native, ['web_search']);
+    assert.deepEqual(r.dropped, ['x_search']);
     assert.deepEqual(r.portable, ['web_extract']);
-    assert.match(capabilitySummary('XScout', r)!, /via gateway:vercel — dropped web_search, x_search/);
+    assert.equal(r.gatewaySearch, 'vercel:exa');
+    assert.match(capabilitySummary('XScout', r)!, /via gateway:vercel \(web_search by the gateway's search, vercel:exa\) — dropped x_search \(a gateway runs only its own web search\)/);
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'native' }, () => {
+    const r = describeCapabilities('gemini-3.8-flash', ['web_search']);
+    assert.deepEqual([r.native, r.dropped, r.gatewaySearch], [['web_search'], [], 'openrouter:native']);
+    assert.match(capabilitySummary('A', r)!, /via gateway:openrouter \(web_search by the gateway's search, openrouter:native\)\.$/);
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    const r = describeCapabilities('grok-4.7', ['web_search', 'x_search']);
+    assert.deepEqual(r.dropped, ['web_search', 'x_search']);
+    assert.equal(r.gatewaySearch, undefined);
+    assert.match(capabilitySummary('XScout', r)!, /dropped web_search, x_search \(the gateway's search is off \(MODEL_GATEWAY_SEARCH\)\)/);
+    assert.equal(gatewayProblem(), undefined, 'off is a value, not a problem');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'bing' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_SEARCH=bing is not a search engine Vercel AI Gateway runs; use off or one of: exa, perplexity, parallel, browserbase, tako/);
+    assert.deepEqual(describeCapabilities('grok-4.7', ['web_search']).dropped, ['web_search'], 'an unknown engine turns the search off, and the doctor names it');
+  });
+});
+
+test('gatewaySearch gives each gateway its body: a server tool for Vercel, the web plugin for OpenRouter', () => {
+  withEnv({}, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel), { engine: 'exa', body: { tools: [{ type: 'vercel:exa_search' }] }, citations: false });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter), { engine: undefined, body: { plugins: [{ id: 'web' }] }, citations: true });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'perplexity' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:perplexity_search' }] });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter)?.body, { plugins: [{ id: 'web', engine: 'perplexity' }] });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel), null);
+  });
+});
+
+test('gatewayEmbedding names the gateway\'s id for an embedding model it carries, and nothing for one it lacks', () => {
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.deepEqual(gatewayEmbedding('gemini', 'gemini-embedding-001')?.model, 'google/gemini-embedding-001');
+    assert.deepEqual(gatewayEmbedding('openai', 'text-embedding-3-small')?.model, 'openai/text-embedding-3-small');
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001')?.baseUrl, 'https://ai-gateway.vercel.sh/v1');
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001'), undefined, 'OpenRouter carries no Gemini embedding model');
+    assert.equal(gatewayEmbedding('openai', 'text-embedding-3-small')?.model, 'openai/text-embedding-3-small');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel' }, () => {
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001'), undefined, 'no key, no gateway');
   });
 });
 

@@ -113,6 +113,38 @@ test('memoryProvidersFromEnv: Gemini by default, the configured provider otherwi
   assert.equal(c.embedder.dimensions, 1024);
 });
 
+test('memoryProvidersFromEnv: with no Gemini key the embedder goes through a gateway that carries the same model; one that lacks it changes nothing (ADR 0146)', async () => {
+  const viaVercel = memoryProvidersFromEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.equal(viaVercel.embedder.provider, 'gemini');
+  assert.equal(viaVercel.embedder.model, 'google/gemini-embedding-001');
+  assert.equal(viaVercel.embedder.dimensions, 768);
+  let url = '';
+  let posted: any;
+  await withFetch(
+    (u, body) => {
+      url = u;
+      posted = body;
+      return Response.json({ data: [{ index: 0, embedding: Array(768).fill(0.1) }] });
+    },
+    () => viaVercel.embedder.embed(['a']),
+  );
+  assert.equal(url, 'https://ai-gateway.vercel.sh/v1/embeddings');
+  assert.deepEqual(posted, { model: 'google/gemini-embedding-001', input: ['a'], dimensions: 768 });
+
+  const viaOpenRouter = memoryProvidersFromEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.equal(viaOpenRouter.embedder.model, 'gemini-embedding-001', 'OpenRouter has no Gemini embedding model: the direct path stays');
+
+  const keyed = memoryProvidersFromEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'gw-fixture' }, 'server-gemini-key');
+  assert.equal(keyed.embedder.model, 'gemini-embedding-001', 'a Gemini key wins by default');
+  const preferred = memoryProvidersFromEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'gw-fixture', MODEL_GATEWAY_PREFER: 'gateway' }, 'server-gemini-key');
+  assert.equal(preferred.embedder.model, 'google/gemini-embedding-001', 'the preference moves the embedder too, to the same model');
+
+  const openai = memoryProvidersFromEnv({ MEMORY_EMBEDDING_PROVIDER: 'openai', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.equal(openai.embedder.model, 'openai/text-embedding-3-small');
+  const proxied = memoryProvidersFromEnv({ MEMORY_EMBEDDING_PROVIDER: 'openai', MEMORY_EMBEDDING_BASE_URL: 'https://proxy.internal/v1', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.equal(proxied.embedder.model, 'text-embedding-3-small', 'an explicit proxy is the operator\'s choice; the gateway does not override it');
+});
+
 test('memoryProvidersFromEnv refuses a configuration it cannot honour', () => {
   assert.throws(() => memoryProvidersFromEnv({ MEMORY_EMBEDDING_PROVIDER: 'cohere' }), /not one of/);
   assert.throws(

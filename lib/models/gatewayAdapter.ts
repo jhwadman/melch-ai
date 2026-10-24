@@ -20,19 +20,29 @@
  *     streaming and token accounting, all from the base. Tool choice goes
  *     as asked; whether the upstream honours a forced one varies.
  *
+ * WHAT THE GATEWAY GIVES BACK (ADR 0146):
+ *   web_search and google_search run as the gateway's own search, on any
+ *   model: Vercel's server tool (`vercel:<engine>_search`, exa by default;
+ *   the gateway searches and folds the results into the context, the span
+ *   counts the calls, no citations come back) or OpenRouter's web plugin
+ *   (the provider's native search where it has one, else Exa; url_citation
+ *   annotations come back as grounding). MODEL_GATEWAY_SEARCH=off drops the
+ *   tool as before, or names the engine.
+ *
  * WHAT IS LOST — and reported:
- *   Every native tool (web_search, google_search, x_search,
- *   collections_search, ...). The base drops them, marks the span and warns
- *   once; lib/models/capabilities.ts names the loss per agent for the doctor
- *   and the A2A startup log. Because `provider` is the upstream's, this
- *   adapter replays no providerState: a chat-completions wire has no place
- *   for Claude's signed blocks or OpenAI's reasoning items.
+ *   x_search, collections_search and the other provider-only tools. The
+ *   base drops them, marks the span and warns once; lib/models/capabilities.ts
+ *   names the loss per agent for the doctor and the A2A startup log. Because
+ *   `provider` is the upstream's, this adapter replays no providerState: a
+ *   chat-completions wire has no place for Claude's signed blocks or OpenAI's
+ *   reasoning items.
  */
 
 import type { ReasoningLevel, ToolChoiceMode } from './contract.ts';
 import { ChatCompletionsAdapter } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
-import { GATEWAY_ENV, GATEWAY_KEY_ENV, GATEWAY_MODEL_MAP_ENV, gatewayConfig, gatewayWireModel } from './gateway.ts';
+import { GATEWAY_ENV, GATEWAY_KEY_ENV, GATEWAY_MODEL_MAP_ENV, gatewayConfig, gatewaySearch, gatewayWireModel } from './gateway.ts';
+import { setLlmSpanAttribute } from '../observability/tracer.ts';
 import type { GatewayConfig } from './gateway.ts';
 import { providerForModel } from './providerMap.ts';
 import { credentialValue } from './credentialSource.ts';
@@ -93,9 +103,14 @@ export class GatewayAdapter extends ChatCompletionsAdapter {
     return undefined;
   }
 
-  // webSearchBodyFields() stays at the base default (null): a gateway has no
-  // uniform switch for upstream native search, so the tool is dropped and
-  // the loss is reported (llm.capability.dropped, the doctor, the startup log).
+  /** The gateway's own search for web_search (ADR 0146), or null when it is off, so the base drops the tool and says so. */
+  protected override webSearchBodyFields(): Record<string, unknown> | null {
+    if (!this.#cfg) return null;
+    const search = gatewaySearch(this.#cfg.gateway);
+    if (!search) return null;
+    setLlmSpanAttribute('llm.web_search.gateway', `${this.#cfg.gateway.id}:${search.engine ?? 'default'}`);
+    return search.body;
+  }
 
   protected override httpError(status: number, detail: string, model: string): ChatFailure {
     const label = this.#cfg?.gateway.label ?? 'gateway';

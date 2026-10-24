@@ -20,7 +20,7 @@
 
 import { PROVIDERS } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
-import { planTransport } from './gateway.ts';
+import { gatewaySearch, planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
@@ -58,6 +58,8 @@ export interface CapabilityReport {
   gateway?: string;
   /** The cloud platform of a direct path (ADR 0023); absent on Ollama and the gateway. */
   platform?: Platform;
+  /** On a gateway path with its search on: the gateway and engine that run web_search (ADR 0146). */
+  gatewaySearch?: string;
   /** False when neither a direct key nor a gateway can serve this id. */
   funded: boolean;
   /** The env var that would fund the direct path. */
@@ -80,11 +82,16 @@ export function describeCapabilities(
   const native: string[] = [];
   const dropped: string[] = [];
   const portable: string[] = [];
+  // A gateway runs a web search of its own for web_search and google_search (ADR 0146); the provider-only tools are still dropped.
+  const search = plan.transport === 'gateway' && plan.gateway ? gatewaySearch(plan.gateway) : null;
+  const gatewaySearchLabel = search && plan.gateway ? `${plan.gateway.id}:${search.engine ?? 'default'}` : undefined;
   for (const name of tools) {
     const providers = SERVER_SIDE_TOOLS[name];
     if (!providers) {
       portable.push(name);
     } else if (plan.transport === 'direct' && providers.includes(plan.provider) && nativeSearchOn(plan.provider, platform ?? 'direct')) {
+      native.push(name);
+    } else if (search && (name === 'web_search' || name === 'google_search')) {
       native.push(name);
     } else {
       dropped.push(name);
@@ -96,6 +103,7 @@ export function describeCapabilities(
     providerLabel: PROVIDERS[plan.provider].label,
     transport: plan.transport,
     ...(plan.gateway ? { gateway: plan.gateway.id } : {}),
+    ...(gatewaySearchLabel ? { gatewaySearch: gatewaySearchLabel } : {}),
     ...(platform && platform !== 'direct' ? { platform } : {}),
     funded: plan.funded,
     keyEnv: plan.keyEnv,
@@ -114,18 +122,21 @@ export function capabilitySummary(agentName: string, r: CapabilityReport): strin
     return `${agentName}: ${r.model} has no route — set ${r.keyEnv ?? 'a provider key'} (or a MODEL_GATEWAY).`;
   }
   const via = r.transport === 'gateway' ? ` via gateway:${r.gateway}` : '';
+  const searched = r.gatewaySearch && r.native.length ? ` (${r.native.join(', ')} by the gateway's search, ${r.gatewaySearch})` : '';
   if (r.dropped.length === 0) {
-    return via ? `${agentName}: ${r.model}${via}.` : undefined;
+    return via ? `${agentName}: ${r.model}${via}${searched}.` : undefined;
   }
   const why =
     r.transport === 'gateway'
-      ? 'a gateway cannot enable upstream native search'
+      ? r.gatewaySearch
+        ? 'a gateway runs only its own web search'
+        : "the gateway's search is off (MODEL_GATEWAY_SEARCH)"
       : r.provider === 'ollama'
         ? 'a local model has no native search'
         : r.platform
           ? `native search is not sent to ${r.providerLabel} on ${r.platform}`
           : `${r.providerLabel} has no native ${r.dropped.join('/')}`;
-  return `${agentName}: ${r.model}${via} — dropped ${r.dropped.join(', ')} (${why}).`;
+  return `${agentName}: ${r.model}${via}${searched} — dropped ${r.dropped.join(', ')} (${why}).`;
 }
 
 // ── The capability matrix (ADR 0019) ─────────────────────────────────────────
@@ -311,7 +322,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     thinking_with_tools: degraded(CHAT_THINKING_NOTE),
     streaming: ok(),
     vision: ok('test', 'upstream model must accept images'),
-    native_search: unsupported('a gateway cannot enable upstream native search; the web_search sentinel is dropped'),
+    native_search: degraded(
+      "the gateway's own search runs for web_search on any model (ADR 0146): Vercel's server tool (exa by default; results folded into the context, the calls counted, no citations), OpenRouter's web plugin (the provider's native search where it has one, else Exa; citations kept as grounding); MODEL_GATEWAY_SEARCH names the engine or turns it off, and x_search and collections_search are dropped",
+    ),
   },
 };
 

@@ -130,7 +130,7 @@ npx melchizedek-chat --syndicate model_zoo
 
 ## 4. A gateway key
 
-One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint. It is a fallback, never a preempt: a direct key always wins for its provider. Ollama never goes through it.
+One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint (and TypeSafe Jev on its System One route). By default it is a fallback: a direct key wins for its provider; MODEL_GATEWAY_PREFER=gateway turns that round, and MODEL_GATEWAY_EXCEPT names the providers that take the opposite. Ollama never goes through it.
 
 **Set in `.env`** (names and shapes only; you type the values yourself):
 
@@ -158,8 +158,8 @@ npx melchizedek-chat --syndicate research_brief
 
 **Notes:**
 
-- Native search is lost on the gateway path (Gemini grounding, Anthropic and OpenAI web_search, xAI x_search); the doctor marks each dropped tool.
-- Long-term memory embeds through Gemini by default, which the gateway does not serve: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai or ollama.
+- web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, and xAI's x_search and Collections are dropped; the doctor marks each.
+- Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001; OpenRouter has no Gemini one, so set GOOGLE_GENAI_API_KEY there, or MEMORY_EMBEDDING_PROVIDER=openai or ollama).
 
 **Onboarding skill:** `melchizedek-onboard-keys` (`npx melchizedek-setup --level gateway` prints this guide)
 

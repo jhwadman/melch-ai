@@ -416,7 +416,7 @@ accordingly — model optionality is a single YAML line per agent:
 | `deepseek-*` | DeepSeek | `lib/models/deepseekAdapter.ts` (chat completions) | `DEEPSEEK_API_KEY` | ⚠ omitted + warning |
 | `jev-*` | TypeSafe (Jev, a decision model) | `lib/models/jevAdapter.ts` (System One) | `TYPESAFE_API_KEY` | ✗ no tools at all |
 | `ollama/*` | Local Ollama | `lib/models/ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
-| *any cloud id whose direct key is absent, or every cloud id under `MODEL_GATEWAY_PREFER=gateway`* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions; `jev-*` keeps `JevAdapter` on the gateway's System One route) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
+| *any cloud id whose direct key is absent, or every cloud id under `MODEL_GATEWAY_PREFER=gateway`* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions; `jev-*` keeps `JevAdapter` on the gateway's System One route) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ◐ the gateway's own search (`MODEL_GATEWAY_SEARCH`) |
 
 The xAI adapter carries the deepest capability surface: `grok-4.5`
 requests pin `reasoning.effort: "medium"` (`lib/config.ts`), SSE
@@ -549,6 +549,29 @@ preference whose path is not funded falls back to the other; an unknown
 preference word or a provider name the list does not know is named by the
 doctor (ADR 0145). Both variables are read through the credential source,
 like the key.
+
+**What a gateway gives back** (ADR 0146). An agent's `web_search` (or
+`google_search`) is not dropped on the gateway path: it runs as the
+gateway's own search, on any model. Vercel AI Gateway runs a server tool
+(`vercel:exa_search` by default; `MODEL_GATEWAY_SEARCH` picks `exa`,
+`perplexity`, `parallel`, `browserbase` or `tako`): the gateway searches,
+folds the results into the model's context and answers in the same
+response, the span counts the calls, and no citations come back. OpenRouter
+runs its web plugin, which is the provider's native search where the model
+has one (OpenAI, Anthropic, Google, xAI) and Exa elsewhere
+(`MODEL_GATEWAY_SEARCH` picks `native`, `exa`, `firecrawl`, `parallel` or
+`perplexity`), and returns `url_citation` annotations the adapter keeps as
+the final's `grounding.citations`. `MODEL_GATEWAY_SEARCH=off` drops the tool
+as before. Each gateway bills its search on top of the tokens (Exa about
+$0.007 a request on OpenRouter; Vercel prices its engines). xAI's `x_search`
+and `collections_search` have no gateway form and are dropped. Long-term
+memory's embedder follows the same rule: with no key for the embedding
+provider, or under `MODEL_GATEWAY_PREFER=gateway`, it embeds through the
+gateway's `/embeddings` when the gateway carries the same model (Vercel
+carries `google/gemini-embedding-001` and `openai/text-embedding-3-small`
+and honours `dimensions`, checked live at 768; OpenRouter carries OpenAI's
+only), so a store embedded directly and one embedded through the gateway
+hold the same vectors; a gateway that lacks the model changes nothing.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,
@@ -935,7 +958,7 @@ names; nothing is kept by the framework anywhere else.
 | The prompt: the user's message, the conversation, tool results | The model provider of each agent that runs (the model-id prefix) | The provider's policy | The `model:` lines in the YAML; `ollama/` ids stay on your machine |
 | Tool calls (`web_search`, `web_extract`, OpenAPI, MCP) | The tool's own host | That host's policy | The agent's `tools:`, `openapi:`, `mcp_server_url` / `mcp_tools` |
 | Sessions (conversation history) | Your Postgres, `adk_sessions` | 7 days after the last message | `ttlDays` (`postgresStorage`) |
-| Long-term memory facts | Your Postgres, `adk_memory_facts`; **the transcript is also sent to the extraction and embedding providers, Gemini by default whatever the agents run on** (the server warns at boot when they differ) | Until erased, or `memory_retention_days` | `MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_PROVIDER`, `memory_retention_days` |
+| Long-term memory facts | Your Postgres, `adk_memory_facts`; **the transcript is also sent to the extraction and embedding providers, Gemini by default whatever the agents run on** (the server warns at boot when they differ; through the gateway when it carries the embedding model, ADR 0146) | Until erased, or `memory_retention_days` | `MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_PROVIDER`, `memory_retention_days` |
 | The ledger: each turn's input, output and tool results (key-shaped secrets redacted) | Your Postgres, `adk_turns`, `adk_telemetry` | **Until you prune it**: schedule `melchizedek_prune_telemetry(<days>)` | `TELEMETRY_REDACT`, the prune's `turn_days` |
 | Sampled full model requests | Your Postgres, `adk_payloads` | 30 days | `TELEMETRY_PAYLOADS`, `TELEMETRY_PAYLOAD_TTL_DAYS` |
 | Traces, when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Your OTLP collector, conversation content included with key-shaped secrets redacted (`off` drops it) | Your collector's policy | `OTEL_EXPORT_CONTENT` (`redacted`, `off`, `raw`) |

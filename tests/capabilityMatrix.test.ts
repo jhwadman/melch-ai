@@ -235,6 +235,12 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
 
   async native_search(row) {
     const body = await capture(row, request(row, { nativeTools: ['web_search'] }));
+    if (row === 'gateway') {
+      // The gateway's own search (ADR 0146): OpenRouter's web plugin in the fixture env, a server tool on Vercel.
+      const plugin = (body.plugins ?? []).some((p: any) => p?.id === 'web');
+      const server = (body.tools ?? []).some((t: any) => /^vercel:\w+_search$/.test(t?.type ?? ''));
+      return plugin || server ? 'degraded' : 'unsupported';
+    }
     const text = JSON.stringify(body.tools ?? []) + JSON.stringify(body.web_search_options ?? '') + JSON.stringify(body.plugins ?? '');
     return /web_search/.test(text) ? 'supported' : 'unsupported';
   },

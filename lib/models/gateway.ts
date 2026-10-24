@@ -56,6 +56,21 @@
  *                          own key wins; gateway: the gateway wins)
  *   MODEL_GATEWAY_EXCEPT   comma list of provider ids that take the opposite
  *                          of the preference (never ollama)
+ *   MODEL_GATEWAY_SEARCH   off, or the gateway's search engine for web_search
+ *                          (unset = on with the gateway's default: Vercel runs
+ *                          its exa_search server tool, OpenRouter its web
+ *                          plugin, the provider's own search where it has one)
+ *
+ * WHAT A GATEWAY GIVES BACK (ADR 0146): both gateways run a web search of
+ *   their own on any model, so a web_search sentinel is not dropped on the
+ *   gateway path: Vercel's server tools (exa, perplexity, parallel,
+ *   browserbase, tako) search and fold the results into the context, no
+ *   citations back; OpenRouter's web plugin uses the provider's native search
+ *   where one exists (OpenAI, Anthropic, Google, xAI) and Exa elsewhere, and
+ *   returns url_citation annotations the adapter keeps as grounding. Both
+ *   serve embeddings on /embeddings; `embeddings` names the model each
+ *   carries for an embedding provider, so long-term memory can embed through
+ *   the gateway with the same model it would use directly.
  */
 
 import { chatGptSignInRoutesOpenAi } from '../chatgpt/state.ts';
@@ -86,6 +101,19 @@ export interface GatewayInfo {
     /** The gateway's id for a `jev-*` YAML id. */
     wire: (model: string) => string;
   };
+  /** The gateway's own web search for the web_search sentinel (ADR 0146). */
+  search: {
+    /** The engines MODEL_GATEWAY_SEARCH may name. */
+    engines: readonly string[];
+    /** The engine used when none is named; undefined leaves the choice to the gateway. */
+    default?: string;
+    /** The chat-completions body fields that turn the search on. `tools` is appended to the function tools. */
+    body: (engine: string | undefined) => Record<string, unknown>;
+    /** Whether the gateway returns citations the adapter can keep. */
+    citations: boolean;
+  };
+  /** The gateway's id for an embedding provider's default model, where it carries that model (lib/memory/providers.ts). */
+  embeddings: Partial<Record<'gemini' | 'openai', (model: string) => string>>;
 }
 
 export const GATEWAY_ENV = 'MODEL_GATEWAY';
@@ -93,6 +121,7 @@ export const GATEWAY_KEY_ENV = 'MODEL_GATEWAY_API_KEY';
 export const GATEWAY_BASE_URL_ENV = 'MODEL_GATEWAY_BASE_URL';
 export const GATEWAY_MODEL_MAP_ENV = 'MODEL_GATEWAY_MODEL_MAP';
 export const GATEWAY_PREFER_ENV = 'MODEL_GATEWAY_PREFER';
+export const GATEWAY_SEARCH_ENV = 'MODEL_GATEWAY_SEARCH';
 export const GATEWAY_EXCEPT_ENV = 'MODEL_GATEWAY_EXCEPT';
 
 export type GatewayPreference = 'direct' | 'gateway';
@@ -111,6 +140,15 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
       url: 'https://ai-gateway.vercel.sh/typesafe/v1/systemone',
       wire: (model) => (/^jev-(latest|preview)$/.test(model) ? 'typesafe-ai/jev' : model),
     },
+    search: {
+      // vercel.com/docs/ai-gateway/models-and-providers/web-search: server tools the gateway runs; no config, so the model writes the query.
+      engines: ['exa', 'perplexity', 'parallel', 'browserbase', 'tako'],
+      default: 'exa',
+      body: (engine) => ({ tools: [{ type: `vercel:${engine ?? 'exa'}_search` }] }),
+      citations: false,
+    },
+    // GET /v1/models lists both; the gateway honours `dimensions` on each (checked 2026-10-23: 768 asked, 768 returned).
+    embeddings: { gemini: (model) => `google/${model}`, openai: (model) => `openai/${model}` },
   },
   openrouter: {
     id: 'openrouter',
@@ -123,6 +161,14 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
       url: 'https://openrouter.ai/api/v1/systemone',
       wire: (model) => (/^jev-(latest|preview)$/.test(model) ? '~typesafe/jev-latest' : `typesafe/${model.replace(/^(jev-\d+\.\d+)\.\d+$/, '$1')}`),
     },
+    search: {
+      // openrouter.ai/docs/features/web-search: the web plugin; unset engine = the provider's native search where it has one, else Exa.
+      engines: ['native', 'exa', 'firecrawl', 'parallel', 'perplexity'],
+      body: (engine) => ({ plugins: [{ id: 'web', ...(engine ? { engine } : {}) }] }),
+      citations: true,
+    },
+    // OpenRouter lists openai/text-embedding-3-* and no Gemini embedding model (checked 2026-10-23).
+    embeddings: { openai: (model) => `openai/${model}` },
   },
 };
 
@@ -139,17 +185,51 @@ export interface GatewayConfig {
  * doctor and the registry log can name the mistake instead of routing
  * silently to nothing.
  */
-export function gatewayConfig(): GatewayConfig | null {
-  const id = (credentialValue(GATEWAY_ENV) ?? '').trim().toLowerCase();
+export function gatewayConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig | null {
+  const id = (credentialValue(GATEWAY_ENV, env) ?? '').trim().toLowerCase();
   if (!id) return null;
   const gateway = (GATEWAYS as Record<string, GatewayInfo>)[id];
   if (!gateway) return null;
-  const override = (credentialValue(GATEWAY_BASE_URL_ENV) ?? '').trim();
+  const override = (credentialValue(GATEWAY_BASE_URL_ENV, env) ?? '').trim();
   return {
     gateway,
     baseUrl: trimTrailingSlashes(override || gateway.baseUrl),
-    keyPresent: !!credentialValue(GATEWAY_KEY_ENV),
+    keyPresent: !!credentialValue(GATEWAY_KEY_ENV, env),
   };
+}
+
+/**
+ * The gateway's web search for the web_search sentinel (ADR 0146): the body
+ * fields that turn it on, or null when MODEL_GATEWAY_SEARCH=off or names an
+ * engine this gateway lacks (gatewaySearchProblem says so). `engine` is the
+ * one named, else the gateway's default.
+ */
+export function gatewaySearch(gateway: GatewayInfo, env: NodeJS.ProcessEnv = process.env): { engine: string | undefined; body: Record<string, unknown>; citations: boolean } | null {
+  const raw = (credentialValue(GATEWAY_SEARCH_ENV, env) ?? '').trim().toLowerCase();
+  if (raw === 'off' || raw === 'false' || raw === '0') return null;
+  if (raw && !gateway.search.engines.includes(raw)) return null;
+  const engine = raw || gateway.search.default;
+  return { engine, body: gateway.search.body(engine), citations: gateway.search.citations };
+}
+
+/** A MODEL_GATEWAY_SEARCH value the configured gateway cannot honour, named; undefined when it is off, unset or valid. */
+export function gatewaySearchProblem(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = (credentialValue(GATEWAY_SEARCH_ENV, env) ?? '').trim().toLowerCase();
+  const cfg = gatewayConfig(env);
+  if (!raw || !cfg || ['off', 'false', '0'].includes(raw) || cfg.gateway.search.engines.includes(raw)) return undefined;
+  return `${GATEWAY_SEARCH_ENV}=${raw} is not a search engine ${cfg.gateway.label} runs; use off or one of: ${cfg.gateway.search.engines.join(', ')}`;
+}
+
+/**
+ * The gateway's id for an embedding provider's model, when the configured
+ * gateway is funded and carries that provider's embeddings; undefined
+ * otherwise (lib/memory/providers.ts then keeps the direct path).
+ */
+export function gatewayEmbedding(provider: 'gemini' | 'openai', model: string, env: NodeJS.ProcessEnv = process.env): { gateway: GatewayInfo; baseUrl: string; model: string } | undefined {
+  const cfg = gatewayConfig(env);
+  const wire = cfg?.gateway.embeddings[provider];
+  if (!cfg || !cfg.keyPresent || !wire) return undefined;
+  return { gateway: cfg.gateway, baseUrl: cfg.baseUrl, model: wire(model) };
 }
 
 /** A human-readable misconfiguration, or undefined when the gateway is
@@ -164,40 +244,40 @@ export function gatewayProblem(): string | undefined {
     return `${GATEWAY_ENV} is set to an unrecognised value (not shown); it must be one of: ${Object.keys(GATEWAYS).join(', ')}`;
   }
   if (!cfg.keyPresent) return `${GATEWAY_ENV}=${cfg.gateway.id} is set but ${GATEWAY_KEY_ENV} is not`;
-  return gatewayPreferenceProblem();
+  return gatewayPreferenceProblem() ?? gatewaySearchProblem();
 }
 
 /** A misconfigured preference or exception list, or undefined; the values are plain words, so they are named. */
-export function gatewayPreferenceProblem(): string | undefined {
-  const raw = (credentialValue(GATEWAY_PREFER_ENV) ?? '').trim().toLowerCase();
+export function gatewayPreferenceProblem(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = (credentialValue(GATEWAY_PREFER_ENV, env) ?? '').trim().toLowerCase();
   if (raw && !(GATEWAY_PREFERENCES as readonly string[]).includes(raw)) {
     return `${GATEWAY_PREFER_ENV}=${raw} is not a preference; it must be one of: ${GATEWAY_PREFERENCES.join(', ')}`;
   }
-  const unknown = exceptionWords().filter((w) => !(w in PROVIDERS) || w === 'ollama');
+  const unknown = exceptionWords(env).filter((w) => !(w in PROVIDERS) || w === 'ollama');
   if (unknown.length) return `${GATEWAY_EXCEPT_ENV} names ${unknown.join(', ')}; it takes provider ids (${(Object.keys(PROVIDERS) as ProviderId[]).filter((p) => p !== 'ollama').join(', ')}), never ollama`;
   return undefined;
 }
 
 /** Which way the rule leans: `direct` (the default; a provider's own key wins) or `gateway` (the gateway wins). An unrecognised value reads as direct. */
-export function gatewayPreference(): GatewayPreference {
-  const raw = (credentialValue(GATEWAY_PREFER_ENV) ?? '').trim().toLowerCase();
+export function gatewayPreference(env: NodeJS.ProcessEnv = process.env): GatewayPreference {
+  const raw = (credentialValue(GATEWAY_PREFER_ENV, env) ?? '').trim().toLowerCase();
   return raw === 'gateway' ? 'gateway' : 'direct';
 }
 
-function exceptionWords(): string[] {
-  return (credentialValue(GATEWAY_EXCEPT_ENV) ?? '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean);
+function exceptionWords(env: NodeJS.ProcessEnv = process.env): string[] {
+  return (credentialValue(GATEWAY_EXCEPT_ENV, env) ?? '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean);
 }
 
 /** The providers that take the opposite of the preference (MODEL_GATEWAY_EXCEPT); unknown words and ollama are dropped and named by gatewayPreferenceProblem. */
-export function gatewayExceptions(): ReadonlySet<ProviderId> {
-  return new Set(exceptionWords().filter((w): w is ProviderId => w in PROVIDERS && w !== 'ollama'));
+export function gatewayExceptions(env: NodeJS.ProcessEnv = process.env): ReadonlySet<ProviderId> {
+  return new Set(exceptionWords(env).filter((w): w is ProviderId => w in PROVIDERS && w !== 'ollama'));
 }
 
 /** True when the operator wants `provider`'s ids on the gateway even beside a direct key: the preference, turned round for an exception. */
-export function gatewayWanted(provider: ProviderId): boolean {
+export function gatewayWanted(provider: ProviderId, env: NodeJS.ProcessEnv = process.env): boolean {
   if (provider === 'ollama') return false;
-  const prefersGateway = gatewayPreference() === 'gateway';
-  return gatewayExceptions().has(provider) ? !prefersGateway : prefersGateway;
+  const prefersGateway = gatewayPreference(env) === 'gateway';
+  return gatewayExceptions(env).has(provider) ? !prefersGateway : prefersGateway;
 }
 
 /** True when a gateway is configured well enough to serve requests. */
