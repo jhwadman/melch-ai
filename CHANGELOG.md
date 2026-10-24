@@ -4,6 +4,22 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**A Prompt Writer template.** `templates/prompt_writer.yaml` writes
+production prompts for an agent or a whole syndicate from a plain
+description, or diagnoses and rewrites a prompt someone pastes. An Editor
+runs a bounded loop: an Architect settles the topology, capabilities and
+trust boundary on a design sheet, a Writer writes every prompt in the
+Lyceum block anatomy (tool and MCP doctrines, subagent descriptions,
+`require_approval` on writes, one `[NEEDS: …]` variable per missing fact),
+and an Auditor checks it against a ten-rule checklist (`prompt_checklist`)
+and, when YAML is asked for, a verified skeleton (`yaml_shape`). Every
+agent runs on `gemini-4-argon`; session memory keeps the design across
+turns. Its prompts were written by `gemini-4-argon` from the course's
+lessons. Run live 2026-10-23: a two-agent MCP design whose YAML loads, a
+prompt repair that the Auditor sent back once, and the off-topic reply.
+
 ## 1.12.0 — 2026-10-23
 
 A minor release: TypeSafe's Jev joins the providers as a decision model, and

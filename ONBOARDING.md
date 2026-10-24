@@ -69,7 +69,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 
 **Runs at this level:**
 
-- GOOGLE_GENAI_API_KEY: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
+- GOOGLE_GENAI_API_KEY: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), prompt_writer (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
 - ANTHROPIC_API_KEY: claude (example), structured_critic (example)
 - OPENAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
@@ -147,7 +147,7 @@ One key serves every cloud model id whose direct key is absent, through the gate
 
 **Runs at this level:**
 
-- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), classifier (example), model_zoo (example)
+- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), prompt_writer (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), classifier (example), model_zoo (example)
 
 **First commands:**
 
@@ -188,7 +188,7 @@ The model id still picks the provider; these variables pick the cloud it is reac
 
 **Runs at this level:**
 
-- Gemini on Vertex AI: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
+- Gemini on Vertex AI: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), prompt_writer (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
 - Claude on Bedrock or Vertex AI: claude (example), structured_critic (example)
 - GPT on Azure OpenAI: no shipped file yet (change a `model:` line to use one)
 
@@ -221,7 +221,7 @@ The A2A server lets each caller fund its own inference: the caller sends its key
 
 **Runs at this level:**
 
-- any file; start from a template: account_memory, case_desk, conversational, draft_review, intake_extractor, research_brief, research_desk, review_panel, support_triage, systems_operator
+- any file; start from a template: account_memory, case_desk, conversational, draft_review, intake_extractor, prompt_writer, research_brief, research_desk, review_panel, support_triage, systems_operator
 
 **First commands:**
 
@@ -260,7 +260,7 @@ A2A_AUTH decides who a caller is, and so whose data a request touches. `callers`
 
 **Runs at this level:**
 
-- any file; start from a template: account_memory, case_desk, conversational, draft_review, intake_extractor, research_brief, research_desk, review_panel, support_triage, systems_operator
+- any file; start from a template: account_memory, case_desk, conversational, draft_review, intake_extractor, prompt_writer, research_brief, research_desk, review_panel, support_triage, systems_operator
 
 **First commands:**
 
