@@ -572,6 +572,15 @@ carries `google/gemini-embedding-001` and `openai/text-embedding-3-small`
 and honours `dimensions`, checked live at 768; OpenRouter carries OpenAI's
 only), so a store embedded directly and one embedded through the gateway
 hold the same vectors; a gateway that lacks the model changes nothing.
+OpenRouter carries no Gemini embedding model, so with no Gemini key the
+documented answer there is `MEMORY_EMBEDDING_PROVIDER=openai`
+(`text-embedding-3-small` at 768, a tenth of Gemini's price), with one
+caveat the store now enforces (migration 0023, ADR 0147): a memory store
+records the provider, model and dimension its vectors come from on its
+first write and refuses a different model at start, since two models'
+vectors do not compare even at the same size; switching means re-embedding
+every stored fact. `npm run doctor` prints a `memory` line saying what
+would embed here, or what to set.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,

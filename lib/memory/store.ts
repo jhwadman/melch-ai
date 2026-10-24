@@ -66,8 +66,19 @@ export interface MemoryStore {
   ingestedEvents?(userKey: string, sessionId: string): Promise<number>;
   /** The embedding column's vector size; null when it cannot be read. */
   embeddingDimensions?(): Promise<number | null>;
+  /** The one embedder the store's vectors come from, recorded on the first write (migration 0023, ADR 0147); null when none is recorded. */
+  embedderRecord?(): Promise<EmbedderRecord | null>;
+  /** Records the embedder once; a later call changes nothing. */
+  recordEmbedder?(record: EmbedderRecord): Promise<void>;
   /** Deletes facts in `namespace` older than `days`; returns how many (migration 0008). */
   pruneNamespace?(namespace: string, days: number): Promise<number>;
+}
+
+/** The provider, model and dimension a memory store's vectors come from (ADR 0147). */
+export interface EmbedderRecord {
+  provider: string;
+  model: string;
+  dimensions: number;
 }
 
 /** The JSON shape melchizedek_memory_commit takes for its rows. */
@@ -149,6 +160,16 @@ export function supabaseMemoryStore(supabase: SupabaseClient): MemoryStore {
       const { data, error } = await supabase.rpc('melchizedek_memory_dimensions');
       if (error) throw new Error(error.message);
       return data == null ? null : Number(data);
+    },
+    async embedderRecord() {
+      const { data, error } = await supabase.rpc('melchizedek_memory_embedder');
+      if (error) throw new Error(error.message);
+      const row = Array.isArray(data) ? data[0] : data;
+      return row && typeof row.model === 'string' ? { provider: String(row.provider), model: row.model, dimensions: Number(row.dimensions) } : null;
+    },
+    async recordEmbedder(record) {
+      const { error } = await supabase.rpc('melchizedek_memory_record_embedder', { p_provider: record.provider, p_model: record.model, p_dimensions: record.dimensions });
+      if (error) throw new Error(error.message);
     },
     async pruneNamespace(namespace, days) {
       const { data, error } = await supabase.rpc('melchizedek_prune_memory', { p_namespace: namespace, p_days: days });

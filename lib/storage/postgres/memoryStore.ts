@@ -104,6 +104,16 @@ export function postgresMemoryStore(pool: Pool): MemoryStore {
       return r.rows[0]?.d == null ? null : Number(r.rows[0].d);
     },
 
+    async embedderRecord() {
+      const r = await pool.query('SELECT provider, model, dimensions FROM melchizedek_memory_embedder WHERE one');
+      const row = r.rows[0];
+      return row ? { provider: String(row.provider), model: String(row.model), dimensions: Number(row.dimensions) } : null;
+    },
+
+    async recordEmbedder(record) {
+      await pool.query('SELECT melchizedek_memory_record_embedder($1, $2, $3)', [record.provider, record.model, record.dimensions]);
+    },
+
     async pruneNamespace(namespace, days) {
       const r = await pool.query('SELECT melchizedek_prune_memory($1, $2) AS n', [namespace, days]);
       return Number(r.rows[0]?.n ?? 0);

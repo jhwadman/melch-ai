@@ -46,6 +46,8 @@ import {
 } from './models/gateway.ts';
 import { PROVIDERS } from './models/providerMap.ts';
 import type { ProviderId } from './models/providerMap.ts';
+import { embedderPlan } from './memory/providers.ts';
+import type { EmbedderPlan } from './memory/providers.ts';
 import { describeRuntime } from './runtime/runtimeFlag.ts';
 import { CHATGPT_SIGNIN_ENV, CHATGPT_SIGNIN_FILE_ENV, chatGptSignInRoutesOpenAi, chatGptSignInStatus } from './chatgpt/state.ts';
 import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
@@ -201,6 +203,14 @@ export interface DoctorResult {
   chatgpt?: DoctorChatGpt;
   /** The project manifest (ADR 0138) found from the working directory, when there is one. */
   project?: DoctorProject;
+  /** Long-term memory's embedder (ADR 0147), when any syndicate here is long-term or MEMORY_EMBEDDING_PROVIDER is set. */
+  memory?: DoctorMemory;
+}
+
+/** What would embed long-term memory here: the plan, and how many of this directory's syndicates need it. */
+export interface DoctorMemory {
+  longTerm: number;
+  embedder: EmbedderPlan;
 }
 
 /** A `melchizedek.json` at or above the working directory: its checks, or why it does not load. */
@@ -759,6 +769,10 @@ export function runDoctor(options: {
 
   flagMemoryNamespaces(syndicates);
 
+  // Long-term memory's embedder (ADR 0147): what would embed, or what to set, names only.
+  const longTerm = syndicates.filter((s) => s.memory).length;
+  const memory: DoctorMemory | undefined = longTerm || process.env.MEMORY_EMBEDDING_PROVIDER?.trim() ? { longTerm, embedder: embedderPlan() } : undefined;
+
   // The server's OAuth setup (ADR 0114): the key, the redirect URI and the allowlist, names only.
   const grants = syndicates.flatMap((s) => s.grants ?? []).map((g) => ({ agent: g.agent, tools: g.tools, oauth2: { provider: g.provider, grant: g.grant, token_url: '' } }));
   const set = Object.fromEntries([CREDENTIAL_KEY_ENV, OAUTH_REDIRECT_URI_ENV, OAUTH_HOSTS_ENV].map((name) => [name, !!process.env[name]?.trim()]));
@@ -788,6 +802,7 @@ export function runDoctor(options: {
     syndicates,
     unlocks,
     gateway,
+    ...(memory ? { memory } : {}),
     endpoints: endpointRows(),
     counts,
     ...(oauth ? { oauth } : {}),
@@ -949,6 +964,18 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
       result.gateway.problem
         ? `gateway     ${c.red}✗${c.reset} ${result.gateway.problem}`
         : `gateway     ${c.yellow}◇${c.reset} ${result.gateway.label} fills in for any provider whose direct key is absent ${c.dim}(native search is lost on that path)${c.reset}`,
+    );
+  }
+  if (result.memory) {
+    // Long-term memory's embedder (ADR 0147): funded directly, through the gateway, or what to set. Names only.
+    const e = result.memory.embedder;
+    const n = result.memory.longTerm;
+    const who = n ? `${n} long-term syndicate${n === 1 ? '' : 's'}` : 'MEMORY_EMBEDDING_PROVIDER set';
+    const mark = !e.funded ? `${c.red}✗${c.reset}` : e.transport === 'gateway' ? `${c.yellow}◇${c.reset}` : `${c.green}✓${c.reset}`;
+    lines.push(
+      e.funded
+        ? `memory      ${mark} embeddings ${e.provider}/${e.model} (${e.dimensions}d)${e.transport === 'gateway' ? ` via gateway:${e.gateway}` : ''} ${c.dim}· ${e.detail} · ${who}${c.reset}`
+        : `memory      ${mark} ${c.red}${e.detail}${c.reset} ${c.dim}· ${who}${c.reset}`,
     );
   }
   if (result.serving) {

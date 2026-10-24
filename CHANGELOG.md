@@ -75,6 +75,19 @@ so the vectors stay the model's own. `GatewayInfo` gains `search` and
 `gatewayWanted` take an optional `env`. The capability matrix's gateway
 row reads `native_search` as degraded, with the note.
 
+**A memory store records its embedding model; the doctor says what embeds**
+(ADR 0147, migration `0023_memory_embedder`). On its first successful write
+the memory service records the provider, model and dimension the store's
+vectors come from, and at start it refuses an embedder whose model differs,
+naming the recorded one and the two ways out (set the embedder back, or
+re-embed every fact); a gateway's spelling of the same model passes. The
+doctor gains a `memory` line from `embedderPlan` (exported from
+`melchizedek-agents/memory`): what embeds long-term memory, on which path,
+or what to set, with OpenRouter's documented answer
+(`MEMORY_EMBEDDING_PROVIDER=openai`, `text-embedding-3-small` at 768) and
+the re-embed caveat (`memoryProvidersFromEnv` is exported there too). `MemoryStore` gains optional `embedderRecord` and
+`recordEmbedder`; `db/hardening.sql` locks the new table like the others.
+
 **One gateway key is the first thing offered.** `.env.example` opens with
 the `MODEL_GATEWAY` block (one Vercel AI Gateway or OpenRouter key for every
 cloud model whose direct key is absent), the README's cloud quick start

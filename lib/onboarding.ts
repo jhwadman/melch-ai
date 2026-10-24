@@ -290,7 +290,7 @@ export const LEVELS: readonly Level[] = [
     },
     notes: [
       "web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, and xAI's x_search and Collections are dropped; the doctor marks each.",
-      'Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001; OpenRouter has no Gemini one, so set GOOGLE_GENAI_API_KEY there, or MEMORY_EMBEDDING_PROVIDER=openai or ollama).',
+      'Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001). OpenRouter has no Gemini one: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small at 768 through it; a store already embedded with Gemini must be re-embedded if the model changes, and the store refuses a different model at start (the doctor\'s memory line says what would embed).',
     ],
     skill: 'melchizedek-onboard-keys',
     detectable: true,

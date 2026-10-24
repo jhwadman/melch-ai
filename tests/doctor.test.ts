@@ -126,6 +126,23 @@ test('a gateway key alone readies every cloud example via the gateway and names 
   });
 });
 
+test('the memory line says what embeds long-term memory, or what to set, with OpenRouter\'s answer (ADR 0147)', () => {
+  withEnv({ GOOGLE_GENAI_API_KEY: 'g' }, () => {
+    const result = runDoctor({ agentsDir: AGENTS });
+    assert.ok(result.memory && result.memory.longTerm > 0, 'ares.yaml is long-term');
+    assert.deepEqual([result.memory!.embedder.transport, result.memory!.embedder.model], ['direct', 'gemini-embedding-001']);
+    assert.match(renderDoctor(result), /memory\s+✓ embeddings gemini\/gemini-embedding-001 \(768d\)/);
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    const text = renderDoctor(runDoctor({ agentsDir: AGENTS }));
+    assert.match(text, /memory\s+◇ embeddings gemini\/google\/gemini-embedding-001 \(768d\) via gateway:vercel/);
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    const text = renderDoctor(runDoctor({ agentsDir: AGENTS }));
+    assert.match(text, /memory\s+✗ long-term memory has no embedder \(OpenRouter carries no Gemini embedding model\): set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small \(768d\) through OpenRouter/);
+  });
+});
+
 test('adding the Gemini key beside the gateway moves Gemini agents back to direct with grounding', () => {
   withEnv({ GOOGLE_GENAI_API_KEY: 'g', MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     const result = runDoctor({ agentsDir: AGENTS });

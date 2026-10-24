@@ -57,6 +57,8 @@ END $$;
 -- deny-by-default. service_role is unaffected (it bypasses RLS).
 ALTER TABLE adk_memory_facts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE adk_sessions     ENABLE ROW LEVEL SECURITY;
+-- The store's one embedder row (migration 0023) names a model, nothing personal; locked all the same.
+ALTER TABLE IF EXISTS melchizedek_memory_embedder ENABLE ROW LEVEL SECURITY;
 
 -- Belt and suspenders: also revoke the default table privileges from the
 -- API roles, so even a future accidentally-created permissive policy
@@ -65,6 +67,9 @@ DO $$
 BEGIN
   PERFORM pg_temp.melchizedek_revoke_api('adk_memory_facts');
   PERFORM pg_temp.melchizedek_revoke_api('adk_sessions');
+  IF to_regclass('melchizedek_memory_embedder') IS NOT NULL THEN
+    PERFORM pg_temp.melchizedek_revoke_api('melchizedek_memory_embedder');
+  END IF;
 END $$;
 
 -- Optional observability ledger (db/telemetry.sql). Guarded: the tables only

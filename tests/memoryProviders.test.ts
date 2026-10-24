@@ -10,6 +10,7 @@ import assert from 'node:assert';
 
 import {
   DEFAULT_EMBEDDING_MODELS,
+  embedderPlan,
   memoryProvidersFromEnv,
   modelExtractor,
   openAiCompatibleEmbedder,
@@ -143,6 +144,26 @@ test('memoryProvidersFromEnv: with no Gemini key the embedder goes through a gat
   assert.equal(openai.embedder.model, 'openai/text-embedding-3-small');
   const proxied = memoryProvidersFromEnv({ MEMORY_EMBEDDING_PROVIDER: 'openai', MEMORY_EMBEDDING_BASE_URL: 'https://proxy.internal/v1', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
   assert.equal(proxied.embedder.model, 'text-embedding-3-small', 'an explicit proxy is the operator\'s choice; the gateway does not override it');
+});
+
+test('embedderPlan says what would embed, on which path, or what to set, with OpenRouter\'s documented answer (ADR 0147)', () => {
+  const direct = embedderPlan({}, 'server-gemini-key');
+  assert.deepEqual([direct.transport, direct.funded, direct.model], ['direct', true, 'gemini-embedding-001']);
+  const via = embedderPlan({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.deepEqual([via.transport, via.gateway, via.model, via.funded], ['gateway', 'vercel', 'google/gemini-embedding-001', true]);
+  const none = embedderPlan({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.equal(none.funded, false);
+  assert.equal(none.transport, 'none');
+  assert.match(none.detail, /OpenRouter carries no Gemini embedding model/);
+  assert.match(none.detail, /MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small \(768d\) through OpenRouter/);
+  assert.match(none.detail, /re-embedded if the model changes/);
+  const bare = embedderPlan({});
+  assert.match(bare.detail, /no gateway is set.*GOOGLE_GENAI_API_KEY/);
+  const openai = embedderPlan({ MEMORY_EMBEDDING_PROVIDER: 'openai', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'gw-fixture' });
+  assert.deepEqual([openai.transport, openai.model], ['gateway', 'openai/text-embedding-3-small']);
+  const ollama = embedderPlan({ MEMORY_EMBEDDING_PROVIDER: 'ollama' });
+  assert.deepEqual([ollama.transport, ollama.funded], ['direct', true]);
+  assert.equal(embedderPlan({ MEMORY_EMBEDDING_PROVIDER: 'cohere' }).funded, false);
 });
 
 test('memoryProvidersFromEnv refuses a configuration it cannot honour', () => {
