@@ -64,7 +64,7 @@ test('the store records its embedder once, and the service refuses another model
 });
 
 test('a re-embed walks the facts in id order, writes the vectors back, and overwrites the record last', async () => {
-  const rows = ['alpha', 'bravo', 'charlie', 'delta', 'echo'].map((fact, i) => ({ user_key: 'ns/u1', fact, embedding: vec(1 + i), tag: null, fact_date: null, source: null, status: 'active', keys: [] as string[] }));
+  const rows = ['alpha', 'bravo', 'charlie', 'delta', 'echo'].map((fact, i) => ({ user_key: 'ns/u1', fact, embedding: vec(1 + i), tag: 'note', fact_date: null, source: null, status: 'active', keys: [] as string[] }));
   const inserted = await store.insert(rows);
   assert.equal(inserted.length, 5);
   const page = await store.listFacts!(null, 2);
