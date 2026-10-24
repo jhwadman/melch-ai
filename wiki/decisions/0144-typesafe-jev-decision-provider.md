@@ -29,6 +29,6 @@ sources:
 
 **Supersedes:** none ([ADR 0012](/decisions/0012-direct-adapters-canonical.md) still holds: a direct key wins, the gateway stands in)
 
-**Open:** not run live (no key when written): whether Vercel's `/typesafe/v1/systemone` accepts `typesafe-ai/jev` and the versioned ids as `GET /typesafe/v1/models` lists them, and whether OpenRouter's System One route takes the `~typesafe/jev-latest` alias; Jev's image mode (box questions) and long-context header; a `fallback_model` from a Jev agent to a chat model when confidence is low (today the caller reads `jev.<name>.confidence`)
+**Open:** OpenRouter's System One route (not run live; Vercel's was, on 2026-10-23: `typesafe-ai/jev` for the aliases and `jev-1.14.0`, `jev-1.13.0` as written all answered, 150 to 500 ms); TypeSafe's own API with a direct key (not run live; the same wire); Jev's image mode (box questions) and long-context header; a `fallback_model` from a Jev agent to a chat model when confidence is low (today the caller reads `jev.<name>.confidence`)
 
 How it works: [Jev adapter](/models/jev-adapter.md)

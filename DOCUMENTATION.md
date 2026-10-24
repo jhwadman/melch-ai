@@ -531,7 +531,9 @@ naming the property and the shapes Jev takes. `examples/classifier.yaml`
 is the pattern, and `decide()` from `melchizedek-agents/model` is the same
 call from code, typed on its questions (`noul`, `choice`, `score`). The
 row in the capability matrix is asserted against the request body the
-adapter sends; it has not been run live.
+adapter sends; the classifier and all four ids were run live through
+Vercel AI Gateway on 2026-10-23 (answers in 150 to 715 ms); TypeSafe's own
+API and OpenRouter's route were not.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,

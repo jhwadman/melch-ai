@@ -30,7 +30,8 @@ naming the property). The starter pack gains `classifier.yaml`, a
 support-triage classifier on `jev-latest` (`npm run syndicate:classifier`).
 The doctor, the setup guide (`ONBOARDING.md`), `.env.example`, the
 `model_overrides` keys (`typesafe`), the onboarding skills and the skill
-briefs know it. Not yet run live.
+briefs know it. Run live through Vercel AI Gateway (the classifier and
+every id, 2026-10-23); TypeSafe's own API and OpenRouter not yet.
 
 **A gateway serves Jev too.** With no `TYPESAFE_API_KEY`, `MODEL_GATEWAY`
 serves `jev-*` ids on the gateway's own System One route: Vercel AI
