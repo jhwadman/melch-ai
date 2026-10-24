@@ -4,6 +4,58 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.12.0 — 2026-10-23
+
+A minor release: TypeSafe's Jev joins the providers as a decision model, and
+one gateway key is the first thing the setup offers.
+
+**TypeSafe Jev is a provider** (ADR 0144). `jev-*` ids route to the new
+`JevAdapter` (exported from `melchizedek-agents/model`, beside
+`DeepSeekAdapter`), against `https://api.typesafe.ai/v1/systemone` with
+`TYPESAFE_API_KEY` (`TYPESAFE_BASE_URL` for a proxy); `jev-latest` is the
+default (`DEFAULT_JEV_MODEL`). Jev is not a chat model: it answers an
+agent's `output.schema` as typed decisions with calibrated probabilities,
+in about a tenth of a second, at $0.042 per million input tokens and nothing
+for output. The schema is the request: a boolean property becomes a yes/no
+question, a string with `enum` or a `oneOf` of described constants a
+choice, an integer whose `oneOf` describes the levels 0..n-1 a score; the
+instruction and the conversation are the state; the final is the schema's
+object with the raw answers under a reserved `jev` key. The same call from
+code is `decide()`, typed on its questions (`noul`, `choice`, `score`), with
+`questionsFromSchema` and `objectFromAnswers` beside it. Jev takes no tools,
+no reasoning, no streaming and no images, and says so in the capability
+matrix; an agent with no schema, or with a property Jev cannot decide, fails
+before any call (`TYPESAFE_SCHEMA_REQUIRED`, `TYPESAFE_SCHEMA_UNSUPPORTED`,
+naming the property). The starter pack gains `classifier.yaml`, a
+support-triage classifier on `jev-latest` (`npm run syndicate:classifier`).
+The doctor, the setup guide (`ONBOARDING.md`), `.env.example`, the
+`model_overrides` keys (`typesafe`), the onboarding skills and the skill
+briefs know it. Not yet run live.
+
+**A gateway serves Jev too.** With no `TYPESAFE_API_KEY`, `MODEL_GATEWAY`
+serves `jev-*` ids on the gateway's own System One route: Vercel AI
+Gateway's `/typesafe/v1/systemone` as `typesafe-ai/jev`, OpenRouter's
+`/api/v1/systemone` as `typesafe/jev-1.14` (`MODEL_GATEWAY_MODEL_MAP` fixes
+an id). The gateway's `slugs` table has a `typesafe` entry and each gateway a
+`systemOne` route (`GatewayInfo`).
+
+**The gateway settings read through the credential source.**
+`MODEL_GATEWAY`, `MODEL_GATEWAY_BASE_URL` and `MODEL_GATEWAY_MODEL_MAP` are
+read with `credentialValue`, as the key already was (ADR 0133), so an
+embedding application that holds them in a keychain, not the environment,
+turns the gateway on too.
+
+**One gateway key is the first thing offered.** `.env.example` opens with
+the `MODEL_GATEWAY` block (one Vercel AI Gateway or OpenRouter key for every
+cloud model whose direct key is absent), the README's cloud quick start
+leads with it, and the keys onboarding skill suggests it first when a person
+has no preference. The routing rule is unchanged: a direct key beside it
+always wins for its provider.
+
+**Price rows for Jev** (migration `0022_typesafe_jev_pricing`): `jev-latest`,
+`jev-preview`, `jev-1.14.0` and `jev-1.13.0` at $0.042 input, $0 output. An
+existing row is never overwritten.
+
 ## 1.11.1 — 2026-10-22
 
 **Price rows for `grok-4.3`, `gemini-embedding-001` and `gemini-3.5-flash`**

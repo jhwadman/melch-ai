@@ -9,7 +9,7 @@ In a clone, the commands are spelled as npm scripts (`npm run doctor`, `npm run 
 | # | You have | Guide |
 |---|---|---|
 | 1 | Nothing yet: run open-weight models locally (Ollama, no key) | `--level local` |
-| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot or DeepSeek) | `--level one-provider` |
+| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot, DeepSeek or TypeSafe) | `--level one-provider` |
 | 3 | API keys for several providers | `--level several-providers` |
 | 4 | One gateway key (Vercel AI Gateway or OpenRouter) | `--level gateway` |
 | 5 | Cloud platform credentials (Vertex AI, Amazon Bedrock, Azure OpenAI) | `--level cloud-platform` |
@@ -63,6 +63,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
 | `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
+| `TYPESAFE_API_KEY` | an API key from https://console.typesafe.ai/keys | TypeSafe Jev: model ids jev-* (a decision model: it answers an output.schema, never prose) |
 
 **Confirm:** `npx melchizedek-doctor`: the providers line shows a ✓ beside your provider, and the files of that tier read `ready`.
 
@@ -74,6 +75,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - MOONSHOT_API_KEY: no shipped file yet (change a `model:` line to use one)
 - DEEPSEEK_API_KEY: no shipped file yet (change a `model:` line to use one)
+- TYPESAFE_API_KEY: classifier (example)
 - with no key at all: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
@@ -104,6 +106,7 @@ Each key funds its own provider, and a syndicate may mix them: one agent on Clau
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
 | `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
+| `TYPESAFE_API_KEY` | an API key from https://console.typesafe.ai/keys | TypeSafe Jev: model ids jev-* (a decision model: it answers an output.schema, never prose) |
 
 **Confirm:** `npx melchizedek-doctor`: a ✓ beside each provider you set; `multi-provider` files read `ready` once every provider they use has its key.
 
@@ -142,7 +145,7 @@ One key serves every cloud model id whose direct key is absent, through the gate
 
 **Runs at this level:**
 
-- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), model_zoo (example)
+- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), classifier (example), model_zoo (example)
 
 **First commands:**
 

@@ -30,6 +30,7 @@ const ENV_KEYS = [
   'XAI_API_KEY',
   'MOONSHOT_API_KEY',
   'DEEPSEEK_API_KEY',
+  'TYPESAFE_API_KEY',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
 ];
@@ -58,6 +59,7 @@ test('the providers line names each provider\'s own key when it is unset', () =>
     assert.match(line, /Moonshot Kimi MOONSHOT_API_KEY not set/);
     assert.match(line, /xAI Grok XAI_API_KEY not set/);
     assert.match(line, /DeepSeek DEEPSEEK_API_KEY not set/);
+    assert.match(line, /TypeSafe Jev TYPESAFE_API_KEY not set/);
     assert.match(line, /Ollama \(local\) local/);
   });
 });

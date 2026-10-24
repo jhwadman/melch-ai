@@ -40,7 +40,8 @@ import { buildModelRequest } from '../../lib/runtime/native/request.ts';
 import { InProcessSessionService } from '../../lib/runtime/sessions.ts';
 import { resolveTools } from '../../lib/toolRegistry.ts';
 
-export type AdapterRow = Exclude<MatrixRow, 'gemini'>;
+/** The rows checked through one wire dialect each; Gemini and TypeSafe Jev have their own checks in the matrix test. */
+export type AdapterRow = Exclude<MatrixRow, 'gemini' | 'typesafe'>;
 
 export const FAKE_ENV: Record<AdapterRow, Record<string, string>> = {
   anthropic: { ANTHROPIC_API_KEY: 'fixture-ant-test-0123456789abcdef' }, // gitleaks:allow (test fixture)
@@ -63,6 +64,8 @@ const ALL_ENV = [
   'OPENAI_BASE_URL',
   'MOONSHOT_BASE_URL',
   'DEEPSEEK_BASE_URL',
+  'TYPESAFE_API_KEY',
+  'TYPESAFE_BASE_URL',
   'OLLAMA_BASE_URL',
   'GOOGLE_GENAI_API_KEY',
   'GEMINI_API_KEY',
@@ -137,14 +140,17 @@ const rejected: Reply = () =>
  * posted and everything `send` yielded. A call that throws on the 400 is
  * drained like one that yields its error.
  */
+/** TypeSafe's fixture key, for the JevAdapter checks in the matrix test (ADR 0144). */
+export const TYPESAFE_ENV = { TYPESAFE_API_KEY: 'fixture-typesafe-0123456789abcdef' }; // gitleaks:allow (test fixture)
+
 export async function captureExchange<T>(
-  row: AdapterRow | 'gemini',
+  row: AdapterRow | 'gemini' | 'typesafe',
   send: () => AsyncIterable<T>,
   reply: Reply = rejected,
 ): Promise<{ requests: PostedRequest[]; yielded: T[] }> {
   const saved = Object.fromEntries(ALL_ENV.map((k) => [k, process.env[k]]));
   for (const k of ALL_ENV) delete process.env[k];
-  Object.assign(process.env, row === 'gemini' ? GEMINI_ENV : FAKE_ENV[row]);
+  Object.assign(process.env, row === 'gemini' ? GEMINI_ENV : row === 'typesafe' ? TYPESAFE_ENV : FAKE_ENV[row]);
   const originalFetch = globalThis.fetch;
   const requests: PostedRequest[] = [];
   const yielded: T[] = [];

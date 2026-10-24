@@ -29,7 +29,15 @@
  *   doctor all need this decision; keeping it free of adapter imports
  *   avoids the cycle model-routing warns about.
  *
- * Env (deployment config, never YAML):
+ * JEV (lib/models/jev.ts): TypeSafe's decision model is not a chat model,
+ *   so a gateway serves it on its own System One route, named per gateway
+ *   below (`systemOne`), with the gateway's own model ids. The same rule
+ *   applies: TypeSafe's direct key wins; the gateway stands in when it is
+ *   absent.
+ *
+ * Env (deployment config, never YAML; MODEL_GATEWAY and the key are read
+ * through the credential source, so a host that holds them in a keychain
+ * serves them too, ADR 0133):
  *   MODEL_GATEWAY          vercel | openrouter   (unset = off, the default)
  *   MODEL_GATEWAY_API_KEY  the gateway's key
  *   MODEL_GATEWAY_BASE_URL optional endpoint override (self-hosted proxies
@@ -59,6 +67,13 @@ export interface GatewayInfo {
   consoleUrl: string;
   /** The gateway's slug for each upstream provider, e.g. "x-ai" vs "xai". */
   slugs: Record<CloudProviderId, string>;
+  /** The gateway's System One route for TypeSafe Jev (lib/models/jev.ts). */
+  systemOne: {
+    /** Where a Jev request posts. */
+    url: string;
+    /** The gateway's id for a `jev-*` YAML id. */
+    wire: (model: string) => string;
+  };
 }
 
 export const GATEWAY_ENV = 'MODEL_GATEWAY';
@@ -72,14 +87,25 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
     label: 'Vercel AI Gateway',
     baseUrl: 'https://ai-gateway.vercel.sh/v1',
     consoleUrl: 'https://vercel.com/ai-gateway',
-    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'xai', moonshot: 'moonshotai', deepseek: 'deepseek' },
+    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'xai', moonshot: 'moonshotai', deepseek: 'deepseek', typesafe: 'typesafe-ai' },
+    systemOne: {
+      // The TypeSafe SDK's base URL on Vercel is /typesafe, where the documented id is typesafe-ai/jev
+      // (vercel.com/ai-gateway/models/jev); GET /typesafe/v1/models also lists jev-1.13.0 and jev-1.14.0 as written.
+      url: 'https://ai-gateway.vercel.sh/typesafe/v1/systemone',
+      wire: (model) => (/^jev-(latest|preview)$/.test(model) ? 'typesafe-ai/jev' : model),
+    },
   },
   openrouter: {
     id: 'openrouter',
     label: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
     consoleUrl: 'https://openrouter.ai/keys',
-    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'x-ai', moonshot: 'moonshotai', deepseek: 'deepseek' },
+    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'x-ai', moonshot: 'moonshotai', deepseek: 'deepseek', typesafe: 'typesafe' },
+    systemOne: {
+      // OpenRouter serves the TypeSafe SDK's wire at /api/v1/systemone; ids drop the patch (typesafe/jev-1.14), aliases track ~typesafe/jev-latest.
+      url: 'https://openrouter.ai/api/v1/systemone',
+      wire: (model) => (/^jev-(latest|preview)$/.test(model) ? '~typesafe/jev-latest' : `typesafe/${model.replace(/^(jev-\d+\.\d+)\.\d+$/, '$1')}`),
+    },
   },
 };
 
@@ -97,11 +123,11 @@ export interface GatewayConfig {
  * silently to nothing.
  */
 export function gatewayConfig(): GatewayConfig | null {
-  const id = (process.env[GATEWAY_ENV] ?? '').trim().toLowerCase();
+  const id = (credentialValue(GATEWAY_ENV) ?? '').trim().toLowerCase();
   if (!id) return null;
   const gateway = (GATEWAYS as Record<string, GatewayInfo>)[id];
   if (!gateway) return null;
-  const override = (process.env[GATEWAY_BASE_URL_ENV] ?? '').trim();
+  const override = (credentialValue(GATEWAY_BASE_URL_ENV) ?? '').trim();
   return {
     gateway,
     baseUrl: trimTrailingSlashes(override || gateway.baseUrl),
@@ -113,7 +139,7 @@ export function gatewayConfig(): GatewayConfig | null {
  *  either off or usable. An unrecognised value is named as such and never
  *  repeated, since it may be a secret pasted into the wrong variable. */
 export function gatewayProblem(): string | undefined {
-  const id = (process.env[GATEWAY_ENV] ?? '').trim();
+  const id = (credentialValue(GATEWAY_ENV) ?? '').trim();
   if (!id) return undefined;
   const cfg = gatewayConfig();
   if (!cfg) {
@@ -132,7 +158,7 @@ export function gatewayUsable(): boolean {
 
 /** Parses "a=b,c=d" into a map; malformed pairs are skipped. */
 function modelMapFromEnv(): Record<string, string> {
-  const raw = process.env[GATEWAY_MODEL_MAP_ENV] ?? '';
+  const raw = credentialValue(GATEWAY_MODEL_MAP_ENV) ?? '';
   const map: Record<string, string> = {};
   for (const pair of raw.split(',')) {
     const eq = pair.indexOf('=');
@@ -164,6 +190,15 @@ export function gatewayWireModel(model: string, gateway: GatewayInfo): string {
   const wire =
     provider === 'anthropic' ? model.replace(/-(\d+)-(\d+)/, '-$1.$2') : model;
   return `${slug}/${wire}`;
+}
+
+/**
+ * The id a gateway's System One route expects for a `jev-*` YAML id
+ * (lib/models/jev.ts): MODEL_GATEWAY_MODEL_MAP first, then the gateway's
+ * own rule.
+ */
+export function gatewaySystemOneModel(model: string, gateway: GatewayInfo): string {
+  return modelMapFromEnv()[model] ?? gateway.systemOne.wire(model);
 }
 
 export type Transport = 'direct' | 'gateway';

@@ -2,41 +2,41 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-22"
+    "at": "2026-10-24"
   },
   "stats": {
-    "nodes": 1044,
-    "edges": 4159,
+    "nodes": 1059,
+    "edges": 4207,
     "byKind": {
-      "doc": 212,
-      "provider": 7,
-      "env": 114,
-      "model": 11,
+      "doc": 215,
+      "provider": 8,
+      "env": 116,
+      "model": 12,
       "tool": 35,
-      "file": 238,
-      "syndicate": 35,
-      "agent": 94,
+      "file": 241,
+      "syndicate": 36,
+      "agent": 95,
       "mcp-server": 5,
       "table": 19,
-      "module": 210,
-      "script": 51,
+      "module": 212,
+      "script": 52,
       "external": 13
     },
     "byRelation": {
-      "links_to": 814,
-      "requires_env": 171,
-      "routes_to": 11,
-      "defined_in": 81,
-      "documents": 59,
-      "contains": 94,
-      "uses_model": 94,
+      "links_to": 824,
+      "requires_env": 173,
+      "routes_to": 12,
+      "defined_in": 82,
+      "documents": 60,
+      "contains": 95,
+      "uses_model": 95,
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 962,
+      "imports": 974,
       "reads_table": 29,
-      "runs": 74,
-      "derives_from": 1217,
+      "runs": 76,
+      "derives_from": 1234,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3675,
+      "extracted": 3723,
       "inferred": 484
     },
     "isolated": 5
@@ -109,6 +109,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 285
+      }
+    },
+    {
+      "id": "/agents/classifier.md",
+      "kind": "doc",
+      "label": "Classifier",
+      "source": "/agents/classifier.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 62
       }
     },
     {
@@ -2128,6 +2140,18 @@
       }
     },
     {
+      "id": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "kind": "doc",
+      "label": "ADR 0144: TypeSafe Jev is a provider whose request is the agent's output schema; a gateway serves it on its own route",
+      "source": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 475
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2148,7 +2172,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 18770
+        "words": 19069
       }
     },
     {
@@ -2260,6 +2284,18 @@
       }
     },
     {
+      "id": "/models/jev-adapter.md",
+      "kind": "doc",
+      "label": "Jev adapter",
+      "source": "/models/jev-adapter.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1010
+      }
+    },
+    {
       "id": "/models/model-contract.md",
       "kind": "doc",
       "label": "Model contract",
@@ -2268,7 +2304,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8238
+        "words": 8456
       }
     },
     {
@@ -2280,7 +2316,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5781
+        "words": 6189
       }
     },
     {
@@ -2732,6 +2768,17 @@
         "role": "subagent",
         "syndicate": "case_desk",
         "description": "Finds the relevant procedure, known issue or past postmortem in the team's runbook bundle."
+      }
+    },
+    {
+      "id": "agent:classifier/Triage",
+      "kind": "agent",
+      "label": "Triage",
+      "source": "config/agents/examples/classifier.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "classifier",
+        "description": "Decides a support message's department, its urgency and whether a person must look, as typed answers with probabilities."
       }
     },
     {
@@ -4256,6 +4303,18 @@
       "attrs": {}
     },
     {
+      "id": "env:TYPESAFE_API_KEY",
+      "kind": "env",
+      "label": "TYPESAFE_API_KEY",
+      "source": "lib/models/providerMap.ts"
+    },
+    {
+      "id": "env:TYPESAFE_BASE_URL",
+      "kind": "env",
+      "label": "TYPESAFE_BASE_URL",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
       "id": "env:WEB_EXTRACT_CHAR_LIMIT",
       "kind": "env",
       "label": "WEB_EXTRACT_CHAR_LIMIT",
@@ -4459,6 +4518,13 @@
       "kind": "file",
       "label": "cartographers.yaml",
       "source": "config/agents/examples/cartographers.yaml",
+      "attrs": {}
+    },
+    {
+      "id": "file:config/agents/examples/classifier.yaml",
+      "kind": "file",
+      "label": "classifier.yaml",
+      "source": "config/agents/examples/classifier.yaml",
       "attrs": {}
     },
     {
@@ -4856,6 +4922,13 @@
       "kind": "file",
       "label": "0021_correct_gemini_flash_grok_rates.sql",
       "source": "db/migrations/0021_correct_gemini_flash_grok_rates.sql",
+      "attrs": {}
+    },
+    {
+      "id": "file:db/migrations/0022_typesafe_jev_pricing.sql",
+      "kind": "file",
+      "label": "0022_typesafe_jev_pricing.sql",
+      "source": "db/migrations/0022_typesafe_jev_pricing.sql",
       "attrs": {}
     },
     {
@@ -5405,6 +5478,13 @@
       "kind": "file",
       "label": "importGraph.test.ts",
       "source": "tests/importGraph.test.ts"
+    },
+    {
+      "id": "file:tests/jev.test.ts",
+      "kind": "file",
+      "label": "jev.test.ts",
+      "source": "tests/jev.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/llmRequestBoundary.test.ts",
@@ -6050,6 +6130,12 @@
       "source": "lib/config.ts (DEFAULT_GROK_MODEL)"
     },
     {
+      "id": "model:jev-latest",
+      "kind": "model",
+      "label": "jev-latest",
+      "source": "config/agents/examples/classifier.yaml"
+    },
+    {
       "id": "model:kimi-k3",
       "kind": "model",
       "label": "kimi-k3",
@@ -6226,7 +6312,7 @@
       "label": "lib/config.ts",
       "source": "lib/config.ts",
       "attrs": {
-        "lines": 163
+        "lines": 170
       }
     },
     {
@@ -6244,7 +6330,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 1111
+        "lines": 1113
       }
     },
     {
@@ -6361,7 +6447,7 @@
       "label": "lib/model.ts",
       "source": "lib/model.ts",
       "attrs": {
-        "lines": 52
+        "lines": 57
       }
     },
     {
@@ -6370,7 +6456,7 @@
       "label": "lib/models/adapterResolver.ts",
       "source": "lib/models/adapterResolver.ts",
       "attrs": {
-        "lines": 210
+        "lines": 213
       }
     },
     {
@@ -6379,7 +6465,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 504
+        "lines": 516
       }
     },
     {
@@ -6424,7 +6510,7 @@
       "label": "lib/models/contract.ts",
       "source": "lib/models/contract.ts",
       "attrs": {
-        "lines": 485
+        "lines": 499
       }
     },
     {
@@ -6451,7 +6537,7 @@
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 328
+        "lines": 332
       }
     },
     {
@@ -6478,7 +6564,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 206
+        "lines": 241
       }
     },
     {
@@ -6536,6 +6622,24 @@
       }
     },
     {
+      "id": "module:lib/models/jev.ts",
+      "kind": "module",
+      "label": "lib/models/jev.ts",
+      "source": "lib/models/jev.ts",
+      "attrs": {
+        "lines": 454
+      }
+    },
+    {
+      "id": "module:lib/models/jevAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/jevAdapter.ts",
+      "source": "lib/models/jevAdapter.ts",
+      "attrs": {
+        "lines": 159
+      }
+    },
+    {
       "id": "module:lib/models/kimiAdapter.ts",
       "kind": "module",
       "label": "lib/models/kimiAdapter.ts",
@@ -6559,7 +6663,7 @@
       "label": "lib/models/providerMap.ts",
       "source": "lib/models/providerMap.ts",
       "attrs": {
-        "lines": 68
+        "lines": 71
       }
     },
     {
@@ -6586,7 +6690,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 216
+        "lines": 220
       }
     },
     {
@@ -6721,7 +6825,7 @@
       "label": "lib/onboarding.ts",
       "source": "lib/onboarding.ts",
       "attrs": {
-        "lines": 679
+        "lines": 681
       }
     },
     {
@@ -7135,7 +7239,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1463
+        "lines": 1464
       }
     },
     {
@@ -7846,7 +7950,7 @@
       "label": "scripts/parity_check.ts",
       "source": "scripts/parity_check.ts",
       "attrs": {
-        "lines": 798
+        "lines": 809
       }
     },
     {
@@ -7918,7 +8022,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1357
+        "lines": 1360
       }
     },
     {
@@ -7991,6 +8095,12 @@
       "id": "provider:openai",
       "kind": "provider",
       "label": "OpenAI GPT",
+      "source": "lib/models/providerMap.ts"
+    },
+    {
+      "id": "provider:typesafe",
+      "kind": "provider",
+      "label": "TypeSafe Jev",
       "source": "lib/models/providerMap.ts"
     },
     {
@@ -8213,6 +8323,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate cartographers"
+      }
+    },
+    {
+      "id": "script:syndicate:classifier",
+      "kind": "script",
+      "label": "npm run syndicate:classifier",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate classifier"
       }
     },
     {
@@ -8510,6 +8629,17 @@
       "attrs": {
         "memory": "session-only",
         "agents": 3,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:classifier",
+      "kind": "syndicate",
+      "label": "Classifier",
+      "source": "config/agents/examples/classifier.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 1,
         "mode": "delegate"
       }
     },
@@ -9372,6 +9502,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/case_desk.md:21"
+    },
+    {
+      "from": "/agents/classifier.md",
+      "to": "file:config/agents/examples/classifier.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/classifier.md frontmatter"
+    },
+    {
+      "from": "/agents/classifier.md",
+      "to": "syndicate:classifier",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/classifier.md"
     },
     {
       "from": "/agents/claude.md",
@@ -17837,6 +17981,83 @@
       "evidence": "/decisions/0143-deepseek-provider.md:30"
     },
     {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "file:config/agents/examples/classifier.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "file:db/migrations/0022_typesafe_jev_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "file:tests/jev.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "module:lib/models/jev.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "module:lib/models/jevAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "/decisions/0012-direct-adapters-canonical.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md:30"
+    },
+    {
+      "from": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "to": "/models/jev-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0144-typesafe-jev-decision-provider.md:34"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18167,6 +18388,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0022_typesafe_jev_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18177,14 +18405,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:42"
+      "evidence": "/memory/schema.md:43"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3266"
+      "evidence": "/memory/schema.md:3310"
     },
     {
       "from": "/memory/sessions.md",
@@ -19188,6 +19416,76 @@
       "evidence": "/models/gemini-adapter.md:123"
     },
     {
+      "from": "/models/jev-adapter.md",
+      "to": "file:config/agents/examples/classifier.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "file:tests/jev.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "module:lib/models/jev.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "module:lib/models/jevAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md:23"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md:23"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md:23"
+    },
+    {
+      "from": "/models/jev-adapter.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/jev-adapter.md:23"
+    },
+    {
       "from": "/models/model-contract.md",
       "to": "file:tests/chatCompletionsAdapter.test.ts",
       "rel": "derives_from",
@@ -19360,7 +19658,7 @@
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:210"
+      "evidence": "/models/model-contract.md:213"
     },
     {
       "from": "/models/model-contract.md",
@@ -19374,21 +19672,21 @@
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:204"
+      "evidence": "/models/model-contract.md:207"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:382"
+      "evidence": "/models/model-contract.md:389"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:382"
+      "evidence": "/models/model-contract.md:389"
     },
     {
       "from": "/models/model-contract.md",
@@ -19409,7 +19707,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:178"
+      "evidence": "/models/model-contract.md:181"
     },
     {
       "from": "/models/model-contract.md",
@@ -19423,28 +19721,28 @@
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:372"
+      "evidence": "/models/model-contract.md:379"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:291"
+      "evidence": "/models/model-contract.md:294"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:178"
+      "evidence": "/models/model-contract.md:181"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:375"
+      "evidence": "/models/model-contract.md:382"
     },
     {
       "from": "/models/model-contract.md",
@@ -19458,7 +19756,7 @@
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:421"
+      "evidence": "/models/model-contract.md:428"
     },
     {
       "from": "/models/model-contract.md",
@@ -19469,31 +19767,45 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:300"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:384"
+      "evidence": "/models/model-contract.md:391"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:264"
+      "evidence": "/models/model-contract.md:267"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:194"
+      "evidence": "/models/model-contract.md:197"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/jev-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:300"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:260"
+      "evidence": "/models/model-contract.md:263"
     },
     {
       "from": "/models/model-contract.md",
@@ -19528,14 +19840,14 @@
       "to": "/decisions/0012-direct-adapters-canonical.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:41"
+      "evidence": "/models/provider-routing.md:42"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:59"
+      "evidence": "/models/provider-routing.md:60"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19549,7 +19861,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:162"
+      "evidence": "/models/provider-routing.md:172"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19563,35 +19875,35 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:142"
+      "evidence": "/models/provider-routing.md:152"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:45"
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:49"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:158"
+      "evidence": "/models/provider-routing.md:168"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:183"
+      "evidence": "/models/provider-routing.md:193"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19605,14 +19917,14 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:189"
+      "evidence": "/models/provider-routing.md:199"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:182"
+      "evidence": "/models/provider-routing.md:192"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19626,42 +19938,49 @@
       "to": "/decisions/0109-structured-output-beside-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:54"
+      "evidence": "/models/provider-routing.md:55"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:45"
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:45"
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:63"
+      "evidence": "/models/provider-routing.md:64"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:39"
+      "evidence": "/models/provider-routing.md:40"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0133-credential-source-by-variable-name.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:184"
+      "evidence": "/models/provider-routing.md:42"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0144-typesafe-jev-decision-provider.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:22"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19675,35 +19994,42 @@
       "to": "/models/chatgpt-signin.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:39"
+      "evidence": "/models/provider-routing.md:40"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:49"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:138"
+      "evidence": "/models/provider-routing.md:148"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/jev-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:22"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:49"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:158"
+      "evidence": "/models/provider-routing.md:168"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19717,14 +20043,14 @@
       "to": "/operations/parity-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:63"
+      "evidence": "/models/provider-routing.md:64"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/operations/setup.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:63"
+      "evidence": "/models/provider-routing.md:64"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19745,7 +20071,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:65"
+      "evidence": "/models/provider-routing.md:66"
     },
     {
       "from": "/models/responses-adapters.md",
@@ -24172,6 +24498,13 @@
       "evidence": "config/agents/templates/case_desk.yaml"
     },
     {
+      "from": "agent:classifier/Triage",
+      "to": "model:jev-latest",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/classifier.yaml"
+    },
+    {
       "from": "agent:claude/Claude",
       "to": "model:claude-sonnet-4-6",
       "rel": "uses_model",
@@ -25129,6 +25462,13 @@
       "rel": "routes_to",
       "tier": "extracted",
       "evidence": "lib/config.ts (DEFAULT_GROK_MODEL)"
+    },
+    {
+      "from": "model:jev-latest",
+      "to": "provider:typesafe",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/classifier.yaml"
     },
     {
       "from": "model:kimi-k3",
@@ -26875,6 +27215,20 @@
     },
     {
       "from": "module:lib/model.ts",
+      "to": "module:lib/models/jev.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/jevAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
       "to": "module:lib/models/kimiAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26974,6 +27328,13 @@
     {
       "from": "module:lib/models/adapterResolver.ts",
       "to": "module:lib/models/grokAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/jevAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/adapterResolver.ts"
@@ -27343,6 +27704,13 @@
       "evidence": "lib/models/endpoints.ts"
     },
     {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:TYPESAFE_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
       "from": "module:lib/models/errorResponse.ts",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
@@ -27677,6 +28045,69 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/jev.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jev.ts"
+    },
+    {
+      "from": "module:lib/models/jev.ts",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jev.ts"
+    },
+    {
+      "from": "module:lib/models/jev.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jev.ts"
+    },
+    {
+      "from": "module:lib/models/jev.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jev.ts"
+    },
+    {
+      "from": "module:lib/models/jevAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jevAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/jevAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jevAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/jevAdapter.ts",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jevAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/jevAdapter.ts",
+      "to": "module:lib/models/jev.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jevAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/jevAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/jevAdapter.ts"
     },
     {
       "from": "module:lib/models/kimiAdapter.ts",
@@ -33279,6 +33710,13 @@
       "evidence": "lib/models/providerMap.ts"
     },
     {
+      "from": "provider:typesafe",
+      "to": "env:TYPESAFE_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/providerMap.ts"
+    },
+    {
       "from": "provider:xai",
       "to": "env:XAI_API_KEY",
       "rel": "requires_env",
@@ -33477,6 +33915,20 @@
     {
       "from": "script:syndicate:cartographers",
       "to": "syndicate:cartographers",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:classifier",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:classifier",
+      "to": "syndicate:classifier",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"
@@ -33928,6 +34380,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/templates/case_desk.yaml"
+    },
+    {
+      "from": "syndicate:classifier",
+      "to": "agent:classifier/Triage",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/classifier.yaml"
+    },
+    {
+      "from": "syndicate:classifier",
+      "to": "file:config/agents/examples/classifier.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/classifier.yaml"
     },
     {
       "from": "syndicate:claude",

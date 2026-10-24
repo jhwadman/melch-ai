@@ -24,8 +24,9 @@ are the two most common paths spelled out.
 - Optional: **Ollama** ([ollama.com](https://ollama.com)) for the
   open-weight local syndicates; provider keys only for the models you
   actually declare — **Anthropic** (`claude-*`), **OpenAI** (`gpt-*`),
-  **xAI** (`grok-*`), **Moonshot** (`kimi-*`), **DeepSeek** (`deepseek-*`) — or one `MODEL_GATEWAY` key as the fallback for
-  whatever direct key is missing (native search is lost on that path);
+  **xAI** (`grok-*`), **Moonshot** (`kimi-*`), **DeepSeek** (`deepseek-*`), **TypeSafe** (`jev-*`, a decision model) — or one
+  `MODEL_GATEWAY` key (Vercel AI Gateway or OpenRouter) that serves every cloud id whose direct key is missing, Jev included
+  (native search is lost on that path);
   and a free **Supabase project** (only for persistent sessions / memory).
   Not sure which you need? `npm run doctor` tells you, read-only.
 
@@ -260,7 +261,8 @@ console.log(result.text);
 |---|---|
 | `Gemini API Key is not configured` | `.env` missing or key not set — step 2. |
 | `[400] Tool call context circulation is not enabled` | The agent's `model:` is too old for agent transfer. Use `gemini-3.8-flash` or newer (all shipped configs already do). |
-| `Model not found` for `claude-*` / `gpt-*` / `grok-*` / `kimi-*` / `deepseek-*` | The matching provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MOONSHOT_API_KEY` / `DEEPSEEK_API_KEY`) is not set in `.env`, so the provider wasn't registered — `npm run doctor` names the variable. Or set `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` once for every cloud provider (native search is lost on that path). |
+| `Model not found` for `claude-*` / `gpt-*` / `grok-*` / `kimi-*` / `deepseek-*` / `jev-*` | The matching provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MOONSHOT_API_KEY` / `DEEPSEEK_API_KEY` / `TYPESAFE_API_KEY`) is not set in `.env`, so the provider wasn't registered — `npm run doctor` names the variable. Or set `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` once for every cloud provider (native search is lost on that path). |
+| `TYPESAFE_SCHEMA_REQUIRED` / `TYPESAFE_SCHEMA_UNSUPPORTED` | A `jev-*` agent has no `output.schema`, or one of its properties is not a decision Jev can make. Give every property a decision shape: a boolean, a string with `enum` or a `oneOf` of described constants, or an integer whose `oneOf` describes the levels 0..n-1; the error names the property. `examples/classifier.yaml` is the pattern. |
 | `GATEWAY_HTTP_ERROR … 404/400` | The gateway rejected the mapped model id. Fix the name once in `.env`: `MODEL_GATEWAY_MODEL_MAP=<your id>=<the gateway's id>`. `GATEWAY_KEY_MISSING` means `MODEL_GATEWAY` is set without `MODEL_GATEWAY_API_KEY`. |
 | `OLLAMA_UNREACHABLE` for `ollama/*` | Ollama isn't running — start the app or `ollama serve`; then check the model is pulled (`ollama list`). |
 | `Refusing to connect to private/loopback MCP host` | The SSRF guard is on (correctly). For the local demo set `ALLOW_PRIVATE_MCP=true` in `.env`. |

@@ -14,6 +14,11 @@
 #   kimi-*            → Moonshot       (MOONSHOT_API_KEY)
 #   deepseek-*        → DeepSeek       (DEEPSEEK_API_KEY)
 #
+# (jev-* → TypeSafe Jev is the eighth provider, and not in this zoo: a
+#  decision model answers a schema, never a question in prose. Its proof
+#  is classifier.yaml.) With no direct key, one MODEL_GATEWAY key serves
+# every cloud agent here.
+#
 # Run the proof:  npm run demo:models        (scripts/demo_model_optionality.ts
 #   sends "explain quantum mechanics" to every agent whose provider is
 #   available, and prints input, thinking, output, and a token/latency trace.

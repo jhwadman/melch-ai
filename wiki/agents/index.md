@@ -6,6 +6,7 @@
 - [Assistant](/agents/assistant.md) — The Assistant syndicate.
 - [The Cartographers](/agents/cartographers.md) — Maps the knowledge graph: has the Surveyor read prose for relations a parser cannot see, and the Registrar record them with their evidence.
 - [Case Desk](/agents/case_desk.md) — The Case Desk syndicate.
+- [Classifier](/agents/classifier.md) — Decides a support message's department, its urgency and whether a person must look, as typed answers with probabilities.
 - [Claude Chat](/agents/claude.md) — The Claude Chat syndicate.
 - [Connectors](/agents/connectors.md) — The Connectors syndicate.
 - [Conversational](/agents/conversational.md) — The Conversational syndicate.

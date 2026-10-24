@@ -33,6 +33,7 @@ import {
   DEFAULT_GROK_MODEL,
   DEFAULT_KIMI_MODEL,
   DEFAULT_DEEPSEEK_MODEL,
+  DEFAULT_JEV_MODEL,
   DEFAULT_OLLAMA_MODEL,
 } from '../config.ts';
 import type { ModelAdapter } from './contract.ts';
@@ -153,6 +154,8 @@ function modelHint(provider: ProviderId): string {
       return 'kimi-*';
     case 'deepseek':
       return 'deepseek-*';
+    case 'typesafe':
+      return 'jev-*';
     case 'ollama':
       return 'ollama/*';
     case 'gemini':
@@ -186,6 +189,7 @@ const DEFAULT_MODEL_FOR: Record<ProviderId, string> = {
   xai: DEFAULT_GROK_MODEL,
   moonshot: DEFAULT_KIMI_MODEL,
   deepseek: DEFAULT_DEEPSEEK_MODEL,
+  typesafe: DEFAULT_JEV_MODEL,
   ollama: DEFAULT_OLLAMA_MODEL,
 };
 

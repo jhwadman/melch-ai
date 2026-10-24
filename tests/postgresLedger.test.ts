@@ -178,6 +178,9 @@ test('cost: the pricing functions, the prefix row, the shipped seed, and a value
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('grok-4.3', 1000000, 0, 0, 1000000, 0) AS v`)), 0.2, 'every input token a cache hit');
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-embedding-001', 1000000, 0, 0) AS v`)), 0.15);
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-3.5-flash', 1000000, 1000000, 0) AS v`)), 10.5);
+  // 0022: TypeSafe Jev, input only; output is free.
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('jev-latest', 1000000, 1000000, 0) AS v`)), 0.042);
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('jev-1.14.0', 1000000, 0, 0) AS v`)), 0.042);
   assert.equal(Number(await one(`SELECT melchizedek_usage_cost('{}'::jsonb) AS v`)), 0, 'no model call costs nothing');
   assert.equal(await one(`SELECT melchizedek_usage_cost(NULL) AS v`), null);
   assert.equal(await one(`SELECT melchizedek_usage_cost('[1]'::jsonb) AS v`), null);

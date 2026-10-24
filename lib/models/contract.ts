@@ -337,6 +337,19 @@ type ChatErrorCode =
   | 'GATEWAY_HTTP_ERROR';
 
 /**
+ * TypeSafe Jev's failures (lib/models/jevAdapter.ts): no key and no
+ * gateway, a schema the question mapper cannot express, a non-2xx status,
+ * an unreachable endpoint, or an answer missing a question's decision.
+ */
+type JevErrorCode =
+  | 'TYPESAFE_MISSING_KEY'
+  | 'TYPESAFE_SCHEMA_REQUIRED'
+  | 'TYPESAFE_SCHEMA_UNSUPPORTED'
+  | 'TYPESAFE_HTTP_ERROR'
+  | 'TYPESAFE_UNREACHABLE'
+  | 'TYPESAFE_BAD_ANSWER';
+
+/**
  * Gemini's codes: a candidate's finish reason, or the prompt's block reason,
  * is the code itself, as ADK's adapter reported it. GEMINI_ERROR is a failed
  * call, which ADK threw and the contract reports.
@@ -382,6 +395,7 @@ export type KnownModelErrorCode =
   | 'ANTHROPIC_ERROR'
   | `${'OPENAI' | 'XAI'}_${'ERROR' | 'STREAM_ERROR'}`
   | ChatErrorCode
+  | JevErrorCode
   | GeminiErrorCode;
 
 export type ModelErrorCode = KnownModelErrorCode | (string & {});

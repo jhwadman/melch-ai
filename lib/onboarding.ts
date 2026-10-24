@@ -165,6 +165,7 @@ const PROVIDER_CONSOLE: Record<Exclude<ProviderId, 'ollama'>, string> = {
   xai: 'https://console.x.ai',
   moonshot: 'https://platform.moonshot.ai',
   deepseek: 'https://platform.deepseek.com/api_keys',
+  typesafe: 'https://console.typesafe.ai/keys',
 };
 
 const PREFIX: Record<Exclude<ProviderId, 'ollama'>, string> = {
@@ -174,6 +175,7 @@ const PREFIX: Record<Exclude<ProviderId, 'ollama'>, string> = {
   xai: 'grok-*',
   moonshot: 'kimi-*',
   deepseek: 'deepseek-*',
+  typesafe: 'jev-* (a decision model: it answers an output.schema, never prose)',
 };
 
 const CLOUD_PROVIDERS = Object.keys(PROVIDER_CONSOLE) as Exclude<ProviderId, 'ollama'>[];
@@ -221,7 +223,7 @@ export const LEVELS: readonly Level[] = [
   },
   {
     id: 'one-provider',
-    menu: "One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot or DeepSeek)",
+    menu: "One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot, DeepSeek or TypeSafe)",
     title: "One provider's API key",
     summary:
       "The model id's prefix picks the provider, and that provider's key funds it. One key runs every file whose agents all use that provider. A Gemini key runs the most shipped files and also powers long-term memory's embeddings.",

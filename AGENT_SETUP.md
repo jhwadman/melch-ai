@@ -74,7 +74,10 @@ After the agent reports back:
    `OPENAI_API_KEY` for `gpt-*` (https://platform.openai.com/api-keys),
    `XAI_API_KEY` for `grok-*` (https://console.x.ai),
    `MOONSHOT_API_KEY` for `kimi-*` (https://platform.moonshot.ai),
-   `DEEPSEEK_API_KEY` for `deepseek-*` (https://platform.deepseek.com/api_keys). Not sure which
+   `DEEPSEEK_API_KEY` for `deepseek-*` (https://platform.deepseek.com/api_keys),
+   `TYPESAFE_API_KEY` for `jev-*` (https://console.typesafe.ai/keys; a decision
+   model for classifier agents). Or one `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY`
+   (Vercel AI Gateway or OpenRouter) for every cloud id at once. Not sure which
    you need? `npm run doctor` reads every syndicate and prints what is
    ready, what is blocked, and which variable unlocks what — read-only,
    no key value shown. Verify the whole multi-provider surface live with

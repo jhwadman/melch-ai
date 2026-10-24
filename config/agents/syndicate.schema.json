@@ -22,7 +22,7 @@
         "model": {
           "type": "string",
           "minLength": 1,
-          "description": "Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, ollama/*)."
+          "description": "Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, kimi-*, deepseek-*, jev-*, ollama/*)."
         },
         "fallback_model": {
           "description": "A model on another provider that answers when this agent's model fails provider-side (5xx, 429, network) before producing anything, or while that provider's circuit is open (ADR 0044).",
@@ -420,6 +420,35 @@
               ]
             },
             "deepseek": {
+              "type": "object",
+              "properties": {
+                "instruction": {
+                  "description": "Replaces the agent's instruction on this provider.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "instruction_append": {
+                  "description": "Appended to the agent's instruction, after a blank line, on this provider.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false,
+              "description": "The instruction on one provider: exactly one of instruction or instruction_append.",
+              "oneOf": [
+                {
+                  "required": [
+                    "instruction"
+                  ]
+                },
+                {
+                  "required": [
+                    "instruction_append"
+                  ]
+                }
+              ]
+            },
+            "typesafe": {
               "type": "object",
               "properties": {
                 "instruction": {
@@ -1507,6 +1536,35 @@
                 ]
               },
               "deepseek": {
+                "type": "object",
+                "properties": {
+                  "instruction": {
+                    "description": "Replaces the agent's instruction on this provider.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "instruction_append": {
+                    "description": "Appended to the agent's instruction, after a blank line, on this provider.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The instruction on one provider: exactly one of instruction or instruction_append.",
+                "oneOf": [
+                  {
+                    "required": [
+                      "instruction"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "instruction_append"
+                    ]
+                  }
+                ]
+              },
+              "typesafe": {
                 "type": "object",
                 "properties": {
                   "instruction": {

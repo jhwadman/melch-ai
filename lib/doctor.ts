@@ -402,6 +402,7 @@ export const CONSOLE_URLS: Record<ProviderId, string> = {
   xai: 'https://console.x.ai',
   moonshot: 'https://platform.moonshot.ai',
   deepseek: 'https://platform.deepseek.com/api_keys',
+  typesafe: 'https://console.typesafe.ai/keys',
   ollama: 'https://ollama.com',
 };
 
@@ -858,6 +859,7 @@ const PROBE_ID: Record<ProviderId, string> = {
   xai: 'grok-x',
   moonshot: 'kimi-x',
   deepseek: 'deepseek-x',
+  typesafe: 'jev-x',
   ollama: 'ollama/x',
 };
 

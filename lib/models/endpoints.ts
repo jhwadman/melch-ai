@@ -11,8 +11,9 @@
  *   gemini     direct | vertex           Google Application Default Credentials
  *   anthropic  direct | bedrock | vertex AWS credential chain / Google ADC
  *   openai     direct | azure            AZURE_OPENAI_API_KEY, else Entra ID
- *   xai, moonshot, deepseek, ollama  direct only (moonshot, deepseek:
- *              MOONSHOT_BASE_URL, DEEPSEEK_BASE_URL for a proxy)
+ *   xai, moonshot, deepseek, typesafe, ollama  direct only (moonshot,
+ *              deepseek, typesafe: MOONSHOT_BASE_URL, DEEPSEEK_BASE_URL,
+ *              TYPESAFE_BASE_URL for a proxy)
  *
  * Configuration comes from the environment (`endpointFromEnv`) or, per
  * request, from the server's `credentials` plug point, which may return an
@@ -37,6 +38,7 @@ export const PLATFORMS_FOR: Record<ProviderId, readonly Platform[]> = {
   xai: ['direct'],
   moonshot: ['direct'],
   deepseek: ['direct'],
+  typesafe: ['direct'],
   ollama: ['direct'],
 };
 
@@ -124,6 +126,8 @@ export function endpointFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = c
       return { ...base, ...(trimmed(env.MOONSHOT_BASE_URL) ? { baseURL: trimmed(env.MOONSHOT_BASE_URL) } : {}) };
     case 'deepseek/direct':
       return { ...base, ...(trimmed(env.DEEPSEEK_BASE_URL) ? { baseURL: trimmed(env.DEEPSEEK_BASE_URL) } : {}) };
+    case 'typesafe/direct':
+      return { ...base, ...(trimmed(env.TYPESAFE_BASE_URL) ? { baseURL: trimmed(env.TYPESAFE_BASE_URL) } : {}) };
     case 'openai/azure': {
       const endpoint = trimmed(env.AZURE_OPENAI_ENDPOINT);
       const key = trimmed(env.AZURE_OPENAI_API_KEY);

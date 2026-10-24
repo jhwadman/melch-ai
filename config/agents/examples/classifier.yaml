@@ -1,0 +1,104 @@
+# tier: typesafe  — needs only TYPESAFE_API_KEY, or one MODEL_GATEWAY key (Vercel AI Gateway or OpenRouter); `npm run doctor` shows what each key unlocks.
+# ============================================================
+# CLASSIFIER — one decision model, typed answers, calibrated confidence.
+# ============================================================
+#
+# JOB: read one inbound support message and decide three things about it:
+# which team it belongs to, how urgent it is, and whether a person must
+# look before anything is sent back. The reply is one JSON object the
+# `output.schema` below describes, so the software that calls this agent
+# acts on fields, never on prose.
+#
+# WHY A DECISION MODEL: `model: jev-latest` is TypeSafe's Jev, a System One
+# model (https://typesafe.ai). It writes no sentences and calls no tool: it
+# answers typed questions with a probability for every option, in about a
+# tenth of a second, at $0.042 per million input tokens and nothing for
+# output. The engine turns this file's schema into Jev's questions
+# (lib/models/jev.ts): a boolean property is a yes/no question, a string
+# whose `oneOf` describes each constant is a choice, an integer whose
+# `oneOf` describes the levels 0, 1, 2 in order is a score. The property's
+# `description` is the question. The instruction below and the message are
+# the state Jev decides about.
+#
+# WHAT COMES BACK: the schema's object, plus a `jev` key holding the raw
+# answers: each question's probabilities and confidence. Act when the
+# confidence is high and route to a person when it is not: that threshold
+# is yours to set in the code that calls this agent, which is the point.
+#
+#   {"department":"technical","urgency":2,"needs_human":false,
+#    "jev":{"department":{"type":"choice","choice":"technical","confidence":0.91,
+#           "probabilities":{"billing":0.03,"technical":0.91,"sales":0.01,"other":0.05}},
+#           "urgency":{"type":"score","score":1.8,"confidence":0.8,...},
+#           "needs_human":{"type":"noul","noul":0.12}}}
+#
+# ONE FILE, ANY MODEL: change `model:` to gemini-3.5-flash-lite,
+# claude-haiku-5-5 or ollama/qwen3.5:9b and the same schema is answered by a
+# chat model's structured output (the matrix's `structured_output` cell);
+# the `jev` key then does not appear, since a chat model states no
+# probabilities. The doctor shows what each path keeps.
+#
+# NOT A CONVERSATION: memory_system internal-only and includeContents none
+# make every message stand alone; nothing is kept between calls.
+#
+# MAKE IT YOURS: rename the departments and their descriptions, change the
+# urgency levels (up to 10, each described), add a boolean per policy you
+# enforce. Every property must be a decision: a free string, an array or a
+# nested object is refused before any call (TYPESAFE_SCHEMA_UNSUPPORTED),
+# with the shapes Jev takes named in the error.
+# ============================================================
+syndicate_name: "Classifier"
+memory_system: internal-only
+
+orchestrator:
+  name: "Triage"
+  description: "Decides a support message's department, its urgency and whether a person must look, as typed answers with probabilities."
+  model: "jev-latest"
+  includeContents: none
+  instruction: |
+    You triage inbound messages for a software company's support desk. Each message was sent by a customer or a prospect through the help form or by email. You decide where it goes and how fast; you do not answer it.
+
+    Departments:
+    - billing handles charges, refunds, invoices, subscriptions and payment methods.
+    - technical handles bugs, outages, errors, integrations and anything about how the product behaves.
+    - sales handles pricing questions, quotes, upgrades, trials and new accounts.
+    - other is anything else: partnerships, press, job applications, spam.
+
+    Urgency is about the customer's situation, not their tone: an outage or a blocked payment is urgent however calmly it is written; a question with no deadline is not, however angrily.
+
+    A person must look before any automated reply when the message mentions legal action, a safety or security concern, a complaint about staff, a request to delete an account or data, or when it is unclear which department it belongs to.
+  output:
+    schema:
+      type: object
+      properties:
+        department:
+          type: string
+          description: "Which team should handle this message."
+          oneOf:
+            - const: billing
+              description: "Charges, refunds, invoices, subscriptions, payment methods."
+            - const: technical
+              description: "Bugs, outages, errors, integrations, product behaviour."
+            - const: sales
+              description: "Pricing, quotes, upgrades, trials, new accounts."
+            - const: other
+              description: "Partnerships, press, job applications, spam, or nothing above."
+        urgency:
+          type: integer
+          description: "How soon the company must act on this message."
+          oneOf:
+            - const: 0
+              description: "No deadline and nothing blocked: a question or a request that can wait days."
+            - const: 1
+              description: "Something is inconvenient or a date is near: within a day."
+            - const: 2
+              description: "Service is down, money is stuck, or a deadline is today: now."
+        needs_human:
+          type: boolean
+          description: "A person must read this message before any automated reply is sent."
+          oneOf:
+            - const: true
+              description: "Legal action, a safety or security concern, a complaint about staff, a deletion request, or an unclear department."
+            - const: false
+              description: "A routine message a department can answer on its own."
+      required: [department, urgency, needs_human]
+    mime: "application/json"

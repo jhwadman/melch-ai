@@ -175,7 +175,7 @@ export interface AgentYamlConfig {
    * on. Applied at compile time, before the skills index; not for fallback_model.
    */
   model_overrides?: Partial<
-    Record<'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'ollama', { instruction?: string; instruction_append?: string }>
+    Record<'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'typesafe' | 'ollama', { instruction?: string; instruction_append?: string }>
   >;
 
   // ── Melchizedek-internal ──

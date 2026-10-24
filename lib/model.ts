@@ -38,6 +38,11 @@ export { KimiAdapter } from './models/kimiAdapter.ts';
 export type { KimiAdapterOptions } from './models/kimiAdapter.ts';
 export { DeepSeekAdapter } from './models/deepseekAdapter.ts';
 export type { DeepSeekAdapterOptions } from './models/deepseekAdapter.ts';
+// TypeSafe Jev, a decision model: the adapter, and the typed System One call under it (ADR 0144).
+export { JevAdapter } from './models/jevAdapter.ts';
+export type { JevAdapterOptions } from './models/jevAdapter.ts';
+export { JevError, choice, decide, noul, objectFromAnswers, questionsFromSchema, score } from './models/jev.ts';
+export type { JevAnswer, JevAnswerFor, JevAnswers, JevChoice, JevChoiceAnswer, JevEndpoint, JevNoul, JevNoulAnswer, JevQuestion, JevQuestions, JevRequest, JevResponse, JevScore, JevScoreAnswer, JevState } from './models/jev.ts';
 export { OllamaAdapter } from './models/ollamaAdapter.ts';
 export type { OllamaAdapterOptions } from './models/ollamaAdapter.ts';
 export { GatewayAdapter } from './models/gatewayAdapter.ts';

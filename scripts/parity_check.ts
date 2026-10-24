@@ -63,6 +63,7 @@ import {
   DEFAULT_GROK_MODEL,
   DEFAULT_KIMI_MODEL,
   DEFAULT_DEEPSEEK_MODEL,
+  DEFAULT_JEV_MODEL,
   DEFAULT_OLLAMA_MODEL,
 } from '../lib/config.ts';
 import { loadEnv } from '../lib/loadEnv.ts';
@@ -180,6 +181,7 @@ const DEFAULT_MODEL: Record<ProviderId, string> = {
   xai: DEFAULT_GROK_MODEL,
   moonshot: DEFAULT_KIMI_MODEL,
   deepseek: DEFAULT_DEEPSEEK_MODEL,
+  typesafe: DEFAULT_JEV_MODEL,
   ollama: DEFAULT_OLLAMA_MODEL,
 };
 
@@ -242,10 +244,18 @@ async function ollamaAnswers(): Promise<boolean> {
   }
 }
 
+/**
+ * TypeSafe Jev is a decision model (lib/models/jevAdapter.ts): it delegates
+ * to no one, calls no tool and keeps no conversation, so the four parity
+ * turns do not apply to it. Its contract is covered by tests/jev.test.ts.
+ */
+const NOT_A_CHAT_MODEL: ReadonlySet<ProviderId> = new Set<ProviderId>(['typesafe']);
+
 async function liveTargets(opts: ParityOptions): Promise<{ targets: Target[]; skipped: ParityReport['skipped'] }> {
   const targets: Target[] = [];
   const skipped: ParityReport['skipped'] = [];
   for (const s of providerStatuses()) {
+    if (NOT_A_CHAT_MODEL.has(s.provider)) continue;
     if (opts.providers && !opts.providers.includes(s.provider)) continue;
     const model = opts.models?.[s.provider] ?? DEFAULT_MODEL[s.provider];
     if (!s.available) {
@@ -262,6 +272,7 @@ async function liveTargets(opts: ParityOptions): Promise<{ targets: Target[]; sk
 function scriptedTargets(opts: ParityOptions): Target[] {
   const faults = new Set(opts.faults ?? []);
   return (Object.keys(PROVIDERS) as ProviderId[])
+    .filter((p) => !NOT_A_CHAT_MODEL.has(p))
     .filter((p) => !opts.providers || opts.providers.includes(p))
     .map((provider) => ({
       provider,

@@ -2,7 +2,7 @@
 
 A multi-model, multi-agent orchestration framework with its own agent loop, model contract, tools, sessions and workflow engine. Agent hierarchies, prompts, models, tools, and delegation rules are declared in YAML files called **Syndicates**; the engine in `lib/` runs whatever you put in `config/agents/`.
 
-Gemini, Claude, GPT, Grok, Kimi, and DeepSeek each run on the engine's own adapter for their provider's API, and open-weight models run locally through Ollama with no API key. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
+Gemini, Claude, GPT, Grok, Kimi, and DeepSeek each run on the engine's own adapter for their provider's API, TypeSafe's Jev answers a classifier's schema as calibrated decisions, and open-weight models run locally through Ollama with no API key. One Vercel AI Gateway or OpenRouter key serves every cloud model you have no direct key for. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
 
 > Companion repository for the curriculum at [lyceumagents.com/curriculum](https://lyceumagents.com/curriculum/). The framework works standalone or alongside the course.
 
@@ -11,7 +11,7 @@ Gemini, Claude, GPT, Grok, Kimi, and DeepSeek each run on the engine's own adapt
 ## Features
 
 - **Declarative YAML configuration** — Orchestrators, subagents, routing, output schemas, and tool assignments in one readable document. Tools and guards are registered in code; YAML names them.
-- **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `deepseek-*`, and local `ollama/*`). Switching an agent's model is a one-line change.
+- **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `deepseek-*`, `jev-*`, and local `ollama/*`). Switching an agent's model is a one-line change, and one gateway key (`MODEL_GATEWAY`) stands in for every direct key you have not set.
 - **MCP integration** — Give an agent an `mcp_server_url:`, or several servers under `mcp_servers:`, and their tools are discovered over Streamable HTTP (or legacy SSE) and wrapped as agent tools at runtime. URLs are SSRF-guarded; an OAuth server with no pre-issued client is discovered and registered at, within the operator's host allowlist. In the other direction, `melchizedek-mcp` serves your syndicates as MCP tools to Claude Code, Codex and other MCP clients.
 - **Persistent sessions & long-term memory** — Optional Supabase backend for session persistence and pgvector memory: transcripts are distilled into structured records and recalled by similarity in later sessions. Without it, sessions run in memory.
 - **Native tools** — Web search, image generation, and a blind image-inventory tool that accepts only a file path, so the expected result can never reach the observer.
@@ -50,13 +50,15 @@ npm run syndicate:council
 
 ### 2. Cloud models
 
+The quickest way to every cloud model is one gateway key: set `MODEL_GATEWAY=vercel` (or `openrouter`) and `MODEL_GATEWAY_API_KEY` in `.env`, and every shipped syndicate runs, billed to that one account (native web search is the one thing a gateway cannot switch on; a direct key set beside it always wins for its provider). Or bring the providers' own keys:
+
 ```bash
 cp .env.example .env    # add GOOGLE_GENAI_API_KEY (free from Google AI Studio)
 npm run chat:syndicate  # interactive REPL with the default syndicate (Gemini)
 npm run doctor          # shows which syndicates your current keys unlock
 ```
 
-Other providers are optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, and `DEEPSEEK_API_KEY` unlock the syndicates that use them (for example `npm run syndicate:claude`).
+Other providers are optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, `DEEPSEEK_API_KEY` and `TYPESAFE_API_KEY` unlock the syndicates that use them (for example `npm run syndicate:claude`, or `npm run syndicate:classifier` for the Jev decision model).
 
 Test the providers you have keys for:
 
@@ -199,6 +201,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `council.yaml` | Advocate/skeptic council weighed by an orchestrator (local) | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `critic.yaml` | Drafter → Critic loop that re-drafts until a parsed confidence score clears the bar | [1.04 · Testing & Refinement](https://lyceumagents.com/curriculum/testing-and-refinement/) |
 | `structured_critic.yaml` | The critic as one agent: it delegates to a Drafter, then answers in its own JSON schema (Claude) | — |
+| `classifier.yaml` | A support-triage classifier on TypeSafe's Jev: the output schema is the questions, the answer is typed decisions with calibrated probabilities | — |
 | `delegation.yaml` | Intent routing to specialists via agent descriptions | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `hierarchical.yaml` | Goal decomposition into sequential research and writing stages, then a checked merge | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `style_council.yaml` | Three stylists with identical knowledge and different voices, behind one router | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
@@ -209,7 +212,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `image_production.yaml` | Spec-first image generation, a blind inventory, and a separate spec auditor | [2.04 · Multimodal Agents](https://lyceumagents.com/curriculum/multimodal-agents/) |
 | `current_events.yaml` | Current-event aggregation and fact-checking: an X researcher and a web researcher report to a tool-free arbiter | [2.05 · Fact-Checking Arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
 | `claude.yaml` | Minimal configuration using the Anthropic adapter | — |
-| `model_zoo.yaml` | One agent per provider (Qwen, Claude, Grok, GPT, Gemini, Kimi, DeepSeek) | — |
+| `model_zoo.yaml` | One agent per chat provider (Qwen, Claude, Grok, GPT, Gemini, Kimi, DeepSeek); Jev, a decision model, has `classifier.yaml` | — |
 | `research.yaml` | Plan-and-dispatch over keyless clinical and literature sources, with an identifier and retraction guard | — |
 | `scriptorium.yaml` | Agents over the `wiki/` bundle: answer with citations, author through a validated save gate | — |
 | `cartographers.yaml` | Agents that record the judgments in the wiki's prose as graph relations | — |
