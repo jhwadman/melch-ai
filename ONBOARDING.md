@@ -140,6 +140,8 @@ One key serves every cloud model id whose direct key is absent, through the gate
 | `MODEL_GATEWAY_API_KEY` | the gateway key (https://vercel.com/ai-gateway or https://openrouter.ai/keys) | funds every id with no direct key |
 | `MODEL_GATEWAY_BASE_URL` | https URL | optional: a self-hosted proxy speaking the same dialect (LiteLLM) |
 | `MODEL_GATEWAY_MODEL_MAP` | yaml-id=gateway-id,yaml-id=gateway-id | optional: fix an id the default mapping gets wrong |
+| `MODEL_GATEWAY_PREFER` | direct | gateway | optional: gateway sends every cloud id through the gateway even beside a direct key (one bill); direct, the default, lets each provider's own key win |
+| `MODEL_GATEWAY_EXCEPT` | gemini,xai | optional: providers that take the opposite of the preference (never ollama) |
 
 **Confirm:** `npx melchizedek-doctor`: a `gateway` line with no ✗, and providers without a direct key marked `◇ via gateway`.
 

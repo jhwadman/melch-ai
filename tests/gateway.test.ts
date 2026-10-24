@@ -17,6 +17,8 @@ import assert from 'node:assert';
 import {
   GATEWAYS,
   gatewayConfig,
+  gatewayExceptions,
+  gatewayPreference,
   gatewayProblem,
   gatewayWireModel,
   planTransport,
@@ -39,6 +41,8 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_API_KEY',
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
 ];
 
 /** Runs fn with ONLY the given env vars set (of the ones this suite touches). */
@@ -163,6 +167,58 @@ test('Ollama never routes through a gateway', () => {
     const plan = planTransport('ollama/qwen3:8b');
     assert.equal(plan.transport, 'direct');
     assert.equal(plan.funded, true);
+  });
+});
+
+// ── The preference (ADR 0145) ────────────────────────────────────────────────
+
+test('MODEL_GATEWAY_PREFER=gateway sends every cloud id through the gateway even beside its direct key; Ollama and a BYOK key stay direct', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', GOOGLE_GENAI_API_KEY: 'g', TYPESAFE_API_KEY: 't', MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'gateway' }, () => {
+    assert.equal(gatewayPreference(), 'gateway');
+    for (const id of ['claude-sonnet-4-6', 'gemini-3.8-flash', 'jev-latest', 'gpt-5-mini']) {
+      const plan = planTransport(id);
+      assert.equal(plan.transport, 'gateway', id);
+      assert.equal(plan.funded, true, id);
+    }
+    assert.equal(planTransport('ollama/qwen3:8b').transport, 'direct');
+    assert.equal(planTransport('gemini-3.8-flash', { callerKey: true }).transport, 'direct', "the caller's own key is what the caller asked for");
+    const statuses = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.transport]));
+    assert.equal(statuses.anthropic, 'gateway');
+    assert.equal(statuses.gemini, 'gateway');
+    assert.equal(statuses.ollama, 'direct');
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof GatewayAdapter, 'the adapter follows the plan');
+  });
+});
+
+test('MODEL_GATEWAY_PREFER=gateway without a usable gateway changes nothing: the direct key still serves', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', MODEL_GATEWAY_PREFER: 'gateway' }, () => {
+    assert.deepEqual([planTransport('claude-sonnet-4-6').transport, planTransport('claude-sonnet-4-6').funded], ['direct', true]);
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof ClaudeAdapter);
+  });
+});
+
+test('MODEL_GATEWAY_EXCEPT turns the preference round for the providers it names, either way; unknown words and ollama are refused by name', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', GOOGLE_GENAI_API_KEY: 'g', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'gateway', MODEL_GATEWAY_EXCEPT: 'gemini' }, () => {
+    assert.deepEqual([...gatewayExceptions()], ['gemini']);
+    assert.equal(planTransport('gemini-3.8-flash').transport, 'direct', 'kept on its own key for grounding');
+    assert.equal(planTransport('claude-sonnet-4-6').transport, 'gateway');
+    assert.equal(gatewayProblem(), undefined);
+  });
+  withEnv({ ANTHROPIC_API_KEY: 'a', XAI_API_KEY: 'x', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_EXCEPT: 'xai' }, () => {
+    assert.equal(gatewayPreference(), 'direct');
+    assert.equal(planTransport('grok-4.7').transport, 'gateway', 'an exception under the default sends that provider through the gateway');
+    assert.equal(planTransport('claude-sonnet-4-6').transport, 'direct');
+  });
+  withEnv({ XAI_API_KEY: 'x', MODEL_GATEWAY_EXCEPT: 'xai' }, () => {
+    assert.equal(planTransport('grok-4.7').transport, 'direct', 'no usable gateway: the exception cannot be honoured, the key serves');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'sideways' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_PREFER=sideways is not a preference/);
+    assert.equal(gatewayPreference(), 'direct', 'an unrecognised value reads as the default');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_EXCEPT: 'ollama,claude' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_EXCEPT names ollama, claude/);
+    assert.equal(gatewayExceptions().size, 0);
   });
 });
 

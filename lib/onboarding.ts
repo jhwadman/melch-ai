@@ -271,12 +271,14 @@ export const LEVELS: readonly Level[] = [
     menu: 'One gateway key (Vercel AI Gateway or OpenRouter)',
     title: 'A gateway key',
     summary:
-      "One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint. It is a fallback, never a preempt: a direct key always wins for its provider. Ollama never goes through it.",
+      "One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint (and TypeSafe Jev on its System One route). By default it is a fallback: a direct key wins for its provider; MODEL_GATEWAY_PREFER=gateway turns that round, and MODEL_GATEWAY_EXCEPT names the providers that take the opposite. Ollama never goes through it.",
     env: [
       { name: GATEWAY_ENV, shape: 'vercel | openrouter', purpose: 'which gateway' },
       { name: GATEWAY_KEY_ENV, shape: 'the gateway key (https://vercel.com/ai-gateway or https://openrouter.ai/keys)', purpose: 'funds every id with no direct key' },
       { name: 'MODEL_GATEWAY_BASE_URL', shape: 'https URL', purpose: 'optional: a self-hosted proxy speaking the same dialect (LiteLLM)' },
       { name: 'MODEL_GATEWAY_MODEL_MAP', shape: 'yaml-id=gateway-id,yaml-id=gateway-id', purpose: 'optional: fix an id the default mapping gets wrong' },
+      { name: 'MODEL_GATEWAY_PREFER', shape: 'direct | gateway', purpose: 'optional: gateway sends every cloud id through the gateway even beside a direct key (one bill); direct, the default, lets each provider\'s own key win' },
+      { name: 'MODEL_GATEWAY_EXCEPT', shape: 'gemini,xai', purpose: 'optional: providers that take the opposite of the preference (never ollama)' },
     ],
     confirm: 'a `gateway` line with no ✗, and providers without a direct key marked `◇ via gateway`.',
     runs: (s) => [

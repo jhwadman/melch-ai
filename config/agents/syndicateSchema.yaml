@@ -274,7 +274,10 @@ orchestrator:
   #                              this agent's output.schema, never prose, so it
   #                              takes no tools and no subagents)
   #   ollama/*  → local Ollama  (keyless)
-  # With no direct key, MODEL_GATEWAY (vercel | openrouter) serves any cloud id.
+  # With no direct key, MODEL_GATEWAY (vercel | openrouter) serves any cloud id;
+  # MODEL_GATEWAY_PREFER=gateway sends every cloud id through it even beside
+  # a direct key, and MODEL_GATEWAY_EXCEPT names the providers that do the
+  # opposite. Deployment config, never YAML: the file names models, not paths.
   # Subagents inherit this if not set on their own config.
   model: "gemini-3.5-flash-lite"
 

@@ -27,7 +27,7 @@ Run with no key at all:
 - `qwen3:8b` is the smallest pulled model with tool calling.
 One key for every cloud provider (the gateway fallback):
 - `MODEL_GATEWAY=vercel` or `MODEL_GATEWAY=openrouter` with `MODEL_GATEWAY_API_KEY` serves any cloud model id whose direct key is absent through that gateway's OpenAI-compatible endpoint.
-- It is a fallback only: a present provider key always wins for its own provider; `ollama/*` never routes through a gateway; a caller's `X-API-Key` on the A2A server never selects it.
+- By default it is a fallback: a present provider key wins for its own provider; `MODEL_GATEWAY_PREFER=gateway` turns that round (every cloud id through the gateway, one bill) and `MODEL_GATEWAY_EXCEPT=gemini,xai` names the providers that take the opposite of the preference, so Gemini can keep its own key for grounding under either setting; `ollama/*` never routes through a gateway; a caller's `X-API-Key` on the A2A server never selects it.
 - Native server-side search (`web_search`, `google_search`, `x_search`, `collections_search`) is lost on the gateway path; the doctor says so per agent.
 - Dials: `MODEL_GATEWAY_MODEL_MAP=<your id>=<the gateway's id>` renames an id the gateway rejects; `MODEL_GATEWAY_BASE_URL` points at a self-hosted proxy.
 - Telemetry attributes the call to the upstream provider and records the transport separately.

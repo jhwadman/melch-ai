@@ -416,7 +416,7 @@ accordingly — model optionality is a single YAML line per agent:
 | `deepseek-*` | DeepSeek | `lib/models/deepseekAdapter.ts` (chat completions) | `DEEPSEEK_API_KEY` | ⚠ omitted + warning |
 | `jev-*` | TypeSafe (Jev, a decision model) | `lib/models/jevAdapter.ts` (System One) | `TYPESAFE_API_KEY` | ✗ no tools at all |
 | `ollama/*` | Local Ollama | `lib/models/ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
-| *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions; `jev-*` keeps `JevAdapter` on the gateway's System One route) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
+| *any cloud id whose direct key is absent, or every cloud id under `MODEL_GATEWAY_PREFER=gateway`* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions; `jev-*` keeps `JevAdapter` on the gateway's System One route) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
 
 The xAI adapter carries the deepest capability surface: `grok-4.5`
 requests pin `reasoning.effort: "medium"` (`lib/config.ts`), SSE
@@ -534,6 +534,21 @@ row in the capability matrix is asserted against the request body the
 adapter sends; the classifier and all four ids were run live through
 Vercel AI Gateway on 2026-10-23 (answers in 150 to 715 ms); TypeSafe's own
 API and OpenRouter's route were not.
+
+**Which path wins.** By default a provider's own key wins for its
+provider and the gateway serves only what has no key (ADR 0012).
+`MODEL_GATEWAY_PREFER=gateway` turns that round: every cloud id goes
+through the configured gateway even beside a direct key, one bill and one
+dashboard, at the gateway's fidelity (no native search). `MODEL_GATEWAY_EXCEPT`
+is a comma list of provider ids that take the opposite of the preference
+either way: `gemini` under `prefer=gateway` keeps Gemini on its own key for
+grounding; `xai` under the default sends Grok through the gateway while
+everything else stays direct. Two things never move: `ollama/*` is always
+direct, and an A2A caller's own key (BYOK) funds its provider directly. A
+preference whose path is not funded falls back to the other; an unknown
+preference word or a provider name the list does not know is named by the
+doctor (ADR 0145). Both variables are read through the credential source,
+like the key.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,

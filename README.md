@@ -50,7 +50,7 @@ npm run syndicate:council
 
 ### 2. Cloud models
 
-The quickest way to every cloud model is one gateway key: set `MODEL_GATEWAY=vercel` (or `openrouter`) and `MODEL_GATEWAY_API_KEY` in `.env`, and every shipped syndicate runs, billed to that one account (native web search is the one thing a gateway cannot switch on; a direct key set beside it always wins for its provider). Or bring the providers' own keys:
+The quickest way to every cloud model is one gateway key: set `MODEL_GATEWAY=vercel` (or `openrouter`) and `MODEL_GATEWAY_API_KEY` in `.env`, and every shipped syndicate runs, billed to that one account (native web search is the one thing a gateway cannot switch on; a direct key set beside it wins for its provider by default, and `MODEL_GATEWAY_PREFER=gateway` turns that round, with `MODEL_GATEWAY_EXCEPT` for the providers that take the opposite). Or bring the providers' own keys:
 
 ```bash
 cp .env.example .env    # add GOOGLE_GENAI_API_KEY (free from Google AI Studio)

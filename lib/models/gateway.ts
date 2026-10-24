@@ -8,14 +8,22 @@
  *   OpenAI-compatible endpoint, so a model id whose direct key is absent can
  *   still be served. This module owns that decision and nothing else.
  *
- * THE RULE (plans/model-access-tiers.md, ADR 0012):
- *   Direct adapters are canonical. A model id routes to its provider's own
- *   adapter whenever that provider's key is present. Only when the key is
- *   ABSENT and a gateway is configured does the id route through the
- *   gateway. Ollama never does. So the gateway is a fallback, never a
+ * THE RULE (plans/model-access-tiers.md, ADR 0012, ADR 0145):
+ *   Direct adapters are canonical. By default a model id routes to its
+ *   provider's own adapter whenever that provider's key is present, and
+ *   only when the key is ABSENT and a gateway is configured does the id
+ *   route through the gateway. So the gateway is a fallback, never a
  *   preempt: adding a direct key beside the gateway key silently upgrades
  *   that provider's agents back to native fidelity (Gemini grounding, xAI
  *   search, Anthropic's server-side web_search) with no YAML change.
+ *   MODEL_GATEWAY_PREFER=gateway turns the preference round: every cloud
+ *   id goes through the configured gateway, direct key or not (one bill,
+ *   one dashboard), and MODEL_GATEWAY_EXCEPT names the providers that take
+ *   the opposite of the preference either way (gemini kept on its own key
+ *   for grounding under prefer=gateway; xai sent through the gateway under
+ *   prefer=direct). Two things never move: Ollama is always direct, and an
+ *   A2A caller's own key (BYOK) funds its provider directly, since that is
+ *   what the caller asked for.
  *
  * WHAT A GATEWAY LOSES — reported, never silent:
  *   Every server-side tool sentinel (web_search, google_search, x_search,
@@ -44,6 +52,10 @@
  *                          that speak the same dialect, e.g. LiteLLM)
  *   MODEL_GATEWAY_MODEL_MAP optional "from=to,from=to" wire-name overrides
  *                          for ids the default mapper gets wrong
+ *   MODEL_GATEWAY_PREFER   direct | gateway  (unset = direct: a provider's
+ *                          own key wins; gateway: the gateway wins)
+ *   MODEL_GATEWAY_EXCEPT   comma list of provider ids that take the opposite
+ *                          of the preference (never ollama)
  */
 
 import { chatGptSignInRoutesOpenAi } from '../chatgpt/state.ts';
@@ -80,6 +92,11 @@ export const GATEWAY_ENV = 'MODEL_GATEWAY';
 export const GATEWAY_KEY_ENV = 'MODEL_GATEWAY_API_KEY';
 export const GATEWAY_BASE_URL_ENV = 'MODEL_GATEWAY_BASE_URL';
 export const GATEWAY_MODEL_MAP_ENV = 'MODEL_GATEWAY_MODEL_MAP';
+export const GATEWAY_PREFER_ENV = 'MODEL_GATEWAY_PREFER';
+export const GATEWAY_EXCEPT_ENV = 'MODEL_GATEWAY_EXCEPT';
+
+export type GatewayPreference = 'direct' | 'gateway';
+export const GATEWAY_PREFERENCES: readonly GatewayPreference[] = ['direct', 'gateway'];
 
 export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
   vercel: {
@@ -147,7 +164,40 @@ export function gatewayProblem(): string | undefined {
     return `${GATEWAY_ENV} is set to an unrecognised value (not shown); it must be one of: ${Object.keys(GATEWAYS).join(', ')}`;
   }
   if (!cfg.keyPresent) return `${GATEWAY_ENV}=${cfg.gateway.id} is set but ${GATEWAY_KEY_ENV} is not`;
+  return gatewayPreferenceProblem();
+}
+
+/** A misconfigured preference or exception list, or undefined; the values are plain words, so they are named. */
+export function gatewayPreferenceProblem(): string | undefined {
+  const raw = (credentialValue(GATEWAY_PREFER_ENV) ?? '').trim().toLowerCase();
+  if (raw && !(GATEWAY_PREFERENCES as readonly string[]).includes(raw)) {
+    return `${GATEWAY_PREFER_ENV}=${raw} is not a preference; it must be one of: ${GATEWAY_PREFERENCES.join(', ')}`;
+  }
+  const unknown = exceptionWords().filter((w) => !(w in PROVIDERS) || w === 'ollama');
+  if (unknown.length) return `${GATEWAY_EXCEPT_ENV} names ${unknown.join(', ')}; it takes provider ids (${(Object.keys(PROVIDERS) as ProviderId[]).filter((p) => p !== 'ollama').join(', ')}), never ollama`;
   return undefined;
+}
+
+/** Which way the rule leans: `direct` (the default; a provider's own key wins) or `gateway` (the gateway wins). An unrecognised value reads as direct. */
+export function gatewayPreference(): GatewayPreference {
+  const raw = (credentialValue(GATEWAY_PREFER_ENV) ?? '').trim().toLowerCase();
+  return raw === 'gateway' ? 'gateway' : 'direct';
+}
+
+function exceptionWords(): string[] {
+  return (credentialValue(GATEWAY_EXCEPT_ENV) ?? '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean);
+}
+
+/** The providers that take the opposite of the preference (MODEL_GATEWAY_EXCEPT); unknown words and ollama are dropped and named by gatewayPreferenceProblem. */
+export function gatewayExceptions(): ReadonlySet<ProviderId> {
+  return new Set(exceptionWords().filter((w): w is ProviderId => w in PROVIDERS && w !== 'ollama'));
+}
+
+/** True when the operator wants `provider`'s ids on the gateway even beside a direct key: the preference, turned round for an exception. */
+export function gatewayWanted(provider: ProviderId): boolean {
+  if (provider === 'ollama') return false;
+  const prefersGateway = gatewayPreference() === 'gateway';
+  return gatewayExceptions().has(provider) ? !prefersGateway : prefersGateway;
 }
 
 /** True when a gateway is configured well enough to serve requests. */
@@ -225,16 +275,24 @@ export function planTransport(
   model: string,
   opts: { callerKey?: boolean } = {},
 ): TransportPlan {
-  const provider = providerForModel(model);
+  return providerTransport(providerForModel(model), opts);
+}
+
+/**
+ * Where a provider's ids are served from under the current environment: the
+ * rule in this file's header. A caller's own key (BYOK) and Ollama are
+ * direct whatever the preference; otherwise the preferred path when it is
+ * funded, else the other when it is, else unfunded.
+ */
+export function providerTransport(provider: ProviderId, opts: { callerKey?: boolean } = {}): TransportPlan {
   const keyEnv = PROVIDERS[provider].keyEnv;
+  if (provider === 'ollama' || opts.callerKey) return { provider, transport: 'direct', funded: true, keyEnv };
   // A Sign in with ChatGPT credential funds OpenAI directly when no key does (ADR 0126).
-  const direct = providerReady(provider) || !!opts.callerKey || (provider === 'openai' && chatGptSignInRoutesOpenAi());
-  if (direct || provider === 'ollama') {
-    return { provider, transport: 'direct', funded: true, keyEnv };
-  }
+  const direct = providerReady(provider) || (provider === 'openai' && chatGptSignInRoutesOpenAi());
   const cfg = gatewayConfig();
-  if (cfg && cfg.keyPresent) {
-    return { provider, transport: 'gateway', gateway: cfg.gateway, funded: true, keyEnv };
-  }
+  const viaGateway: TransportPlan | undefined = cfg && cfg.keyPresent ? { provider, transport: 'gateway', gateway: cfg.gateway, funded: true, keyEnv } : undefined;
+  if (gatewayWanted(provider) && viaGateway) return viaGateway;
+  if (direct) return { provider, transport: 'direct', funded: true, keyEnv };
+  if (viaGateway) return viaGateway;
   return { provider, transport: 'direct', funded: false, keyEnv };
 }

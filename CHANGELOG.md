@@ -46,6 +46,17 @@ read with `credentialValue`, as the key already was (ADR 0133), so an
 embedding application that holds them in a keychain, not the environment,
 turns the gateway on too.
 
+**The gateway can come first** (ADR 0145). `MODEL_GATEWAY_PREFER=gateway`
+sends every cloud id through the configured gateway even beside its direct
+key (one bill, one dashboard); `MODEL_GATEWAY_EXCEPT=gemini,xai` names the
+providers that take the opposite of the preference either way (Gemini kept
+on its own key for grounding under `prefer=gateway`; Grok sent through the
+gateway under the default). Unset, nothing changes: a direct key wins.
+Ollama and an A2A caller's own key stay direct; a preferred path that is
+not funded falls back to the other; the doctor names a misspelt preference
+or an unknown provider. `gatewayPreference`, `gatewayExceptions` and
+`providerTransport` are exported from `melchizedek-agents/registry`.
+
 **One gateway key is the first thing offered.** `.env.example` opens with
 the `MODEL_GATEWAY` block (one Vercel AI Gateway or OpenRouter key for every
 cloud model whose direct key is absent), the README's cloud quick start

@@ -33,6 +33,8 @@ const ENV_KEYS = [
   'TYPESAFE_API_KEY',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
 ];
 
 function withEnv<T>(vars: Record<string, string>, fn: () => T): T {

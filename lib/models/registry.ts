@@ -39,7 +39,7 @@ import {
 import type { ModelAdapter } from './contract.ts';
 import { geminiAdapterSetting, normalizeProvider, resolveAdapter } from './adapterResolver.ts';
 import type { GeminiAdapterChoice, ResolveAdapterOptions } from './adapterResolver.ts';
-import { gatewayConfig, gatewayProblem, gatewayUsable } from './gateway.ts';
+import { gatewayConfig, gatewayProblem, gatewayUsable, providerTransport } from './gateway.ts';
 import {
   PROVIDERS,
   providerForModel,
@@ -60,8 +60,8 @@ export type { Platform, ProviderEndpoint } from './endpoints.ts';
 export type { ProviderId };
 export type { GeminiAdapterChoice, ResolveAdapterOptions };
 export { resolveAdapter, resolveAdapterWithFallback } from './adapterResolver.ts';
-export { gatewayConfig, gatewayProblem, gatewayUsable, planTransport, GATEWAYS } from './gateway.ts';
-export type { GatewayId, GatewayInfo, TransportPlan } from './gateway.ts';
+export { gatewayConfig, gatewayProblem, gatewayUsable, gatewayPreference, gatewayExceptions, planTransport, providerTransport, GATEWAYS } from './gateway.ts';
+export type { GatewayId, GatewayInfo, GatewayPreference, TransportPlan } from './gateway.ts';
 export { describeCapabilities, capabilitySummary } from './capabilities.ts';
 export type { CapabilityReport } from './capabilities.ts';
 
@@ -83,11 +83,15 @@ export interface ProviderStatus {
   reason?: string;
 }
 
-/** Availability report without side effects (used by demos and key gates). */
+/** Availability report without side effects (used by demos and key gates). The transport is the rule's (providerTransport). */
 export function providerStatuses(): ProviderStatus[] {
   const gw = gatewayUsable() ? gatewayConfig() : null;
   return (Object.keys(PROVIDERS) as ProviderId[]).map((provider) => {
     const label = PROVIDERS[provider].label;
+    const plan = providerTransport(provider);
+    if (plan.transport === 'gateway' && plan.gateway) {
+      return { provider, label, available: true, transport: 'gateway' as const, gateway: plan.gateway.id };
+    }
     if (providerReady(provider)) {
       return { provider, label, available: true, transport: 'direct' as const };
     }

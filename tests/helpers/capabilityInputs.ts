@@ -58,6 +58,8 @@ const ALL_ENV = [
   ...new Set(Object.values(FAKE_ENV).flatMap((e) => Object.keys(e))),
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
   'ANTHROPIC_PLATFORM',
   'ANTHROPIC_BASE_URL',
   'OPENAI_PLATFORM',
