@@ -112,6 +112,13 @@ export const DEFAULT_MAX_STEPS = 50;
  * qwen3:8b is the smallest pulled model that supports tool calling — the
  * floor capability for syndicate delegation. Vision work uses ollama/qwen3-vl:8b.
  */
+/**
+ * TypeSafe Jev (lib/models/jevAdapter.ts): `jev-latest` is TypeSafe's alias
+ * for the newest stable release (jev-1.14.0 as of 2026-10-14). A decision
+ * model: it answers an agent's `output.schema`, never free text.
+ */
+export const DEFAULT_JEV_MODEL = 'jev-latest';
+
 export const DEFAULT_OLLAMA_MODEL = 'ollama/qwen3:8b';
 
 /**

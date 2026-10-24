@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Memory & telemetry schema
-description: "The Postgres DDL shipped in db/, verbatim and in install order: the 21 numbered migrations (0001_base to 0021_correct_gemini_flash_grok_rates), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
+description: "The Postgres DDL shipped in db/, verbatim and in install order: the 23 numbered migrations (0001_base to 0023_memory_embedder), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
 tags:
   - schema
   - postgres
@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-10-22
+  at: 2026-10-24
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -32,6 +32,8 @@ sources:
   - resource: db/migrations/0019_deepseek_kimi_pricing.sql
   - resource: db/migrations/0020_embedding_flash_grok_pricing.sql
   - resource: db/migrations/0021_correct_gemini_flash_grok_rates.sql
+  - resource: db/migrations/0022_typesafe_jev_pricing.sql
+  - resource: db/migrations/0023_memory_embedder.sql
   - resource: db/telemetry.sql
   - resource: db/hardening.sql
   - resource: db/memory_v2.sql
@@ -2418,6 +2420,122 @@ ON CONFLICT (version) DO NOTHING;
 ```
 <!-- /wiki:generated -->
 
+<!-- wiki:generated section="migration-0022_typesafe_jev_pricing" source="db/migrations/0022_typesafe_jev_pricing.sql" -->
+## Migration 0022_typesafe_jev_pricing
+
+```sql
+-- ============================================================================
+-- 0022_typesafe_jev_pricing — price rows for TypeSafe Jev (extends ADR 0136;
+--                             the provider is ADR 0144)
+-- ============================================================================
+-- Rows only, in 0017's column layout (USD per million tokens):
+--   input_per_mtok        an input token
+--   output_per_mtok       0: TypeSafe bills nothing for output today
+--                         (docs.typesafe.ai/models, "output tokens are free")
+--   cache_read_per_mtok   NULL: no cache on this API
+--   cache_write_per_mtok  NULL
+--
+-- TypeSafe Jev (lib/models/jevAdapter.ts): $42 per billion input tokens,
+-- which is $0.042 per million, the same on jev-1.14.0 and jev-1.13.0.
+-- `jev-latest` and `jev-preview` are TypeSafe's aliases (both jev-1.14.0 on
+-- 2026-10-23); a call made under an alias is priced under the alias, so the
+-- aliases get rows too. Checked 2026-10-23 against docs.typesafe.ai/models.
+--
+-- Through a gateway (Vercel AI Gateway lists $0.042 input, max output 0;
+-- OpenRouter bills "the rate on the Jev model page") the rate is the same
+-- at the time of writing; an operator whose gateway adds a margin edits the
+-- row.
+--
+-- New rows never overwrite a row that exists: an operator's own rates
+-- survive. Nothing secret, nothing personal. Idempotent; safe to re-run.
+-- ============================================================================
+
+INSERT INTO model_pricing (model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, verified_at, source, note) VALUES
+  ('jev-latest',  0.042, 0, NULL, NULL, '2026-10-23', 'docs.typesafe.ai/models', 'TypeSafe first-party, checked 2026-10-23; alias of jev-1.14.0; output is free'),
+  ('jev-preview', 0.042, 0, NULL, NULL, '2026-10-23', 'docs.typesafe.ai/models', 'TypeSafe first-party, checked 2026-10-23; alias of the newest build (jev-1.14.0); output is free'),
+  ('jev-1.14.0',  0.042, 0, NULL, NULL, '2026-10-23', 'docs.typesafe.ai/models', 'TypeSafe first-party, checked 2026-10-23; output is free'),
+  ('jev-1.13.0',  0.042, 0, NULL, NULL, '2026-10-23', 'docs.typesafe.ai/models', 'TypeSafe first-party, checked 2026-10-23; output is free')
+ON CONFLICT (model) DO NOTHING;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (22, '0022_typesafe_jev_pricing')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
+<!-- wiki:generated section="migration-0023_memory_embedder" source="db/migrations/0023_memory_embedder.sql" -->
+## Migration 0023_memory_embedder
+
+```sql
+-- ============================================================================
+-- 0023_memory_embedder — the one embedding model a memory store's vectors
+--                        come from (ADR 0147)
+-- ============================================================================
+-- Every vector in adk_memory_facts must come from one model: a different
+-- model at the same dimension passes the size check (0007's
+-- melchizedek_memory_dimensions) and quietly degrades recall. This table
+-- holds one row: the provider, model and dimension the store was first
+-- written with. The memory service records it on its first successful
+-- insert and refuses, at start, an embedder whose model differs
+-- (lib/memory/supabaseMemoryService.ts); switching models means re-embedding
+-- the stored facts, never a silent change.
+--
+-- A gateway's spelling of the same model (google/gemini-embedding-001 for
+-- gemini-embedding-001) is the same model: the service compares the last
+-- path segment. Two functions serve the Supabase REST path, which reaches
+-- tables through RPC here (0007's convention):
+--   melchizedek_memory_embedder()                  the row, or none
+--   melchizedek_memory_record_embedder(p, m, d)    record it once; a later
+--                                                  call changes nothing
+--   melchizedek_memory_set_embedder(p, m, d)       overwrite it: what a
+--                                                  completed re-embed writes
+--                                                  (lib/memory/reembed.ts)
+-- Nothing secret, nothing personal. Idempotent; safe to re-run.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS melchizedek_memory_embedder (
+  one          BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (one),
+  provider     TEXT        NOT NULL,
+  model        TEXT        NOT NULL,
+  dimensions   INTEGER     NOT NULL CHECK (dimensions > 0),
+  recorded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION melchizedek_memory_embedder()
+RETURNS TABLE (provider text, model text, dimensions integer, recorded_at timestamptz)
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT provider, model, dimensions, recorded_at FROM melchizedek_memory_embedder WHERE one;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_memory_record_embedder(p_provider text, p_model text, p_dimensions integer)
+RETURNS void
+LANGUAGE sql
+SET search_path = public
+AS $$
+  INSERT INTO melchizedek_memory_embedder (one, provider, model, dimensions)
+  VALUES (TRUE, p_provider, p_model, p_dimensions)
+  ON CONFLICT (one) DO NOTHING;
+$$;
+
+CREATE OR REPLACE FUNCTION melchizedek_memory_set_embedder(p_provider text, p_model text, p_dimensions integer)
+RETURNS void
+LANGUAGE sql
+SET search_path = public
+AS $$
+  INSERT INTO melchizedek_memory_embedder (one, provider, model, dimensions, recorded_at)
+  VALUES (TRUE, p_provider, p_model, p_dimensions, now())
+  ON CONFLICT (one) DO UPDATE SET provider = EXCLUDED.provider, model = EXCLUDED.model, dimensions = EXCLUDED.dimensions, recorded_at = now();
+$$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (23, '0023_memory_embedder')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
 <!-- wiki:generated section="telemetry-ddl" source="db/telemetry.sql" -->
 ## Telemetry ledger (optional)
 
@@ -2995,6 +3113,8 @@ END $$;
 -- deny-by-default. service_role is unaffected (it bypasses RLS).
 ALTER TABLE adk_memory_facts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE adk_sessions     ENABLE ROW LEVEL SECURITY;
+-- The store's one embedder row (migration 0023) names a model, nothing personal; locked all the same.
+ALTER TABLE IF EXISTS melchizedek_memory_embedder ENABLE ROW LEVEL SECURITY;
 
 -- Belt and suspenders: also revoke the default table privileges from the
 -- API roles, so even a future accidentally-created permissive policy
@@ -3003,6 +3123,9 @@ DO $$
 BEGIN
   PERFORM pg_temp.melchizedek_revoke_api('adk_memory_facts');
   PERFORM pg_temp.melchizedek_revoke_api('adk_sessions');
+  IF to_regclass('melchizedek_memory_embedder') IS NOT NULL THEN
+    PERFORM pg_temp.melchizedek_revoke_api('melchizedek_memory_embedder');
+  END IF;
 END $$;
 
 -- Optional observability ledger (db/telemetry.sql). Guarded: the tables only

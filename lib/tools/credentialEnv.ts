@@ -18,7 +18,7 @@
 /** Prefixes and names of variables the framework itself reads: never an API credential. */
 const FRAMEWORK_ENV_PREFIXES = [
   'A2A_', 'SUPABASE_', 'DATABASE_', 'MCP_', 'MODEL_', 'MEMORY_', 'OTEL_', 'TELEMETRY_', 'MELCHIZEDEK_',
-  'GOOGLE_', 'GEMINI_', 'ANTHROPIC_', 'OPENAI_', 'AZURE_', 'AWS_', 'XAI_', 'MOONSHOT_', 'DEEPSEEK_', 'OLLAMA_', 'WIKI_',
+  'GOOGLE_', 'GEMINI_', 'ANTHROPIC_', 'OPENAI_', 'AZURE_', 'AWS_', 'XAI_', 'MOONSHOT_', 'DEEPSEEK_', 'TYPESAFE_', 'OLLAMA_', 'WIKI_',
   'ALLOW_', 'OPENAPI_',
 ];
 const FRAMEWORK_ENV_NAMES = new Set(['PUBLIC_URL', 'HOST', 'PORT', 'PATH', 'HOME', 'NODE_OPTIONS', 'WEB_EXTRACT_CHAR_LIMIT', 'OAUTH_REDIRECT_URI', 'OAUTH_CALLBACK_IDENTITY']);

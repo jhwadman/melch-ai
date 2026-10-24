@@ -20,8 +20,12 @@ import type {
 } from '../runtime/memoryService.ts';
 import type { Session } from '../runtime/sessions.ts';
 import { memoryProvidersFromEnv, modelExtractor } from './providers.ts';
+// The doctor's reading of the environment's embedder, on the memory entry for consumers (ADR 0147).
+export { embedderPlan, memoryProvidersFromEnv } from './providers.ts';
+export type { EmbedderPlan, MemoryProviders } from './providers.ts';
 import { providerForModel } from '../models/providerMap.ts';
 import { isSupabaseClient, supabaseMemoryStore } from './store.ts';
+import type { EmbedderRecord } from './store.ts';
 import type { FactRow, MemoryStore, NewFact } from './store.ts';
 import type { Embedder, MemoryExtractor } from './providers.ts';
 
@@ -158,6 +162,8 @@ export class SupabaseVectorMemoryService implements MemoryService {
 	private extractor: MemoryExtractor;
 	private embedder: Embedder;
 	private store: MemoryStore;
+	/** True once the store's embedder record is known to be this embedder (verified, or written by this process). */
+	private embedderRecorded = false;
 	/**
 	 * How many of each session's events have already been distilled.
 	 * Keyed `{userKey}::{sessionId}`.
@@ -469,6 +475,7 @@ export class SupabaseVectorMemoryService implements MemoryService {
 		} catch (err: unknown) {
 			throw new Error(`Failed to store memory records (turns stay pending for retry): ${err instanceof Error ? err.message : String(err)}`);
 		}
+		await this.recordEmbedder();
 
 		for (const row of data) {
 			insertedIds.set(row.fact, row.id);
@@ -484,7 +491,9 @@ export class SupabaseVectorMemoryService implements MemoryService {
 		retire: Array<{ id: string; byFact: string }>,
 	): Promise<Array<{ id: string; fact: string }>> {
 		try {
-			return await this.store.commit!(userKey, marker, rows, retire);
+			const committed = await this.store.commit!(userKey, marker, rows, retire);
+			if (rows.length) await this.recordEmbedder();
+			return committed;
 		} catch (err: unknown) {
 			throw new Error(`Failed to store memory records (turns stay pending for retry): ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -643,6 +652,46 @@ export class SupabaseVectorMemoryService implements MemoryService {
 				+ 'never drop the table.',
 			);
 		}
+		await this.verifyEmbedderModel();
+	}
+
+	/**
+	 * The store's vectors come from one model (migration 0023, ADR 0147): a
+	 * different one at the same dimension would pass the size check and
+	 * degrade recall. The model recorded on the first write must be this
+	 * embedder's; a gateway's spelling of the same model (google/… for a
+	 * Gemini id) is the same model. A store with no record yet (older
+	 * migrations, or no fact written) is fine; the first write records it.
+	 */
+	async verifyEmbedderModel(): Promise<void> {
+		if (!this.store.embedderRecord) return;
+		let recorded: EmbedderRecord | null;
+		try {
+			recorded = await this.store.embedderRecord();
+		} catch {
+			return; // migration 0023 not applied: the schema check reports that
+		}
+		if (!recorded) return;
+		if (!sameEmbeddingModel(recorded.model, this.embedder.model)) {
+			throw new Error(
+				`The memory store's facts were embedded with ${recorded.provider}/${recorded.model} (${recorded.dimensions}d), but the embedder is now `
+				+ `${this.embedder.provider}/${this.embedder.model} (${this.embedder.dimensions}d). Vectors from two models do not compare: `
+				+ 'set MEMORY_EMBEDDING_* back to the recorded model (or its key), or re-embed every stored fact with the new one; never mix them.',
+			);
+		}
+		this.embedderRecorded = true;
+	}
+
+	/** Records this embedder as the store's, once, after the first facts are written; a failure here is logged, never fatal. */
+	private async recordEmbedder(): Promise<void> {
+		if (this.embedderRecorded || !this.store.recordEmbedder) return;
+		this.embedderRecorded = true;
+		try {
+			await this.store.recordEmbedder({ provider: this.embedder.provider, model: this.embedder.model, dimensions: this.embedder.dimensions });
+		} catch (err: unknown) {
+			this.embedderRecorded = false;
+			console.warn(`[MemoryService] could not record the embedder (migration 0023?): ${err instanceof Error ? err.message : String(err)}`);
+		}
 	}
 
 	/**
@@ -721,4 +770,10 @@ export class SupabaseVectorMemoryService implements MemoryService {
 			return { memories: [] };
 		}
 	}
+}
+
+/** Two embedding model ids name the same model when their last path segments agree (a gateway's google/gemini-embedding-001 is gemini-embedding-001). */
+export function sameEmbeddingModel(a: string, b: string): boolean {
+	const tail = (id: string) => id.trim().toLowerCase().split('/').pop() ?? '';
+	return tail(a) === tail(b);
 }

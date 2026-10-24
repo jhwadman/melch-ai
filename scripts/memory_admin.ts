@@ -18,6 +18,17 @@
  *   npm run memory -- delete --silo <key> <id> [<id>…]  # DRY RUN — prints what would go
  *   npm run memory -- delete --silo <key> <id> --yes    # actually delete
  *   npm run memory -- delete --silo <key> --all --yes   # erase one silo
+ *   npm run memory -- reembed [--batch 32]              # DRY RUN — counts the facts, names the models
+ *   npm run memory -- reembed --yes                     # re-embed every fact with the environment's embedder,
+ *                                                       # then record it as the store's (ADR 0148)
+ *
+ * `reembed` is how a memory store moves to another embedding model: the
+ * store records the model its vectors come from (migration 0023) and the
+ * service refuses a different one, so the switch is this command, run once,
+ * with MEMORY_EMBEDDING_* (and the keys) set to the NEW embedder. It uses
+ * DATABASE_URL when set (a direct connection, under an advisory lock so two
+ * runs never interleave), else the Supabase API. The column's size cannot
+ * change here. Prints counts, models and sizes; never a fact.
  *
  * Ids may be given as the short 8-character prefix shown by `list`. A prefix
  * matching more than one record is refused rather than guessed.
@@ -28,6 +39,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadEnv } from '../lib/loadEnv.ts';
+import { memoryProvidersFromEnv } from '../lib/memory/providers.ts';
+import { reembedMemory } from '../lib/memory/reembed.ts';
+import { supabaseMemoryStore } from '../lib/memory/store.ts';
+import type { MemoryStore } from '../lib/memory/store.ts';
 
 loadEnv(import.meta.url);
 
@@ -241,9 +256,52 @@ async function remove(db: SupabaseClient, silo: string, argv: string[]): Promise
 	console.log(`\nDeleted ${count ?? 0} record(s). This is not reversible.`);
 }
 
+/** The memory store to re-embed: a direct Postgres connection when DATABASE_URL is set, else the Supabase API. */
+async function storeForReembed(): Promise<{ store: MemoryStore; where: string; lock: () => Promise<() => Promise<void>>; close: () => Promise<void> }> {
+	const url = process.env.DATABASE_URL?.trim();
+	if (url) {
+		const { postgresStorage, postgresMemoryStore, advisoryLockId } = await import('../lib/storage/postgres/index.ts');
+		const storage = postgresStorage({ connectionString: url });
+		const lock = async () => {
+			const c = await storage.pool.connect();
+			const r = await c.query('SELECT pg_try_advisory_lock($1::bigint) AS got', [advisoryLockId('melchizedek_memory_reembed')]);
+			if (!r.rows[0]?.got) {
+				c.release();
+				throw new Error('another re-embed holds the lock on this database; wait for it to finish');
+			}
+			return async () => {
+				await c.query('SELECT pg_advisory_unlock($1::bigint)', [advisoryLockId('melchizedek_memory_reembed')]);
+				c.release();
+			};
+		};
+		return { store: postgresMemoryStore(storage.pool), where: 'DATABASE_URL (direct)', lock, close: () => storage.close() };
+	}
+	return { store: supabaseMemoryStore(client()), where: 'the Supabase API (no lock: run one at a time)', lock: async () => async () => {}, close: async () => {} };
+}
+
+async function reembed(argv: string[]): Promise<void> {
+	const yes = argv.includes('--yes');
+	const batch = Number(flag(argv, 'batch') ?? 32);
+	const { embedder } = memoryProvidersFromEnv();
+	const { store, where, lock, close } = await storeForReembed();
+	console.log(`embedder: ${embedder.provider}/${embedder.model} (${embedder.dimensions}d) · store: ${where}${yes ? '' : ' · DRY RUN (add --yes to write)'}`);
+	const release = yes ? await lock() : async () => {};
+	try {
+		const report = await reembedMemory(store, embedder, { batch, dryRun: !yes, log: (l) => console.log(`  ${l}`) });
+		if (!yes) console.log(`\nRun again with --yes to re-embed ${report.facts} fact(s). Stop every server using this store first: a turn written during the run would carry the old vectors.`);
+	} finally {
+		await release();
+		await close();
+	}
+}
+
 async function main(): Promise<void> {
 	const argv = process.argv.slice(2);
 	const command = argv[0] ?? 'list';
+	if (command === 'reembed') {
+		await reembed(argv);
+		return;
+	}
 	const silo = flag(argv, 'silo');
 	const db = client();
 
@@ -260,7 +318,7 @@ async function main(): Promise<void> {
 		await remove(db, silo, argv);
 		return;
 	}
-	console.error(`Unknown command "${command}". Use: list | delete`);
+	console.error(`Unknown command "${command}". Use: list | delete | reembed`);
 	process.exit(1);
 }
 

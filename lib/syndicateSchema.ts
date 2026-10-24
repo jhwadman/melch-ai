@@ -178,6 +178,7 @@ const modelOverridesSchema = z
     xai: modelOverrideEntry.optional(),
     moonshot: modelOverrideEntry.optional(),
     deepseek: modelOverrideEntry.optional(),
+    typesafe: modelOverrideEntry.optional(),
     ollama: modelOverrideEntry.optional(),
   })
   .describe('Per-provider instruction, keyed by the provider of the agent\'s model id (lib/models/providerMap.ts). Applied at compile time before the skills index; not to fallback_model, and never to globalInstruction (ADR 0115).');
@@ -403,7 +404,7 @@ const agentFields = {
   model: z
     .string()
     .min(1)
-    .describe('Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, ollama/*).'),
+    .describe('Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, kimi-*, deepseek-*, jev-*, ollama/*).'),
   fallback_model: z
     .string()
     .min(1)

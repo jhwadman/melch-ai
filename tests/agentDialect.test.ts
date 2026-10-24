@@ -143,7 +143,7 @@ test('the JSON Schema documents the v2 keys and marks the v1 spellings deprecate
   assert.strictEqual(orch.outputSchema.deprecated, true);
   assert.match(orch.outputSchema.description, /output\.schema/);
   assert.deepStrictEqual(Object.keys(orch.sampling.properties), ['temperature', 'top_p', 'max_output_tokens', 'stop']);
-  assert.deepStrictEqual(Object.keys(orch.model_overrides.properties), ['gemini', 'anthropic', 'openai', 'xai', 'moonshot', 'deepseek', 'ollama']);
+  assert.deepStrictEqual(Object.keys(orch.model_overrides.properties), ['gemini', 'anthropic', 'openai', 'xai', 'moonshot', 'deepseek', 'typesafe', 'ollama']);
 });
 
 // ── Deprecation warning ──────────────────────────────────────────────────────

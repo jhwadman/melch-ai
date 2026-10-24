@@ -30,8 +30,13 @@ const ENV_KEYS = [
   'XAI_API_KEY',
   'MOONSHOT_API_KEY',
   'DEEPSEEK_API_KEY',
+  'TYPESAFE_API_KEY',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
+  'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 function withEnv<T>(vars: Record<string, string>, fn: () => T): T {
@@ -58,6 +63,7 @@ test('the providers line names each provider\'s own key when it is unset', () =>
     assert.match(line, /Moonshot Kimi MOONSHOT_API_KEY not set/);
     assert.match(line, /xAI Grok XAI_API_KEY not set/);
     assert.match(line, /DeepSeek DEEPSEEK_API_KEY not set/);
+    assert.match(line, /TypeSafe Jev TYPESAFE_API_KEY not set/);
     assert.match(line, /Ollama \(local\) local/);
   });
 });
@@ -111,7 +117,30 @@ test('a gateway key alone readies every cloud example via the gateway and names 
     assert.equal(result.gateway?.usable, true);
     const ares = result.syndicates.find((s) => s.file === 'examples/ares.yaml')!;
     assert.equal(ares.verdict.state, 'via-gateway');
+    // google_search runs as the gateway's own search (ADR 0146): nothing lost on this file.
+    assert.equal(ares.verdict.detail, 'via gateway:vercel');
+    assert.ok(ares.rows.some((r) => r.report.native.includes('google_search') && r.report.gatewaySearch === 'vercel:exa'));
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    const ares = runDoctor({ agentsDir: AGENTS }).syndicates.find((s) => s.file === 'examples/ares.yaml')!;
     assert.match(ares.verdict.detail, /google_search lost/);
+  });
+});
+
+test('the memory line says what embeds long-term memory, or what to set, with OpenRouter\'s answer (ADR 0147)', () => {
+  withEnv({ GOOGLE_GENAI_API_KEY: 'g' }, () => {
+    const result = runDoctor({ agentsDir: AGENTS });
+    assert.ok(result.memory && result.memory.longTerm > 0, 'ares.yaml is long-term');
+    assert.deepEqual([result.memory!.embedder.transport, result.memory!.embedder.model], ['direct', 'gemini-embedding-001']);
+    assert.match(renderDoctor(result), /memory\s+✓ embeddings gemini\/gemini-embedding-001 \(768d\)/);
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    const text = renderDoctor(runDoctor({ agentsDir: AGENTS }));
+    assert.match(text, /memory\s+◇ embeddings gemini\/google\/gemini-embedding-001 \(768d\) via gateway:vercel/);
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    const text = renderDoctor(runDoctor({ agentsDir: AGENTS }));
+    assert.match(text, /memory\s+✗ long-term memory has no embedder \(OpenRouter carries no Gemini embedding model\): set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small \(768d\) through OpenRouter/);
   });
 });
 

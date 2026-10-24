@@ -30,6 +30,7 @@ import { GptAdapter } from './gptAdapter.ts';
 import { GrokAdapter } from './grokAdapter.ts';
 import { KimiAdapter } from './kimiAdapter.ts';
 import { DeepSeekAdapter } from './deepseekAdapter.ts';
+import { JevAdapter } from './jevAdapter.ts';
 import { OllamaAdapter } from './ollamaAdapter.ts';
 import { providerForModel } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
@@ -73,7 +74,7 @@ export function scopedKey(model: string, apiKey: string | undefined, keyProvider
 /** A provider name as the A2A X-Provider header gives it; anything unknown reads as gemini. */
 export function normalizeProvider(provider?: string): ProviderId {
   const p = provider?.toLowerCase();
-  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot' || p === 'deepseek') {
+  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot' || p === 'deepseek' || p === 'typesafe') {
     return p;
   }
   return 'gemini';
@@ -145,6 +146,7 @@ const CONTRACT_ADAPTER: Record<Exclude<ProviderId, 'gemini'>, (r: Route) => Mode
   xai: (r) => new GrokAdapter({ model: r.model, apiKey: r.apiKey }),
   moonshot: (r) => new KimiAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
   deepseek: (r) => new DeepSeekAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
+  typesafe: (r) => new JevAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
 };
 
 /** A resolver over the one prefix table. A Gemini id gets GeminiAdapter (ADR 0100, ADR 0107). */
@@ -157,7 +159,8 @@ export function adapterResolver(): AdapterResolver {
   function resolveAdapter(modelId: string, options: ResolveAdapterOptions = {}): ModelAdapter {
     const keyProvider = options.keyProvider === undefined ? providerForModel(modelId) : normalizeProvider(options.keyProvider);
     const route = routeFor(modelId, scopedKey(modelId, options.apiKey, keyProvider), options.endpoint);
-    if (route.transport === 'gateway') return new GatewayAdapter({ model: modelId });
+    // Jev is not a chat model: a gateway serves it on its own System One route (lib/models/jev.ts).
+    if (route.transport === 'gateway') return route.provider === 'typesafe' ? new JevAdapter({ model: modelId, transport: 'gateway' }) : new GatewayAdapter({ model: modelId });
     if (route.provider === 'gemini') {
       return geminiFor(route, options.gemini ?? geminiAdapterSetting() ?? 'engine');
     }

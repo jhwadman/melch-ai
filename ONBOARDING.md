@@ -9,7 +9,7 @@ In a clone, the commands are spelled as npm scripts (`npm run doctor`, `npm run 
 | # | You have | Guide |
 |---|---|---|
 | 1 | Nothing yet: run open-weight models locally (Ollama, no key) | `--level local` |
-| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot or DeepSeek) | `--level one-provider` |
+| 2 | One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot, DeepSeek or TypeSafe) | `--level one-provider` |
 | 3 | API keys for several providers | `--level several-providers` |
 | 4 | One gateway key (Vercel AI Gateway or OpenRouter) | `--level gateway` |
 | 5 | Cloud platform credentials (Vertex AI, Amazon Bedrock, Azure OpenAI) | `--level cloud-platform` |
@@ -63,6 +63,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
 | `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
+| `TYPESAFE_API_KEY` | an API key from https://console.typesafe.ai/keys | TypeSafe Jev: model ids jev-* (a decision model: it answers an output.schema, never prose) |
 
 **Confirm:** `npx melchizedek-doctor`: the providers line shows a ✓ beside your provider, and the files of that tier read `ready`.
 
@@ -74,6 +75,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - MOONSHOT_API_KEY: no shipped file yet (change a `model:` line to use one)
 - DEEPSEEK_API_KEY: no shipped file yet (change a `model:` line to use one)
+- TYPESAFE_API_KEY: classifier (example)
 - with no key at all: conversational (template), assistant (example), council (example), event_assistant (example), tutor (example)
 
 **First commands:**
@@ -104,6 +106,7 @@ Each key funds its own provider, and a syndicate may mix them: one agent on Clau
 | `XAI_API_KEY` | an API key from https://console.x.ai | xAI Grok: model ids grok-* |
 | `MOONSHOT_API_KEY` | an API key from https://platform.moonshot.ai | Moonshot Kimi: model ids kimi-* |
 | `DEEPSEEK_API_KEY` | an API key from https://platform.deepseek.com/api_keys | DeepSeek: model ids deepseek-* |
+| `TYPESAFE_API_KEY` | an API key from https://console.typesafe.ai/keys | TypeSafe Jev: model ids jev-* (a decision model: it answers an output.schema, never prose) |
 
 **Confirm:** `npx melchizedek-doctor`: a ✓ beside each provider you set; `multi-provider` files read `ready` once every provider they use has its key.
 
@@ -127,7 +130,7 @@ npx melchizedek-chat --syndicate model_zoo
 
 ## 4. A gateway key
 
-One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint. It is a fallback, never a preempt: a direct key always wins for its provider. Ollama never goes through it.
+One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint (and TypeSafe Jev on its System One route). By default it is a fallback: a direct key wins for its provider; MODEL_GATEWAY_PREFER=gateway turns that round, and MODEL_GATEWAY_EXCEPT names the providers that take the opposite. Ollama never goes through it.
 
 **Set in `.env`** (names and shapes only; you type the values yourself):
 
@@ -137,12 +140,14 @@ One key serves every cloud model id whose direct key is absent, through the gate
 | `MODEL_GATEWAY_API_KEY` | the gateway key (https://vercel.com/ai-gateway or https://openrouter.ai/keys) | funds every id with no direct key |
 | `MODEL_GATEWAY_BASE_URL` | https URL | optional: a self-hosted proxy speaking the same dialect (LiteLLM) |
 | `MODEL_GATEWAY_MODEL_MAP` | yaml-id=gateway-id,yaml-id=gateway-id | optional: fix an id the default mapping gets wrong |
+| `MODEL_GATEWAY_PREFER` | direct | gateway | optional: gateway sends every cloud id through the gateway even beside a direct key (one bill); direct, the default, lets each provider's own key win |
+| `MODEL_GATEWAY_EXCEPT` | gemini,xai | optional: providers that take the opposite of the preference (never ollama) |
 
 **Confirm:** `npx melchizedek-doctor`: a `gateway` line with no ✗, and providers without a direct key marked `◇ via gateway`.
 
 **Runs at this level:**
 
-- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), model_zoo (example)
+- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), cartographers (example), connectors (example), critic (example), current_events (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), classifier (example), model_zoo (example)
 
 **First commands:**
 
@@ -153,8 +158,9 @@ npx melchizedek-chat --syndicate research_brief
 
 **Notes:**
 
-- Native search is lost on the gateway path (Gemini grounding, Anthropic and OpenAI web_search, xAI x_search); the doctor marks each dropped tool.
-- Long-term memory embeds through Gemini by default, which the gateway does not serve: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai or ollama.
+- web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, MODEL_GATEWAY_SEARCH_RESULTS (default 3) bounds what it folds into the prompt, and xAI's x_search and Collections are dropped; the doctor marks each.
+- A gateway is for billing and breadth, not for grounding: for a search-heavy agent, keep the provider that does the searching on its own key (its native search, citations and all) and let the gateway serve the rest; a direct key beside the gateway key does that by default, and MODEL_GATEWAY_EXCEPT keeps it so under MODEL_GATEWAY_PREFER=gateway.
+- Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001). OpenRouter has no Gemini one: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small at 768 through it; a store already embedded with Gemini must be re-embedded if the model changes, and the store refuses a different model at start (the doctor's memory line says what would embed).
 
 **Onboarding skill:** `melchizedek-onboard-keys` (`npx melchizedek-setup --level gateway` prints this guide)
 

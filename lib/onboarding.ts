@@ -165,6 +165,7 @@ const PROVIDER_CONSOLE: Record<Exclude<ProviderId, 'ollama'>, string> = {
   xai: 'https://console.x.ai',
   moonshot: 'https://platform.moonshot.ai',
   deepseek: 'https://platform.deepseek.com/api_keys',
+  typesafe: 'https://console.typesafe.ai/keys',
 };
 
 const PREFIX: Record<Exclude<ProviderId, 'ollama'>, string> = {
@@ -174,6 +175,7 @@ const PREFIX: Record<Exclude<ProviderId, 'ollama'>, string> = {
   xai: 'grok-*',
   moonshot: 'kimi-*',
   deepseek: 'deepseek-*',
+  typesafe: 'jev-* (a decision model: it answers an output.schema, never prose)',
 };
 
 const CLOUD_PROVIDERS = Object.keys(PROVIDER_CONSOLE) as Exclude<ProviderId, 'ollama'>[];
@@ -221,7 +223,7 @@ export const LEVELS: readonly Level[] = [
   },
   {
     id: 'one-provider',
-    menu: "One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot or DeepSeek)",
+    menu: "One provider's API key (Gemini, Anthropic, OpenAI, xAI, Moonshot, DeepSeek or TypeSafe)",
     title: "One provider's API key",
     summary:
       "The model id's prefix picks the provider, and that provider's key funds it. One key runs every file whose agents all use that provider. A Gemini key runs the most shipped files and also powers long-term memory's embeddings.",
@@ -269,12 +271,14 @@ export const LEVELS: readonly Level[] = [
     menu: 'One gateway key (Vercel AI Gateway or OpenRouter)',
     title: 'A gateway key',
     summary:
-      "One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint. It is a fallback, never a preempt: a direct key always wins for its provider. Ollama never goes through it.",
+      "One key serves every cloud model id whose direct key is absent, through the gateway's OpenAI-compatible endpoint (and TypeSafe Jev on its System One route). By default it is a fallback: a direct key wins for its provider; MODEL_GATEWAY_PREFER=gateway turns that round, and MODEL_GATEWAY_EXCEPT names the providers that take the opposite. Ollama never goes through it.",
     env: [
       { name: GATEWAY_ENV, shape: 'vercel | openrouter', purpose: 'which gateway' },
       { name: GATEWAY_KEY_ENV, shape: 'the gateway key (https://vercel.com/ai-gateway or https://openrouter.ai/keys)', purpose: 'funds every id with no direct key' },
       { name: 'MODEL_GATEWAY_BASE_URL', shape: 'https URL', purpose: 'optional: a self-hosted proxy speaking the same dialect (LiteLLM)' },
       { name: 'MODEL_GATEWAY_MODEL_MAP', shape: 'yaml-id=gateway-id,yaml-id=gateway-id', purpose: 'optional: fix an id the default mapping gets wrong' },
+      { name: 'MODEL_GATEWAY_PREFER', shape: 'direct | gateway', purpose: 'optional: gateway sends every cloud id through the gateway even beside a direct key (one bill); direct, the default, lets each provider\'s own key win' },
+      { name: 'MODEL_GATEWAY_EXCEPT', shape: 'gemini,xai', purpose: 'optional: providers that take the opposite of the preference (never ollama)' },
     ],
     confirm: 'a `gateway` line with no ✗, and providers without a direct key marked `◇ via gateway`.',
     runs: (s) => [
@@ -285,8 +289,9 @@ export const LEVELS: readonly Level[] = [
       clone: ['npm run chat:syndicate'],
     },
     notes: [
-      'Native search is lost on the gateway path (Gemini grounding, Anthropic and OpenAI web_search, xAI x_search); the doctor marks each dropped tool.',
-      'Long-term memory embeds through Gemini by default, which the gateway does not serve: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai or ollama.',
+      "web_search runs as the gateway's own search on the gateway path (Vercel's exa_search server tool; OpenRouter's web plugin, the provider's native search where it has one, with citations); MODEL_GATEWAY_SEARCH names the engine or turns it off, MODEL_GATEWAY_SEARCH_RESULTS (default 3) bounds what it folds into the prompt, and xAI's x_search and Collections are dropped; the doctor marks each.",
+      "A gateway is for billing and breadth, not for grounding: for a search-heavy agent, keep the provider that does the searching on its own key (its native search, citations and all) and let the gateway serve the rest; a direct key beside the gateway key does that by default, and MODEL_GATEWAY_EXCEPT keeps it so under MODEL_GATEWAY_PREFER=gateway.",
+      'Long-term memory embeds through the gateway when it carries the same embedding model (Vercel carries google/gemini-embedding-001). OpenRouter has no Gemini one: set GOOGLE_GENAI_API_KEY, or MEMORY_EMBEDDING_PROVIDER=openai to embed text-embedding-3-small at 768 through it; a store already embedded with Gemini must be re-embedded if the model changes, and the store refuses a different model at start (the doctor\'s memory line says what would embed).',
     ],
     skill: 'melchizedek-onboard-keys',
     detectable: true,

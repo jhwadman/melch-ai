@@ -126,6 +126,8 @@ test('providerForModel maps every prefix to its provider', () => {
   assert.equal(providerForModel('kimi-k2.7-code-highspeed'), 'moonshot');
   assert.equal(providerForModel('deepseek-flash'), 'deepseek');
   assert.equal(providerForModel('deepseek-v4-pro'), 'deepseek');
+  assert.equal(providerForModel('jev-latest'), 'typesafe');
+  assert.equal(providerForModel('jev-1.14.0'), 'typesafe');
   assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
   assert.equal(providerForModel('gemini-3.5-flash-lite'), 'gemini');
   assert.equal(providerForModel('something-unknown'), 'gemini'); // the default provider
@@ -154,10 +156,11 @@ test('providerStatuses reflects env keys; ollama is always available', () => {
     delete process.env.XAI_API_KEY;
     delete process.env.MOONSHOT_API_KEY;
     delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.TYPESAFE_API_KEY;
     delete process.env.GOOGLE_GENAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     const off = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.available]));
-    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, moonshot: false, deepseek: false, ollama: true });
+    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, moonshot: false, deepseek: false, typesafe: false, ollama: true });
 
     process.env.XAI_API_KEY = 'test-key';
     assert.equal(providerKeyPresent('xai'), true);

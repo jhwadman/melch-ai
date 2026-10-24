@@ -17,6 +17,10 @@ import assert from 'node:assert';
 import {
   GATEWAYS,
   gatewayConfig,
+  gatewayEmbedding,
+  gatewayExceptions,
+  gatewayPreference,
+  gatewaySearch,
   gatewayProblem,
   gatewayWireModel,
   planTransport,
@@ -34,10 +38,15 @@ const ENV_KEYS = [
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',
   'XAI_API_KEY',
+  'TYPESAFE_API_KEY',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
+  'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 /** Runs fn with ONLY the given env vars set (of the ones this suite touches). */
@@ -165,6 +174,58 @@ test('Ollama never routes through a gateway', () => {
   });
 });
 
+// ── The preference (ADR 0145) ────────────────────────────────────────────────
+
+test('MODEL_GATEWAY_PREFER=gateway sends every cloud id through the gateway even beside its direct key; Ollama and a BYOK key stay direct', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', GOOGLE_GENAI_API_KEY: 'g', TYPESAFE_API_KEY: 't', MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'gateway' }, () => {
+    assert.equal(gatewayPreference(), 'gateway');
+    for (const id of ['claude-sonnet-4-6', 'gemini-3.8-flash', 'jev-latest', 'gpt-5-mini']) {
+      const plan = planTransport(id);
+      assert.equal(plan.transport, 'gateway', id);
+      assert.equal(plan.funded, true, id);
+    }
+    assert.equal(planTransport('ollama/qwen3:8b').transport, 'direct');
+    assert.equal(planTransport('gemini-3.8-flash', { callerKey: true }).transport, 'direct', "the caller's own key is what the caller asked for");
+    const statuses = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.transport]));
+    assert.equal(statuses.anthropic, 'gateway');
+    assert.equal(statuses.gemini, 'gateway');
+    assert.equal(statuses.ollama, 'direct');
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof GatewayAdapter, 'the adapter follows the plan');
+  });
+});
+
+test('MODEL_GATEWAY_PREFER=gateway without a usable gateway changes nothing: the direct key still serves', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', MODEL_GATEWAY_PREFER: 'gateway' }, () => {
+    assert.deepEqual([planTransport('claude-sonnet-4-6').transport, planTransport('claude-sonnet-4-6').funded], ['direct', true]);
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof ClaudeAdapter);
+  });
+});
+
+test('MODEL_GATEWAY_EXCEPT turns the preference round for the providers it names, either way; unknown words and ollama are refused by name', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a', GOOGLE_GENAI_API_KEY: 'g', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'gateway', MODEL_GATEWAY_EXCEPT: 'gemini' }, () => {
+    assert.deepEqual([...gatewayExceptions()], ['gemini']);
+    assert.equal(planTransport('gemini-3.8-flash').transport, 'direct', 'kept on its own key for grounding');
+    assert.equal(planTransport('claude-sonnet-4-6').transport, 'gateway');
+    assert.equal(gatewayProblem(), undefined);
+  });
+  withEnv({ ANTHROPIC_API_KEY: 'a', XAI_API_KEY: 'x', MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_EXCEPT: 'xai' }, () => {
+    assert.equal(gatewayPreference(), 'direct');
+    assert.equal(planTransport('grok-4.7').transport, 'gateway', 'an exception under the default sends that provider through the gateway');
+    assert.equal(planTransport('claude-sonnet-4-6').transport, 'direct');
+  });
+  withEnv({ XAI_API_KEY: 'x', MODEL_GATEWAY_EXCEPT: 'xai' }, () => {
+    assert.equal(planTransport('grok-4.7').transport, 'direct', 'no usable gateway: the exception cannot be honoured, the key serves');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_PREFER: 'sideways' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_PREFER=sideways is not a preference/);
+    assert.equal(gatewayPreference(), 'direct', 'an unrecognised value reads as the default');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_EXCEPT: 'ollama,claude' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_EXCEPT names ollama, claude/);
+    assert.equal(gatewayExceptions().size, 0);
+  });
+});
+
 test("a caller's BYOK key funds the direct path and never falls through", () => {
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'g' }, () => {
     assert.equal(planTransport('gemini-3.8-flash', { callerKey: true }).transport, 'direct');
@@ -286,12 +347,72 @@ test('describeCapabilities: native on the direct path, dropped through a gateway
     assert.deepEqual(r.portable, ['wiki_search']);
     assert.equal(capabilitySummary('A', r), undefined);
   });
+  // Through a gateway, web_search runs as the gateway's own search (ADR 0146); x_search has no gateway form.
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     const r = describeCapabilities('grok-4.7', ['web_search', 'x_search', 'web_extract']);
     assert.equal(r.transport, 'gateway');
-    assert.deepEqual(r.dropped, ['web_search', 'x_search']);
+    assert.deepEqual(r.native, ['web_search']);
+    assert.deepEqual(r.dropped, ['x_search']);
     assert.deepEqual(r.portable, ['web_extract']);
-    assert.match(capabilitySummary('XScout', r)!, /via gateway:vercel — dropped web_search, x_search/);
+    assert.equal(r.gatewaySearch, 'vercel:exa');
+    assert.match(capabilitySummary('XScout', r)!, /via gateway:vercel \(web_search by the gateway's search, vercel:exa\) — dropped x_search \(a gateway runs only its own web search\)/);
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'native' }, () => {
+    const r = describeCapabilities('gemini-3.8-flash', ['web_search']);
+    assert.deepEqual([r.native, r.dropped, r.gatewaySearch], [['web_search'], [], 'openrouter:native']);
+    assert.match(capabilitySummary('A', r)!, /via gateway:openrouter \(web_search by the gateway's search, openrouter:native\)\.$/);
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    const r = describeCapabilities('grok-4.7', ['web_search', 'x_search']);
+    assert.deepEqual(r.dropped, ['web_search', 'x_search']);
+    assert.equal(r.gatewaySearch, undefined);
+    assert.match(capabilitySummary('XScout', r)!, /dropped web_search, x_search \(the gateway's search is off \(MODEL_GATEWAY_SEARCH\)\)/);
+    assert.equal(gatewayProblem(), undefined, 'off is a value, not a problem');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k', MODEL_GATEWAY_SEARCH: 'bing' }, () => {
+    assert.match(gatewayProblem() ?? '', /MODEL_GATEWAY_SEARCH=bing is not a search engine Vercel AI Gateway runs; use off or one of: exa, perplexity, parallel, browserbase, tako/);
+    assert.deepEqual(describeCapabilities('grok-4.7', ['web_search']).dropped, ['web_search'], 'an unknown engine turns the search off, and the doctor names it');
+  });
+});
+
+test('gatewaySearch gives each gateway its body with the result count as the engine\'s own field (ADR 0148)', () => {
+  withEnv({}, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel), { engine: 'exa', results: 3, body: { tools: [{ type: 'vercel:exa_search', config: { type: 'instant', num_results: 3 } }] }, citations: false });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter), { engine: undefined, results: 3, body: { plugins: [{ id: 'web', max_results: 3 }] }, citations: true });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'perplexity', MODEL_GATEWAY_SEARCH_RESULTS: '2' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:perplexity_search', config: { max_results: 2, max_tokens: 4000, max_tokens_per_page: 2000 } }] });
+    assert.deepEqual(gatewaySearch(GATEWAYS.openrouter)?.body, { plugins: [{ id: 'web', engine: 'perplexity', max_results: 2 }] });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'parallel' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:parallel_search', config: { mode: 'agentic', max_results: 3, excerpts: { max_chars_total: 24000 } } }] });
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'tako' }, () => {
+    assert.deepEqual(gatewaySearch(GATEWAYS.vercel)?.body, { tools: [{ type: 'vercel:tako_search' }] }, 'an engine with no known config is sent bare');
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH_RESULTS: '40' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel)?.results, 10, 'held to 10');
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH_RESULTS: 'many' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel)?.results, 3, 'a malformed count is the default');
+  });
+  withEnv({ MODEL_GATEWAY_SEARCH: 'off' }, () => {
+    assert.equal(gatewaySearch(GATEWAYS.vercel), null);
+  });
+});
+
+test('gatewayEmbedding names the gateway\'s id for an embedding model it carries, and nothing for one it lacks', () => {
+  withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.deepEqual(gatewayEmbedding('gemini', 'gemini-embedding-001')?.model, 'google/gemini-embedding-001');
+    assert.deepEqual(gatewayEmbedding('openai', 'text-embedding-3-small')?.model, 'openai/text-embedding-3-small');
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001')?.baseUrl, 'https://ai-gateway.vercel.sh/v1');
+  });
+  withEnv({ MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001'), undefined, 'OpenRouter carries no Gemini embedding model');
+    assert.equal(gatewayEmbedding('openai', 'text-embedding-3-small')?.model, 'openai/text-embedding-3-small');
+  });
+  withEnv({ MODEL_GATEWAY: 'vercel' }, () => {
+    assert.equal(gatewayEmbedding('gemini', 'gemini-embedding-001'), undefined, 'no key, no gateway');
   });
 });
 

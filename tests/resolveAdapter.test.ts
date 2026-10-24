@@ -29,6 +29,7 @@ import { GptAdapter } from '../lib/models/gptAdapter.ts';
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
 import { DeepSeekAdapter } from '../lib/models/deepseekAdapter.ts';
+import { JevAdapter } from '../lib/models/jevAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 
 const ENV_KEYS = [
@@ -49,11 +50,17 @@ const ENV_KEYS = [
   'MOONSHOT_BASE_URL',
   'DEEPSEEK_API_KEY',
   'DEEPSEEK_BASE_URL',
+  'TYPESAFE_API_KEY',
+  'TYPESAFE_BASE_URL',
   'OLLAMA_BASE_URL',
   'MODEL_GATEWAY',
   'MODEL_GATEWAY_API_KEY',
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
+  'MODEL_GATEWAY_PREFER',
+  'MODEL_GATEWAY_EXCEPT',
+  'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
   'GEMINI_ADAPTER',
 ];
 
@@ -63,6 +70,7 @@ const ENV_OPENAI = 'fixture-env-openai-0123456789';
 const ENV_XAI = 'fixture-env-xai-0123456789';
 const ENV_MOONSHOT = 'fixture-env-moonshot-0123456789';
 const ENV_DEEPSEEK = 'fixture-env-deepseek-0123456789';
+const ENV_TYPESAFE = 'fixture-env-typesafe-0123456789';
 const CALLER = 'fixture-caller-key-0123456789';
 
 const ALL_KEYS = {
@@ -72,6 +80,7 @@ const ALL_KEYS = {
   XAI_API_KEY: ENV_XAI,
   MOONSHOT_API_KEY: ENV_MOONSHOT,
   DEEPSEEK_API_KEY: ENV_DEEPSEEK,
+  TYPESAFE_API_KEY: ENV_TYPESAFE,
 };
 const GATEWAY_ONLY = { MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789' };
 
@@ -134,6 +143,7 @@ test('resolveAdapter returns each provider\'s contract adapter from the one pref
       ['grok-4.7', GrokAdapter, 'xai'],
       ['kimi-k3', KimiAdapter, 'moonshot'],
       ['deepseek-flash', DeepSeekAdapter, 'deepseek'],
+      ['jev-latest', JevAdapter, 'typesafe'],
       ['ollama/qwen3:8b', OllamaAdapter, 'ollama'],
       ['gemini-3.5-flash-lite', GeminiAdapter, 'gemini'],
       ['some-unknown-id', GeminiAdapter, 'gemini'],
@@ -301,7 +311,7 @@ test('logProviderStatuses reports every provider once and registers nothing', as
   await withEnv(ALL_KEYS, () => {
     const lines: string[] = [];
     const statuses = logProviderStatuses((m) => lines.push(m));
-    assert.deepEqual(statuses.map((s) => s.provider).sort(), ['anthropic', 'deepseek', 'gemini', 'moonshot', 'ollama', 'openai', 'xai']);
+    assert.deepEqual(statuses.map((s) => s.provider).sort(), ['anthropic', 'deepseek', 'gemini', 'moonshot', 'ollama', 'openai', 'typesafe', 'xai']);
     assert.ok(statuses.every((s) => s.available && s.transport === 'direct'));
     assert.equal(lines.length, statuses.length);
     assert.ok(lines.every((l) => /active/.test(l)));

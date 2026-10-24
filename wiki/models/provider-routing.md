@@ -1,13 +1,13 @@
 ---
 type: model-provider
 title: Provider routing
-description: "How a model string in YAML reaches the right provider adapter: one prefix table, seven providers, availability by API key."
+description: "How a model string in YAML reaches the right provider adapter: one prefix table, eight providers, availability by API key."
 tags:
   - models
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-22
+  at: 2026-10-24
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -19,7 +19,7 @@ sources:
 <!-- wiki:fill slot="overview" -->
 Model string routing relies on a single prefix table in `lib/models/providerMap.ts` and one resolution. The [native loop](/overview/native-loop.md), the engine's only runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), uses `resolveAdapter()`, which returns the engine's own `ModelAdapter` ([ADR 0060](/decisions/0060-engine-owned-registry.md)). Per-request paths like the [A2A server](/protocols/a2a.md) use `resolveModel()`, which returns the same adapter built with the caller's header credentials; the loop calls whatever adapter `CompileOptions.resolveModel` returns, or resolves the id it returns (`nativeAdapterFor` in `lib/compileNative.ts`). Anything else it returns (an ADK model class, a plain `{ model, apiKey }` object) is refused before any model call with `UnsupportedOnRuntimeError` ([failure modes](/operations/failure-modes.md)). Nothing is registered anywhere: an id resolves when an agent first calls it. `providerStatuses()` and `logProviderStatuses()` report which providers are routable, and the latter logs one line per provider.
 
-The chat-completions adapters (Ollama, Kimi and the gateways, all over `lib/models/chatCompletionsAdapter.ts`, the [chat-completions adapters](/models/chat-completions-adapters.md)) read `finish_reason`. A turn that ends with reasoning but neither reply text nor a tool call is an error, never an empty reply: `<PROVIDER>_MAX_TOKENS` when the provider reports `length`, `<PROVIDER>_EMPTY_RESPONSE` when the model stopped after thinking ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)). On Ollama, `length` almost always means the 4,096-token default context window, which the `/v1` path cannot raise; [failure modes](/operations/failure-modes.md) lists the remedies. The Ollama adapter first retries such a turn once with `reasoning: none`, sent as `reasoning_effort: "none"` (thinking off), counting both attempts' tokens, so the error reaches the caller only when the retry fails too; `OLLAMA_RETRY_WITHOUT_THINKING=false` turns that off.
+`jev-*` ids route to TypeSafe's Jev, a decision model rather than a chat model: the [Jev adapter](/models/jev-adapter.md) turns the agent's `output.schema` into Jev's typed questions and answers with the schema's object and the raw probabilities, so a `jev-*` agent is a leaf classifier that calls no tool ([ADR 0144](/decisions/0144-typesafe-jev-decision-provider.md)). The chat-completions adapters (Ollama, Kimi and the gateways, all over `lib/models/chatCompletionsAdapter.ts`, the [chat-completions adapters](/models/chat-completions-adapters.md)) read `finish_reason`. A turn that ends with reasoning but neither reply text nor a tool call is an error, never an empty reply: `<PROVIDER>_MAX_TOKENS` when the provider reports `length`, `<PROVIDER>_EMPTY_RESPONSE` when the model stopped after thinking ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)). On Ollama, `length` almost always means the 4,096-token default context window, which the `/v1` path cannot raise; [failure modes](/operations/failure-modes.md) lists the remedies. The Ollama adapter first retries such a turn once with `reasoning: none`, sent as `reasoning_effort: "none"` (thinking off), counting both attempts' tokens, so the error reaches the caller only when the retry fails too; `OLLAMA_RETRY_WITHOUT_THINKING=false` turns that off.
 <!-- /wiki:fill -->
 
 <!-- wiki:generated section="providers" source="lib/models/providerMap.ts" -->
@@ -31,6 +31,7 @@ The chat-completions adapters (Ollama, Kimi and the gateways, all over `lib/mode
 | xai | xAI Grok | `XAI_API_KEY` | `grok-*` | `grok-4.7` |
 | moonshot | Moonshot Kimi | `MOONSHOT_API_KEY` | `kimi-*` | `kimi-k3` |
 | deepseek | DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-*` | `deepseek-flash` |
+| typesafe | TypeSafe Jev | `TYPESAFE_API_KEY` | `jev-*` | `jev-latest` |
 | ollama | Ollama (local) | (keyless, local) | `ollama/<model>` | `ollama/qwen3:8b` |
 <!-- /wiki:generated -->
 
@@ -38,7 +39,7 @@ The chat-completions adapters (Ollama, Kimi and the gateways, all over `lib/mode
 
 The table above is the whole routing decision; the *transport* is a second, separate decision made in `lib/models/gateway.ts` and applied by the registry. A model id is served by its provider's own adapter whenever that provider's key is present. For OpenAI alone, a stored [Sign in with ChatGPT](/models/chatgpt-signin.md) is a direct credential too, on the person's own machine only: with no `OPENAI_API_KEY` and OpenAI on its own API it funds OpenAI ids directly and ranks above the gateway ([ADR 0126](/decisions/0126-sign-in-with-chatgpt-local-only.md)). When the key is absent and `MODEL_GATEWAY` (`vercel` or `openrouter`) plus `MODEL_GATEWAY_API_KEY` are set, the id is served instead by `GatewayAdapter` (`lib/models/gatewayAdapter.ts`) through the gateway's OpenAI-compatible chat-completions endpoint, on the same base the Ollama adapter uses. Ollama needs no key, is reached at `OLLAMA_BASE_URL` (default `http://localhost:11434/v1`) and never routes through a gateway, and an [A2A](/protocols/a2a.md) caller's `X-API-Key` funds its own provider directly and never selects the gateway. The gateway is not a provider: `llm.provider` on the telemetry ledger (`db/telemetry.sql`) stays `anthropic`, `openai`, `gemini` or `xai`, and the path is recorded separately as `llm.transport = gateway:<id>`.
 
-What a gateway cannot do is enable any upstream native search, so every server-side tool sentinel — `web_search`, `google_search`, `x_search`, `collections_search` — is dropped on that path. `lib/models/capabilities.ts` states this per agent on the resolved path; the compiler logs one `capability ·` line per affected agent at startup, the span carries `llm.capability.dropped`, and the doctor below shows it. Wire names follow a rule (`claude-sonnet-4-6` → `anthropic/claude-sonnet-4.6`; `grok-4.7` → `xai/…` on Vercel, `x-ai/…` on OpenRouter) with `MODEL_GATEWAY_MODEL_MAP` for exceptions and `MODEL_GATEWAY_BASE_URL` for a self-hosted proxy. Rationale: [ADR 0012](/decisions/0012-direct-adapters-canonical.md).
+A gateway cannot enable the upstream's own search switch, but both run a web search of their own, so `web_search` and `google_search` are not dropped on that path ([ADR 0146](/decisions/0146-gateway-search-and-embeddings.md)): Vercel AI Gateway runs a server tool (`vercel:exa_search` by default, or the engine `MODEL_GATEWAY_SEARCH` names: exa, perplexity, parallel, browserbase, tako), searching and folding the results into the context with no citations back; OpenRouter runs its web plugin (the provider's native search where the model has one, else Exa; `MODEL_GATEWAY_SEARCH` names native, exa, firecrawl, parallel or perplexity) and returns `url_citation` annotations the adapter keeps as `grounding.citations`. `MODEL_GATEWAY_SEARCH=off` drops the tool, and `MODEL_GATEWAY_SEARCH_RESULTS` (default 3) is passed as each engine's count, Exa on its instant type and Perplexity under a token cap, since the results are folded into the prompt as input tokens ([ADR 0148](/decisions/0148-search-budget-and-reembed.md): Exa at three results measured 7,000 to 17,600 prompt tokens, Perplexity 6,200). A gateway is for billing and breadth, not for grounding: a search-heavy agent keeps the searching provider on its own key and the gateway serves the rest. `x_search` and `collections_search` have no gateway form and are dropped. `lib/models/capabilities.ts` states this per agent on the resolved path (`gatewaySearch` on the report); the compiler logs one `capability ·` line per affected agent at startup, the span carries `llm.web_search.gateway` or `llm.capability.dropped`, and the doctor below shows it. Long-term memory's embedder follows the rule too: with no key for its provider, or under `MODEL_GATEWAY_PREFER=gateway`, it embeds through the gateway's `/embeddings` when the gateway carries the same model (`GatewayInfo.embeddings`: Vercel carries Gemini's and OpenAI's and honours `dimensions`; OpenRouter OpenAI's), so the vectors are the model's own; a gateway that lacks the model changes nothing ([memory](/memory/architecture.md)). Wire names follow a rule (`claude-sonnet-4-6` → `anthropic/claude-sonnet-4.6`; `grok-4.7` → `xai/…` on Vercel, `x-ai/…` on OpenRouter) with `MODEL_GATEWAY_MODEL_MAP` for exceptions and `MODEL_GATEWAY_BASE_URL` for a self-hosted proxy. Rationale: [ADR 0012](/decisions/0012-direct-adapters-canonical.md). A `jev-*` id follows the same rule but not the same wire: with no `TYPESAFE_API_KEY`, the gateway serves it on its own System One route (`GatewayInfo.systemOne`: Vercel's `/typesafe/v1/systemone` as `typesafe-ai/jev`, OpenRouter's `/api/v1/systemone` as `typesafe/jev-1.14`) through `JevAdapter`, never the chat-completions gateway adapter, and keeps Jev's own matrix row ([Jev adapter](/models/jev-adapter.md)). `MODEL_GATEWAY`, `MODEL_GATEWAY_BASE_URL` and `MODEL_GATEWAY_MODEL_MAP` are read through the credential source like the key, so an embedding application that keeps them in a keychain turns the gateway on ([ADR 0133](/decisions/0133-credential-source-by-variable-name.md)). `.env.example` and the setup lead with one gateway key as the quickest start; the rule above is the default, and `MODEL_GATEWAY_PREFER=gateway` turns it round so every cloud id goes through the gateway even beside a direct key (one bill), with `MODEL_GATEWAY_EXCEPT` naming the providers that take the opposite of the preference either way, `gemini` kept on its own key for grounding being the usual one ([ADR 0145](/decisions/0145-gateway-preference.md)). Ollama and an A2A caller's own key stay direct whatever the preference; a preferred path that is not funded falls back to the other; `providerStatuses` and the doctor report the path the rule gives, and a misspelt preference or an unknown provider in the list is named as a gateway problem.
 
 ## Reasoning: one key, each provider's field
 
@@ -65,50 +66,58 @@ The provider is the id's; the *platform* is configuration (`lib/models/endpoints
 Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/config.ts). Schema-dialect bridging between Gemini-uppercase and standard JSON Schema is covered in [tool contracts](/tools/tool-contracts.md).
 
 <!-- wiki:generated section="capabilities" source="lib/models/capabilities.ts" -->
-| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Moonshot Kimi | DeepSeek | Ollama (local) | Gateway (any id) |
-|---|---|---|---|---|---|---|---|---|
-| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 | ✓5 |
-| structured output beside tools (an outputSchema on an agent that calls tools or delegates) | ◐6 | ✓7 | ✓8 | ◐9 | ◐10 | ◐11 | ◐12 | ◐13 |
-| thinking with tool use | ✓ | ✓14 | ✓15 | ✓16 | ✓17 | ✓18 | ◐19 | ◐20 |
-| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| image input | ✓ | ✓21 | ✓22 | ✓23 | ✓24 | ✓25 | ✓26 | ✓27 |
-| native web search | ✓ | ✓ | ✓ | ✓ | ✗28 | ✗29 | ✗30 | ✗31 |
+| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Moonshot Kimi | DeepSeek | TypeSafe Jev | Ollama (local) | Gateway (any id) |
+|---|---|---|---|---|---|---|---|---|---|
+| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗1 | ✓ | ✓ |
+| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗2 | ✓ | ✓ |
+| structured output (outputSchema) | ✓ | ✓3 | ✓ | ✓ | ✓4 | ◐5 | ✓6 | ✓7 | ✓8 |
+| structured output beside tools (an outputSchema on an agent that calls tools or delegates) | ◐9 | ✓10 | ✓11 | ◐12 | ◐13 | ◐14 | ✗15 | ◐16 | ◐17 |
+| thinking with tool use | ✓ | ✓18 | ✓19 | ✓20 | ✓21 | ✓22 | ✗23 | ◐24 | ◐25 |
+| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗26 | ✓ | ✓ |
+| image input | ✓ | ✓27 | ✓28 | ✓29 | ✓30 | ✓31 | ✗32 | ✓33 | ✓34 |
+| native web search | ✓ | ✓ | ✓ | ✓ | ✗35 | ✗36 | ✗37 | ✗38 | ◐39 |
 
 ✓ supported · ◐ degraded · ✗ unsupported. Every cell is asserted against the request the adapter sends; the Gemini column is the engine's own Gemini adapter.
 
-1. Anthropic Claude · structured output (outputSchema): output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049).
-2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
-3. DeepSeek · structured output (outputSchema): JSON mode (response_format json_object), not a strict schema: the schema is asked for in the system message and the engine validates the reply.
-4. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
-5. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
-6. Google Gemini · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request; ADR 0109).
-7. Anthropic Claude · structured output beside tools (an outputSchema on an agent that calls tools or delegates): output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109).
-8. OpenAI GPT · structured output beside tools (an outputSchema on an agent that calls tools or delegates): text.format (strict json_schema) beside the tools in one request (ADR 0109).
-9. xAI Grok · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on xAI; ADR 0109).
-10. Moonshot Kimi · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on Moonshot; ADR 0109).
-11. DeepSeek · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (DeepSeek takes JSON mode only, no strict schema; ADR 0109).
-12. Ollama (local) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (grammar-constrained decoding to the schema would hold back the tool calls; ADR 0109).
-13. Gateway (any id) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (upstream support for a schema beside tools varies by model; ADR 0109).
-14. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
-15. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
-16. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
-17. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
-18. DeepSeek · thinking with tool use: reasoning_content is sent back on every assistant message of a request with tools, earlier turns included, as DeepSeek requires (else a 400): the same model's stored state, an empty string where none is stored (ADR 0046); effort travels as reasoning_effort beside a thinking switch.
-19. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-20. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-21. Anthropic Claude · image input: user-turn images only.
-22. OpenAI GPT · image input: user-turn images only.
-23. xAI Grok · image input: user-turn images only.
-24. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
-25. DeepSeek · image input: user-turn images only, sent as base64; deepseek-flash only (deepseek-v4-pro is text-only).
-26. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
-27. Gateway (any id) · image input: upstream model must accept images.
-28. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
-29. DeepSeek · native web search: DeepSeek's Search and Fetch are separate per-request REST APIs, not a chat request field; the web_search sentinel is dropped (use web_extract).
-30. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
-31. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
+1. TypeSafe Jev · delegation (subagents as tools): Jev is a decision model (lib/models/jevAdapter.ts): it calls no tool, so subagent tools are not sent; put a Jev agent at a leaf, or route to it from a chat model.
+2. TypeSafe Jev · memory tools (load_memory): Jev calls no tool; load_memory is not sent.
+3. Anthropic Claude · structured output (outputSchema): output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049).
+4. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
+5. DeepSeek · structured output (outputSchema): JSON mode (response_format json_object), not a strict schema: the schema is asked for in the system message and the engine validates the reply.
+6. TypeSafe Jev · structured output (outputSchema): the output.schema IS the request: each property becomes a Jev question (boolean → noul, enum → choice, levelled integer → score) and the answer is the schema's object, with the raw probabilities under `jev`; a property Jev cannot decide fails before any call (TYPESAFE_SCHEMA_UNSUPPORTED).
+7. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
+8. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
+9. Google Gemini · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request; ADR 0109).
+10. Anthropic Claude · structured output beside tools (an outputSchema on an agent that calls tools or delegates): output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109).
+11. OpenAI GPT · structured output beside tools (an outputSchema on an agent that calls tools or delegates): text.format (strict json_schema) beside the tools in one request (ADR 0109).
+12. xAI Grok · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on xAI; ADR 0109).
+13. Moonshot Kimi · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on Moonshot; ADR 0109).
+14. DeepSeek · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (DeepSeek takes JSON mode only, no strict schema; ADR 0109).
+15. TypeSafe Jev · structured output beside tools (an outputSchema on an agent that calls tools or delegates): no tools reach Jev; the schema is answered and the tools are dropped (llm.capability.dropped).
+16. Ollama (local) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (grammar-constrained decoding to the schema would hold back the tool calls; ADR 0109).
+17. Gateway (any id) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (upstream support for a schema beside tools varies by model; ADR 0109).
+18. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
+19. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
+20. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
+21. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
+22. DeepSeek · thinking with tool use: reasoning_content is sent back on every assistant message of a request with tools, earlier turns included, as DeepSeek requires (else a 400): the same model's stored state, an empty string where none is stored (ADR 0046); effort travels as reasoning_effort beside a thinking switch.
+23. TypeSafe Jev · thinking with tool use: Jev does not reason and calls no tool; reasoning: is ignored.
+24. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+25. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+26. TypeSafe Jev · token streaming: one decision per call: the final is the only response.
+27. Anthropic Claude · image input: user-turn images only.
+28. OpenAI GPT · image input: user-turn images only.
+29. xAI Grok · image input: user-turn images only.
+30. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
+31. DeepSeek · image input: user-turn images only, sent as base64; deepseek-flash only (deepseek-v4-pro is text-only).
+32. TypeSafe Jev · image input: image parts are dropped; Jev's image mode (box questions) is not used by this adapter.
+33. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
+34. Gateway (any id) · image input: upstream model must accept images.
+35. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
+36. DeepSeek · native web search: DeepSeek's Search and Fetch are separate per-request REST APIs, not a chat request field; the web_search sentinel is dropped (use web_extract).
+37. TypeSafe Jev · native web search: no native search on this path; the web_search sentinel is dropped.
+38. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
+39. Gateway (any id) · native web search: the gateway's own search runs for web_search on any model (ADR 0146): Vercel's server tool (exa by default; results folded into the context, the calls counted, no citations), OpenRouter's web plugin (the provider's native search where it has one, else Exa; citations kept as grounding); MODEL_GATEWAY_SEARCH names the engine or turns it off, and x_search and collections_search are dropped.
 
 **Reasoning above high** (ADR 0117): what `reasoning: xhigh` and `reasoning: max` reach each path as. "Weakened" means the model's highest setting is sent and the span carries `llm.reasoning.weakened`.
 
@@ -120,6 +129,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | xAI Grok | xhigh as asked on grok-4.7, and max goes as xhigh there, weakened; high, weakened, on grok-4.5 and grok-4.6 |
 | Moonshot Kimi | max as asked on kimi-k3, and xhigh rounds up to max; the K2 generation takes a thinking switch, which these leave on |
 | DeepSeek | max as asked, and xhigh rounds up to max (DeepSeek has low | high | max), each beside thinking enabled |
+| TypeSafe Jev | no reasoning setting travels: Jev decides without reasoning, so every level is ignored |
 | Ollama (local) | reasoning_effort high, weakened |
 | Gateway (any id) | reasoning_effort high, weakened, whatever the id: the words above high are not accepted across gateways |
 

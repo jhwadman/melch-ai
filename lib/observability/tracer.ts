@@ -737,7 +737,7 @@ export async function* traceAgentRun(
 // ── Per-model-request tracing ────────────────────────────────────────────────
 
 export interface LlmCallMeta {
-  /** Provider id, e.g. 'anthropic', 'openai', 'xai', 'moonshot', 'deepseek', 'ollama', 'gemini'. */
+  /** Provider id, e.g. 'anthropic', 'openai', 'xai', 'moonshot', 'deepseek', 'typesafe', 'ollama', 'gemini'. */
   provider: string;
   /** The model id as declared in the agent YAML (e.g. 'ollama/qwen3:8b'). */
   model: string;

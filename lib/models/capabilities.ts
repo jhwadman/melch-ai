@@ -20,7 +20,7 @@
 
 import { PROVIDERS } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
-import { planTransport } from './gateway.ts';
+import { gatewaySearch, planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
@@ -58,6 +58,8 @@ export interface CapabilityReport {
   gateway?: string;
   /** The cloud platform of a direct path (ADR 0023); absent on Ollama and the gateway. */
   platform?: Platform;
+  /** On a gateway path with its search on: the gateway and engine that run web_search (ADR 0146). */
+  gatewaySearch?: string;
   /** False when neither a direct key nor a gateway can serve this id. */
   funded: boolean;
   /** The env var that would fund the direct path. */
@@ -80,11 +82,16 @@ export function describeCapabilities(
   const native: string[] = [];
   const dropped: string[] = [];
   const portable: string[] = [];
+  // A gateway runs a web search of its own for web_search and google_search (ADR 0146); the provider-only tools are still dropped.
+  const search = plan.transport === 'gateway' && plan.gateway ? gatewaySearch(plan.gateway) : null;
+  const gatewaySearchLabel = search && plan.gateway ? `${plan.gateway.id}:${search.engine ?? 'default'}` : undefined;
   for (const name of tools) {
     const providers = SERVER_SIDE_TOOLS[name];
     if (!providers) {
       portable.push(name);
     } else if (plan.transport === 'direct' && providers.includes(plan.provider) && nativeSearchOn(plan.provider, platform ?? 'direct')) {
+      native.push(name);
+    } else if (search && (name === 'web_search' || name === 'google_search')) {
       native.push(name);
     } else {
       dropped.push(name);
@@ -96,6 +103,7 @@ export function describeCapabilities(
     providerLabel: PROVIDERS[plan.provider].label,
     transport: plan.transport,
     ...(plan.gateway ? { gateway: plan.gateway.id } : {}),
+    ...(gatewaySearchLabel ? { gatewaySearch: gatewaySearchLabel } : {}),
     ...(platform && platform !== 'direct' ? { platform } : {}),
     funded: plan.funded,
     keyEnv: plan.keyEnv,
@@ -114,18 +122,21 @@ export function capabilitySummary(agentName: string, r: CapabilityReport): strin
     return `${agentName}: ${r.model} has no route — set ${r.keyEnv ?? 'a provider key'} (or a MODEL_GATEWAY).`;
   }
   const via = r.transport === 'gateway' ? ` via gateway:${r.gateway}` : '';
+  const searched = r.gatewaySearch && r.native.length ? ` (${r.native.join(', ')} by the gateway's search, ${r.gatewaySearch})` : '';
   if (r.dropped.length === 0) {
-    return via ? `${agentName}: ${r.model}${via}.` : undefined;
+    return via ? `${agentName}: ${r.model}${via}${searched}.` : undefined;
   }
   const why =
     r.transport === 'gateway'
-      ? 'a gateway cannot enable upstream native search'
+      ? r.gatewaySearch
+        ? 'a gateway runs only its own web search'
+        : "the gateway's search is off (MODEL_GATEWAY_SEARCH)"
       : r.provider === 'ollama'
         ? 'a local model has no native search'
         : r.platform
           ? `native search is not sent to ${r.providerLabel} on ${r.platform}`
           : `${r.providerLabel} has no native ${r.dropped.join('/')}`;
-  return `${agentName}: ${r.model}${via} — dropped ${r.dropped.join(', ')} (${why}).`;
+  return `${agentName}: ${r.model}${via}${searched} — dropped ${r.dropped.join(', ')} (${why}).`;
 }
 
 // ── The capability matrix (ADR 0019) ─────────────────────────────────────────
@@ -283,6 +294,16 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
       "DeepSeek's Search and Fetch are separate per-request REST APIs, not a chat request field; the web_search sentinel is dropped (use web_extract)",
     ),
   },
+  typesafe: {
+    delegation: unsupported('Jev is a decision model (lib/models/jevAdapter.ts): it calls no tool, so subagent tools are not sent; put a Jev agent at a leaf, or route to it from a chat model'),
+    memory_tools: unsupported('Jev calls no tool; load_memory is not sent'),
+    structured_output: ok('test', 'the output.schema IS the request: each property becomes a Jev question (boolean → noul, enum → choice, levelled integer → score) and the answer is the schema\'s object, with the raw probabilities under `jev`; a property Jev cannot decide fails before any call (TYPESAFE_SCHEMA_UNSUPPORTED)'),
+    structured_output_with_tools: unsupported('no tools reach Jev; the schema is answered and the tools are dropped (llm.capability.dropped)'),
+    thinking_with_tools: unsupported('Jev does not reason and calls no tool; reasoning: is ignored'),
+    streaming: unsupported('one decision per call: the final is the only response'),
+    vision: unsupported('image parts are dropped; Jev\'s image mode (box questions) is not used by this adapter'),
+    native_search: unsupported('no native search on this path; the web_search sentinel is dropped'),
+  },
   ollama: {
     delegation: ok(),
     memory_tools: ok(),
@@ -301,7 +322,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     thinking_with_tools: degraded(CHAT_THINKING_NOTE),
     streaming: ok(),
     vision: ok('test', 'upstream model must accept images'),
-    native_search: unsupported('a gateway cannot enable upstream native search; the web_search sentinel is dropped'),
+    native_search: degraded(
+      "the gateway's own search runs for web_search on any model (ADR 0146): Vercel's server tool (exa by default; results folded into the context, the calls counted, no citations), OpenRouter's web plugin (the provider's native search where it has one, else Exa; citations kept as grounding); MODEL_GATEWAY_SEARCH names the engine or turns it off, and x_search and collections_search are dropped",
+    ),
   },
 };
 
@@ -312,7 +335,8 @@ export function capabilityOf(
   opts: { callerKey?: boolean } = {},
 ): CapabilityCell & { row: MatrixRow } {
   const plan = planTransport(model, opts);
-  const row: MatrixRow = plan.transport === 'gateway' ? 'gateway' : plan.provider;
+  // Jev keeps its own row on a gateway: the gateway's System One route sends the same request as TypeSafe's API.
+  const row: MatrixRow = plan.transport === 'gateway' && plan.provider !== 'typesafe' ? 'gateway' : plan.provider;
   if (row !== 'gateway' && row !== 'ollama') {
     const cell = platformCell(row, directPlatform(row), capability);
     if (cell) return { row, ...cell };
@@ -336,6 +360,7 @@ export const REASONING_ABOVE_HIGH: Readonly<Record<MatrixRow, string>> = {
   xai: 'xhigh as asked on grok-4.7, and max goes as xhigh there, weakened; high, weakened, on grok-4.5 and grok-4.6',
   moonshot: 'max as asked on kimi-k3, and xhigh rounds up to max; the K2 generation takes a thinking switch, which these leave on',
   deepseek: 'max as asked, and xhigh rounds up to max (DeepSeek has low | high | max), each beside thinking enabled',
+  typesafe: 'no reasoning setting travels: Jev decides without reasoning, so every level is ignored',
   ollama: 'reasoning_effort high, weakened',
   gateway: 'reasoning_effort high, weakened, whatever the id: the words above high are not accepted across gateways',
 };

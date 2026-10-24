@@ -48,6 +48,8 @@ const ENV_KEYS = [
   'MODEL_GATEWAY_API_KEY',
   'MODEL_GATEWAY_BASE_URL',
   'MODEL_GATEWAY_MODEL_MAP',
+  'MODEL_GATEWAY_SEARCH',
+  'MODEL_GATEWAY_SEARCH_RESULTS',
 ];
 
 /** Sets (or, for undefined, clears) env vars for the body, every other key here cleared. */
@@ -508,7 +510,7 @@ test('streaming asks for usage; Kimi posts to Moonshot with a bearer key; the ga
   assert.equal(new GatewayAdapter({ model: 'claude-sonnet-4-6' }).provider, 'anthropic', 'attribution stays with the upstream');
 });
 
-test('native tools are dropped on every chat path, marked on the span, never sent', async () => {
+test('native tools are dropped on a local path, marked on the span, never sent; a gateway runs web_search as its own search (ADR 0146)', async () => {
   const request = req('ollama/qwen3:8b', { nativeTools: ['web_search', 'x_search'], tools: [SCOUT] });
   const body = await bodyOf(ollama(), request);
   assert.deepEqual(body.tools.map((t: any) => t.function.name), ['Scout']);
@@ -516,10 +518,54 @@ test('native tools are dropped on every chat path, marked on the span, never sen
   assert.equal(span.attributes['llm.web_search.omitted'], true);
   assert.equal(span.attributes['llm.capability.dropped'], 'web_search,x_search');
   assert.equal(span.attributes['llm.transport'], 'direct');
-  const gw = await spanOf(gateway('grok-4.7'), req('grok-4.7', { nativeTools: ['web_search'] }), GATEWAY_ENV);
-  assert.equal(gw.attributes['llm.capability.dropped'], 'web_search');
+  // OpenRouter: the web plugin, beside the function tools; x_search still dropped.
+  const orBody = await bodyOf(gateway('grok-4.7'), req('grok-4.7', { nativeTools: ['web_search', 'x_search'], tools: [SCOUT] }), GATEWAY_ENV);
+  assert.deepEqual(orBody.plugins, [{ id: 'web', max_results: 3 }]);
+  assert.deepEqual(orBody.tools.map((t: any) => t.function.name), ['Scout']);
+  const gw = await spanOf(gateway('grok-4.7'), req('grok-4.7', { nativeTools: ['web_search', 'x_search'] }), GATEWAY_ENV);
+  assert.equal(gw.attributes['llm.web_search.native'], true);
+  assert.equal(gw.attributes['llm.web_search.gateway'], 'openrouter:default');
+  assert.equal(gw.attributes['llm.capability.dropped'], 'x_search');
   assert.equal(gw.attributes['llm.transport'], 'gateway:openrouter');
   assert.equal(gw.attributes['llm.provider'], 'xai');
+  // Vercel: a server tool appended after the function tools; the engine is MODEL_GATEWAY_SEARCH's.
+  const VERCEL = { MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: GATEWAY_ENV.MODEL_GATEWAY_API_KEY };
+  const vBody = await bodyOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'], tools: [SCOUT] }), VERCEL);
+  assert.deepEqual(vBody.tools.map((t: any) => t.function?.name ?? t.type), ['Scout', 'vercel:exa_search']);
+  assert.equal(vBody.plugins, undefined);
+  const pBody = await bodyOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'] }), { ...VERCEL, MODEL_GATEWAY_SEARCH: 'perplexity' });
+  assert.deepEqual(pBody.tools, [{ type: 'vercel:perplexity_search', config: { max_results: 3, max_tokens: 6000, max_tokens_per_page: 2000 } }]);
+  // Off: dropped as before, and the warning names the switch.
+  const offBody = await bodyOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'], tools: [SCOUT] }), { ...VERCEL, MODEL_GATEWAY_SEARCH: 'off' });
+  assert.deepEqual(offBody.tools.map((t: any) => t.function.name), ['Scout']);
+  const off = await spanOf(gateway(), req('claude-sonnet-4-6', { nativeTools: ['web_search'] }), { ...VERCEL, MODEL_GATEWAY_SEARCH: 'off' });
+  assert.equal(off.attributes['llm.capability.dropped'], 'web_search');
+  assert.equal(off.attributes['llm.web_search.omitted'], true);
+});
+
+test("OpenRouter's url_citation annotations come back as the final's grounding, whole or streamed (ADR 0146)", async () => {
+  const annotations = [
+    { type: 'url_citation', url_citation: { url: 'https://example.test/a', title: 'A', content: 'the passage', start_index: 0, end_index: 5 } },
+    { type: 'url_citation', url_citation: { url: 'https://example.test/b' } },
+    { type: 'other', other: {} },
+  ];
+  const whole = await run(gateway('gpt-5-mini'), req('gpt-5-mini', { nativeTools: ['web_search'] }), [json(completion({ content: 'Found it.', annotations }))], GATEWAY_ENV);
+  assert.deepEqual(final(whole.out).grounding, {
+    citations: [
+      { url: 'https://example.test/a', title: 'A', citedText: 'the passage', start: 0, end: 5 },
+      { url: 'https://example.test/b' },
+    ],
+  });
+  const streamed = await run(
+    gateway('gpt-5-mini'),
+    req('gpt-5-mini', { nativeTools: ['web_search'], stream: true }),
+    [sse([{ choices: [{ index: 0, delta: { content: 'Found' } }] }, { choices: [{ index: 0, delta: { content: ' it.', annotations: [annotations[0]] } }] }, { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }])],
+    GATEWAY_ENV,
+  );
+  assert.deepEqual(final(streamed.out).grounding?.citations?.map((c) => c.url), ['https://example.test/a']);
+  // No annotations: no grounding field at all.
+  const plain = await run(gateway('gpt-5-mini'), req('gpt-5-mini'), undefined, GATEWAY_ENV);
+  assert.equal(final(plain.out).grounding, undefined);
 });
 
 // ── Tool choice ──────────────────────────────────────────────────────────────

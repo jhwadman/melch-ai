@@ -12,12 +12,13 @@
  *   claude-*   → anthropic     gpt-* / o<digit>* → openai
  *   grok-*     → xai           ollama/<model>    → ollama (local, keyless)
  *   kimi-*     → moonshot      deepseek-*        → deepseek
+ *   jev-*      → typesafe (a decision model: lib/models/jevAdapter.ts)
  *   everything else → gemini (the default)
  */
 
 import { credentialValue } from './credentialSource.ts';
 
-export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'ollama';
+export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'typesafe' | 'ollama';
 
 interface ProviderInfo {
   /** Env var holding the API key; null = keyless (local). */
@@ -33,6 +34,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
   xai: { keyEnv: 'XAI_API_KEY', label: 'xAI Grok' },
   moonshot: { keyEnv: 'MOONSHOT_API_KEY', label: 'Moonshot Kimi' },
   deepseek: { keyEnv: 'DEEPSEEK_API_KEY', label: 'DeepSeek' },
+  typesafe: { keyEnv: 'TYPESAFE_API_KEY', label: 'TypeSafe Jev' },
   ollama: { keyEnv: null, label: 'Ollama (local)' },
 };
 
@@ -45,6 +47,7 @@ export function providerForModel(model: string): ProviderId {
   if (/^grok-/.test(model)) return 'xai';
   if (/^kimi-/.test(model)) return 'moonshot';
   if (/^deepseek-/.test(model)) return 'deepseek';
+  if (/^jev-/.test(model)) return 'typesafe';
   return 'gemini';
 }
 

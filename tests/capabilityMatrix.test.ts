@@ -56,6 +56,7 @@ import {
 import type { AdapterRow } from './helpers/capabilityInputs.ts';
 import type { Message, ModelRequest } from '../lib/models/contract.ts';
 import { CARRIED_PARTS_KIND, GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import { JevAdapter } from '../lib/models/jevAdapter.ts';
 import { contentToMessage, modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
 import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiState.ts';
 import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
@@ -234,6 +235,12 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
 
   async native_search(row) {
     const body = await capture(row, request(row, { nativeTools: ['web_search'] }));
+    if (row === 'gateway') {
+      // The gateway's own search (ADR 0146): OpenRouter's web plugin in the fixture env, a server tool on Vercel.
+      const plugin = (body.plugins ?? []).some((p: any) => p?.id === 'web');
+      const server = (body.tools ?? []).some((t: any) => /^vercel:\w+_search$/.test(t?.type ?? ''));
+      return plugin || server ? 'degraded' : 'unsupported';
+    }
     const text = JSON.stringify(body.tools ?? []) + JSON.stringify(body.web_search_options ?? '') + JSON.stringify(body.plugins ?? '');
     return /web_search/.test(text) ? 'supported' : 'unsupported';
   },
@@ -497,7 +504,7 @@ const GEMINI_CHECKS: Record<Capability, () => Promise<Observed>> = {
 
 // ── The tests ────────────────────────────────────────────────────────────────
 
-const ADAPTER_ROWS = (Object.keys(CAPABILITY_MATRIX) as MatrixRow[]).filter((r): r is AdapterRow => r !== 'gemini');
+const ADAPTER_ROWS = (Object.keys(CAPABILITY_MATRIX) as MatrixRow[]).filter((r): r is AdapterRow => r !== 'gemini' && r !== 'typesafe');
 
 for (const row of ADAPTER_ROWS) {
   for (const cap of CAPABILITIES) {
@@ -514,6 +521,115 @@ for (const cap of CAPABILITIES) {
   test(`matrix gemini · ${cap}: ${cell.support} (the engine's GeminiAdapter, on the wire)`, async () => {
     assert.equal(cell.evidence, 'test', `gemini.${cap} is the engine's own adapter, so it must be tested (gate G3)`);
     assert.equal(await GEMINI_CHECKS[cap](), cell.support);
+  });
+}
+
+// ── The TypeSafe Jev row (ADR 0144): a decision model, on its own wire ───────
+//
+// Jev's wire is System One (state + typed questions → typed answers), so its
+// checks read the body JevAdapter posts and the final it makes of the
+// answers. The schema IS the request: structured output is the one supported
+// cell, and every other capability is asserted absent from the body.
+
+const JEV_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', description: 'The verdict.', oneOf: [{ const: 'yes', description: 'It holds.' }, { const: 'no', description: 'It does not.' }] },
+    urgent: { type: 'boolean', description: 'Needs attention today.' },
+    severity: { type: 'integer', oneOf: [{ const: 0, description: 'none' }, { const: 1, description: 'some' }, { const: 2, description: 'grave' }] },
+  },
+  required: ['verdict', 'urgent', 'severity'],
+};
+
+const JEV_ANSWERS = {
+  model: 'jev-1.14.0',
+  answers: {
+    verdict: { type: 'choice', choice: 'yes', confidence: 0.9, probabilities: { yes: 0.9, no: 0.1 } },
+    urgent: { type: 'noul', noul: 0.2 },
+    severity: { type: 'score', score: 1.6, confidence: 0.55, legend: { '0': 'none', '1': 'some', '2': 'grave' }, probabilities: { '0': 0.1, '1': 0.3, '2': 0.6 } },
+  },
+  usage: { input_tokens: 120, output_tokens: 0 },
+};
+
+/** JevAdapter on `req` with TypeSafe's fixture key, answered by JEV_ANSWERS unless the request should fail first. */
+async function jevExchange(req: Partial<ModelRequest>): Promise<{ body: any; final: any }> {
+  const request: ModelRequest = { model: 'jev-latest', messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }], ...req };
+  const { requests, yielded } = await captureExchange(
+    'typesafe',
+    () => new JevAdapter({ model: request.model }).generate(request),
+    () => new Response(JSON.stringify(JEV_ANSWERS), { status: 200, headers: { 'content-type': 'application/json' } }),
+  );
+  return { body: requests[0]?.body, final: yielded.at(-1) };
+}
+
+const JEV_CHECKS: Record<Capability, () => Promise<Observed>> = {
+  async delegation() {
+    const { body } = await jevExchange({ outputSchema: JEV_SCHEMA, tools: delegationTools() });
+    // The questions go; no tool reaches the wire in any field.
+    assert.ok(body?.questions?.verdict, 'the schema became questions');
+    return JSON.stringify(body).includes('Scout') ? 'supported' : 'unsupported';
+  },
+  async memory_tools() {
+    const { body } = await jevExchange({ outputSchema: JEV_SCHEMA, tools: delegationTools() });
+    return JSON.stringify(body).includes('load_memory') ? 'supported' : 'unsupported';
+  },
+  async structured_output() {
+    const { body, final } = await jevExchange({ outputSchema: JEV_SCHEMA, system: 'Decide.' });
+    assert.deepEqual(body.questions, {
+      verdict: { type: 'choice', instructions: 'The verdict.', criteria: { yes: 'It holds.', no: 'It does not.' } },
+      urgent: { type: 'noul', instructions: 'Needs attention today.' },
+      severity: { type: 'score', instructions: 'severity', criteria: ['none', 'some', 'grave'] },
+    });
+    assert.deepEqual(body.state, ['Decide.', 'hello'], 'the instruction, then the conversation');
+    assert.equal(body.model, 'jev-latest');
+    assert.equal(final.partial, false);
+    const object = JSON.parse(final.parts[0].text);
+    assert.deepEqual([object.verdict, object.urgent, object.severity], ['yes', false, 2], 'the choice, yes at 0.5 and above, the most probable level');
+    assert.deepEqual(object.jev, JEV_ANSWERS.answers, 'the raw answers under jev');
+    assert.deepEqual(final.usage, { inputTokens: 120, outputTokens: 0 });
+    // No schema, or a property Jev cannot decide: an error final before any request.
+    const none = await jevExchange({});
+    assert.equal(none.body, undefined);
+    assert.equal(none.final.error?.code, 'TYPESAFE_SCHEMA_REQUIRED');
+    const free = await jevExchange({ outputSchema: { type: 'object', properties: { summary: { type: 'string' } } } });
+    assert.equal(free.body, undefined);
+    assert.equal(free.final.error?.code, 'TYPESAFE_SCHEMA_UNSUPPORTED');
+    assert.match(free.final.error.message, /"summary"/);
+    return 'supported';
+  },
+  async structured_output_with_tools() {
+    const { body, final } = await jevExchange({ outputSchema: JEV_SCHEMA, tools: delegationTools() });
+    // Answered, but the tools went nowhere: the cell is a loss, not a failure.
+    assert.ok(body?.questions && !JSON.stringify(body).includes('Scout'));
+    return final.error ? 'unsupported' : JSON.stringify(body).includes('Scout') ? 'supported' : 'unsupported';
+  },
+  async thinking_with_tools() {
+    const { body } = await jevExchange({ outputSchema: JEV_SCHEMA, tools: delegationTools(), reasoning: 'low' });
+    return 'reasoning_effort' in body || 'reasoning' in body || 'thinking' in body ? 'supported' : 'unsupported';
+  },
+  async streaming() {
+    const { body, final } = await jevExchange({ outputSchema: JEV_SCHEMA, stream: true });
+    assert.equal(final.partial, false, 'the final is the only response');
+    return body.stream === true ? 'supported' : 'unsupported';
+  },
+  async vision() {
+    const { body } = await jevExchange({
+      outputSchema: JEV_SCHEMA,
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'look' }, { type: 'blob', mimeType: 'image/png', data: 'aGk=' }] }],
+    });
+    return /image|aGk=/.test(JSON.stringify(body)) ? 'supported' : 'unsupported';
+  },
+  async native_search() {
+    const { body } = await jevExchange({ outputSchema: JEV_SCHEMA, nativeTools: ['web_search'] });
+    return /web_search/.test(JSON.stringify(body)) ? 'supported' : 'unsupported';
+  },
+};
+
+for (const cap of CAPABILITIES) {
+  const cell = CAPABILITY_MATRIX.typesafe[cap];
+  test(`matrix typesafe · ${cap}: ${cell.support} (JevAdapter, on the System One wire)`, async () => {
+    assert.equal(cell.evidence, 'test', `typesafe.${cap} is the engine's own adapter, so it must be tested`);
+    assert.equal(await JEV_CHECKS[cap](), cell.support);
   });
 }
 

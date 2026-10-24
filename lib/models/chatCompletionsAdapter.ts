@@ -74,7 +74,7 @@ import type {
   ToolChoiceMode,
   ToolDeclaration,
   ToolResultPart,
-  Usage,
+  Usage, Grounding
 } from './contract.ts';
 import { errorDecision, errorText, statusDecision } from './errorResponse.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
@@ -234,6 +234,26 @@ export function chatUsage(usage: unknown): Usage | undefined {
     ...(thinking !== undefined ? { thinkingTokens: thinking } : {}),
     ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
   };
+}
+
+/**
+ * OpenAI-style `url_citation` annotations (OpenRouter's web plugin returns them for every model) as the
+ * contract's grounding, or undefined when there are none (ADR 0146). Offsets are the message's own.
+ */
+export function groundingOf(annotations: unknown): Grounding | undefined {
+  if (!Array.isArray(annotations)) return undefined;
+  const citations = annotations.flatMap((a: any) => {
+    const c = a?.url_citation ?? (a?.type === 'url_citation' ? a : undefined);
+    if (!c || typeof c.url !== 'string') return [];
+    return [{
+      url: c.url,
+      ...(typeof c.title === 'string' && c.title ? { title: c.title } : {}),
+      ...(typeof c.content === 'string' && c.content ? { citedText: c.content } : {}),
+      ...(typeof c.start_index === 'number' ? { start: c.start_index } : {}),
+      ...(typeof c.end_index === 'number' ? { end: c.end_index } : {}),
+    }];
+  });
+  return citations.length ? { citations } : undefined;
 }
 
 /** Two attempts' usage as one call's: each field summed, an optional one where either had it. */
@@ -633,7 +653,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
         parts.push(this.#toolCall(call?.id, call?.function?.name, parseArguments(call?.function?.arguments ?? '{}'), request, index));
       });
 
-      yield this.#final(this.#withReasoningState(parts, message.reasoning_content, model), choice.finish_reason, Boolean(reasoning), chatUsage(data?.usage), model);
+      yield this.#final(this.#withReasoningState(parts, message.reasoning_content, model), choice.finish_reason, Boolean(reasoning), chatUsage(data?.usage), model, groundingOf(message.annotations));
     } catch (err: unknown) {
       // The adapter's own wording, plus whether another model may succeed:
       // a reset after the retries is retryable, a refused connection is not,
@@ -659,6 +679,8 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     let reasoningContent = '';
     let finishReason: string | undefined;
     let usage: unknown;
+    // url_citation annotations (OpenRouter's web plugin) arrive on deltas; kept as grounding (ADR 0146).
+    const annotations: unknown[] = [];
 
     const thinking = (text: string): ModelResponse => {
       sawReasoning = true;
@@ -676,6 +698,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       if (finish) finishReason = finish;
       const d = chunk?.choices?.[0]?.delta;
       if (!d) continue;
+      if (Array.isArray(d.annotations)) annotations.push(...d.annotations);
 
       // Reasoning as a discrete field (Ollama `reasoning`, others
       // `reasoning_content`) — already separated, no tag parsing needed.
@@ -723,7 +746,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       .sort((a, b) => a[0] - b[0])
       .forEach(([, acc], index) => parts.push(this.#toolCall(acc.id, acc.name, parseArguments(acc.args || '{}'), request, index)));
 
-    yield this.#final(this.#withReasoningState(parts, reasoningContent, model), finishReason, sawReasoning, chatUsage(usage), model);
+    yield this.#final(this.#withReasoningState(parts, reasoningContent, model), finishReason, sawReasoning, chatUsage(usage), model, groundingOf(annotations));
   }
 
   /**
@@ -736,7 +759,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
    * no truncation: a model with nothing to add after a tool result) passes
    * through. A reply cut short but started keeps its text, as `max_tokens`.
    */
-  #final(parts: OutputPart[], finishReason: string | undefined, sawReasoning: boolean, usage: Usage | undefined, model: string): FinalModelResponse {
+  #final(parts: OutputPart[], finishReason: string | undefined, sawReasoning: boolean, usage: Usage | undefined, model: string, grounding?: Grounding): FinalModelResponse {
     if (finishReason) setLlmSpanAttribute('llm.finish_reason', finishReason);
     const truncated = finishReason === 'length';
     if (parts.length === 0 && (truncated || sawReasoning)) {
@@ -750,7 +773,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       NO_ANSWER.add(noAnswer);
       return noAnswer;
     }
-    return { partial: false, parts, finishReason: finishReasonOf(finishReason, parts), ...(usage ? { usage } : {}) };
+    return { partial: false, parts, finishReason: finishReasonOf(finishReason, parts), ...(usage ? { usage } : {}), ...(grounding ? { grounding } : {}) };
   }
 
   /**
@@ -853,7 +876,10 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     if (!tools.length) return;
     const search = tools.includes('web_search') ? this.webSearchBodyFields() : null;
     if (search) {
-      Object.assign(body, search);
+      // A gateway's server tool rides in `tools` beside the function tools (ADR 0146); every other field replaces.
+      const { tools: searchTools, ...rest } = search;
+      if (Array.isArray(searchTools)) body.tools = [...((body.tools as unknown[] | undefined) ?? []), ...searchTools];
+      Object.assign(body, rest);
       setLlmSpanAttribute('llm.web_search.native', true);
     }
     const dropped = tools.filter((t) => !(t === 'web_search' && search));
@@ -861,7 +887,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     if (dropped.includes('web_search')) setLlmSpanAttribute('llm.web_search.omitted', true);
     setLlmSpanAttribute('llm.capability.dropped', dropped.join(','));
     const via = this.transport().startsWith('gateway')
-      ? ` through ${this.transport()} (a gateway cannot enable upstream native search)`
+      ? ` through ${this.transport()} (the gateway's search is off: MODEL_GATEWAY_SEARCH)`
       : '';
     for (const tool of dropped) {
       this.#warnOnce(

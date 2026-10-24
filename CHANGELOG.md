@@ -4,6 +4,115 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.12.0 — 2026-10-23
+
+A minor release: TypeSafe's Jev joins the providers as a decision model, and
+one gateway key is the first thing the setup offers.
+
+**TypeSafe Jev is a provider** (ADR 0144). `jev-*` ids route to the new
+`JevAdapter` (exported from `melchizedek-agents/model`, beside
+`DeepSeekAdapter`), against `https://api.typesafe.ai/v1/systemone` with
+`TYPESAFE_API_KEY` (`TYPESAFE_BASE_URL` for a proxy); `jev-latest` is the
+default (`DEFAULT_JEV_MODEL`). Jev is not a chat model: it answers an
+agent's `output.schema` as typed decisions with calibrated probabilities,
+in about a tenth of a second, at $0.042 per million input tokens and nothing
+for output. The schema is the request: a boolean property becomes a yes/no
+question, a string with `enum` or a `oneOf` of described constants a
+choice, an integer whose `oneOf` describes the levels 0..n-1 a score; the
+instruction and the conversation are the state; the final is the schema's
+object with the raw answers under a reserved `jev` key. The same call from
+code is `decide()`, typed on its questions (`noul`, `choice`, `score`), with
+`questionsFromSchema` and `objectFromAnswers` beside it. Jev takes no tools,
+no reasoning, no streaming and no images, and says so in the capability
+matrix; an agent with no schema, or with a property Jev cannot decide, fails
+before any call (`TYPESAFE_SCHEMA_REQUIRED`, `TYPESAFE_SCHEMA_UNSUPPORTED`,
+naming the property). The starter pack gains `classifier.yaml`, a
+support-triage classifier on `jev-latest` (`npm run syndicate:classifier`).
+The doctor, the setup guide (`ONBOARDING.md`), `.env.example`, the
+`model_overrides` keys (`typesafe`), the onboarding skills and the skill
+briefs know it. Run live through Vercel AI Gateway (the classifier and
+every id, 2026-10-23); TypeSafe's own API and OpenRouter not yet.
+
+**A gateway serves Jev too.** With no `TYPESAFE_API_KEY`, `MODEL_GATEWAY`
+serves `jev-*` ids on the gateway's own System One route: Vercel AI
+Gateway's `/typesafe/v1/systemone` as `typesafe-ai/jev`, OpenRouter's
+`/api/v1/systemone` as `typesafe/jev-1.14` (`MODEL_GATEWAY_MODEL_MAP` fixes
+an id). The gateway's `slugs` table has a `typesafe` entry and each gateway a
+`systemOne` route (`GatewayInfo`).
+
+**The gateway settings read through the credential source.**
+`MODEL_GATEWAY`, `MODEL_GATEWAY_BASE_URL` and `MODEL_GATEWAY_MODEL_MAP` are
+read with `credentialValue`, as the key already was (ADR 0133), so an
+embedding application that holds them in a keychain, not the environment,
+turns the gateway on too.
+
+**The gateway can come first** (ADR 0145). `MODEL_GATEWAY_PREFER=gateway`
+sends every cloud id through the configured gateway even beside its direct
+key (one bill, one dashboard); `MODEL_GATEWAY_EXCEPT=gemini,xai` names the
+providers that take the opposite of the preference either way (Gemini kept
+on its own key for grounding under `prefer=gateway`; Grok sent through the
+gateway under the default). Unset, nothing changes: a direct key wins.
+Ollama and an A2A caller's own key stay direct; a preferred path that is
+not funded falls back to the other; the doctor names a misspelt preference
+or an unknown provider. `gatewayPreference`, `gatewayExceptions` and
+`providerTransport` are exported from `melchizedek-agents/registry`.
+
+**A gateway searches and embeds** (ADR 0146). On the gateway path an
+agent's `web_search` is no longer dropped: Vercel AI Gateway runs its
+server search tool (`vercel:exa_search` by default) and OpenRouter its web
+plugin (the provider's native search where the model has one, else Exa),
+whose `url_citation` annotations the chat-completions base now keeps as the
+final's `grounding.citations` (`groundingOf`). `MODEL_GATEWAY_SEARCH` names
+the engine or turns it off; `x_search` and `collections_search` stay
+dropped. Long-term memory's embedder goes through the gateway's
+`/embeddings` when the gateway carries the same model (Vercel:
+`google/gemini-embedding-001`, `openai/text-embedding-3-small`; OpenRouter:
+OpenAI's) and the provider's own key is absent or the gateway is preferred,
+so the vectors stay the model's own. `GatewayInfo` gains `search` and
+`embeddings`; `gatewaySearch`, `gatewaySearchProblem` and
+`gatewayEmbedding` are exported from `melchizedek-agents/models/gateway`;
+`gatewayConfig`, `gatewayPreference`, `gatewayExceptions` and
+`gatewayWanted` take an optional `env`. The capability matrix's gateway
+row reads `native_search` as degraded, with the note.
+
+**A gateway's search is bounded, and a memory store can be re-embedded**
+(ADR 0148). `MODEL_GATEWAY_SEARCH_RESULTS` (default 3) is passed as each
+gateway search engine's count, Exa on its instant type and Perplexity under
+a token cap, since the results are billed as prompt tokens (an unbounded Exa
+search measured about 20,000 of them). `npm run memory -- reembed` re-embeds
+every stored fact with the environment's embedder in id-ordered pages and
+records the new model last (`MemoryStore` gains `listFacts`,
+`updateEmbeddings`, `setEmbedder`; migration 0023 gains
+`melchizedek_memory_set_embedder`), under an advisory lock on
+`DATABASE_URL`. The setup note and the env template state the posture: a
+gateway is for billing and breadth, not for grounding; keep the searching
+provider on its own key. The lockfile moves `body-parser`, `fast-uri` and
+`ip-address` past their advisories (no API change).
+
+**A memory store records its embedding model; the doctor says what embeds**
+(ADR 0147, migration `0023_memory_embedder`). On its first successful write
+the memory service records the provider, model and dimension the store's
+vectors come from, and at start it refuses an embedder whose model differs,
+naming the recorded one and the two ways out (set the embedder back, or
+re-embed every fact); a gateway's spelling of the same model passes. The
+doctor gains a `memory` line from `embedderPlan` (exported from
+`melchizedek-agents/memory`): what embeds long-term memory, on which path,
+or what to set, with OpenRouter's documented answer
+(`MEMORY_EMBEDDING_PROVIDER=openai`, `text-embedding-3-small` at 768) and
+the re-embed caveat (`memoryProvidersFromEnv` is exported there too). `MemoryStore` gains optional `embedderRecord` and
+`recordEmbedder`; `db/hardening.sql` locks the new table like the others.
+
+**One gateway key is the first thing offered.** `.env.example` opens with
+the `MODEL_GATEWAY` block (one Vercel AI Gateway or OpenRouter key for every
+cloud model whose direct key is absent), the README's cloud quick start
+leads with it, and the keys onboarding skill suggests it first when a person
+has no preference. The routing rule is unchanged: a direct key beside it
+always wins for its provider.
+
+**Price rows for Jev** (migration `0022_typesafe_jev_pricing`): `jev-latest`,
+`jev-preview`, `jev-1.14.0` and `jev-1.13.0` at $0.042 input, $0 output. An
+existing row is never overwritten.
+
 ## 1.11.1 — 2026-10-22
 
 **Price rows for `grok-4.3`, `gemini-embedding-001` and `gemini-3.5-flash`**

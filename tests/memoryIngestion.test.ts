@@ -41,7 +41,7 @@ const VECTOR = () => new Array(768).fill(0.01);
 function fakeSupabase(shared?: { markers: Map<string, number>; inserted: Array<Record<string, unknown>> }) {
   const inserted = shared?.inserted ?? [];
   const markers = shared?.markers ?? new Map<string, number>();
-  const state = { failCommit: false, dims: 768 as number | null };
+  const state = { failCommit: false, dims: 768 as number | null, embedder: null as null | { provider: string; model: string; dimensions: number } };
   const filters: Record<string, unknown> = {};
   const chain = (result: () => unknown) => {
     const c: any = {
@@ -66,6 +66,11 @@ function fakeSupabase(shared?: { markers: Map<string, number>; inserted: Array<R
     }),
     rpc: async (fn: string, args: any) => {
       if (fn === 'melchizedek_memory_dimensions') return { data: state.dims, error: null };
+      if (fn === 'melchizedek_memory_embedder') return { data: state.embedder ? [state.embedder] : [], error: null };
+      if (fn === 'melchizedek_memory_record_embedder') {
+        state.embedder ??= { provider: args.p_provider, model: args.p_model, dimensions: args.p_dimensions };
+        return { data: null, error: null };
+      }
       if (fn !== 'melchizedek_memory_commit') return { data: [], error: null };
       if (state.failCommit) return { data: null, error: { message: 'commit refused' } };
       const rows = args.p_rows as Array<Record<string, unknown>>;
@@ -172,6 +177,23 @@ test('an embedder that does not fit the stored column is refused at boot', async
   await assert.rejects(svc.verifyEmbeddingDimensions(), /stores 1536-dimension embeddings.*produces 768.*never drop the table/);
   fake.state.dims = null;
   await svc.verifyEmbeddingDimensions();
+});
+
+test('the store records its embedder on the first write, and refuses a different model at boot; a gateway spelling of the same model passes (ADR 0147)', async () => {
+  const fake = fakeSupabase();
+  const svc = service(fake.client, async () => RECORD, async () => VECTOR());
+  await svc.verifyEmbeddingDimensions();
+  assert.equal(fake.state.embedder, null, 'nothing recorded before a write');
+  await (svc as MemoryService).ingest(session(2), {});
+  assert.deepEqual(fake.state.embedder, { provider: 'fake', model: 'fake-embedder', dimensions: 768 }, 'the first commit records the embedder');
+  await svc.verifyEmbeddingDimensions();
+  // Another process, same model under a gateway's spelling: fine.
+  const spelled = new SupabaseVectorMemoryService({ apiKey: 'test', extractor: { model: 'x', extract: async () => RECORD }, embedder: { provider: 'gemini', model: 'google/fake-embedder', dimensions: 768, embed: async (t) => t.map(() => VECTOR()) } }, fake.client as any);
+  await spelled.verifyEmbeddingDimensions();
+  // A different model at the same dimension: refused, naming both and the two ways out.
+  const other = new SupabaseVectorMemoryService({ apiKey: 'test', extractor: { model: 'x', extract: async () => RECORD }, embedder: { provider: 'openai', model: 'text-embedding-3-small', dimensions: 768, embed: async (t) => t.map(() => VECTOR()) } }, fake.client as any);
+  await assert.rejects(other.verifyEmbeddingDimensions(), /embedded with fake\/fake-embedder \(768d\), but the embedder is now openai\/text-embedding-3-small \(768d\).*re-embed every stored fact.*never mix/);
+  assert.deepEqual(fake.state.embedder?.model, 'fake-embedder', 'the record is never overwritten');
 });
 
 for (const [via, ingest] of VIA) test(`a syndicate's memory_extraction_model distils its turns; others use the deployment's (${via})`, async () => {
