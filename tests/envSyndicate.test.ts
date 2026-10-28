@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, fstatSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,9 +36,14 @@ test('the file lands in a private directory as agent.yaml and loads', () => {
   assert.equal(got.id, 'agent');
   assert.equal(got.file, 'agent.yaml');
   assert.equal(statSync(got.agentsDir).mode & 0o777, 0o700);
-  const file = join(got.agentsDir, got.file);
-  assert.equal(statSync(file).mode & 0o777, 0o600);
-  assert.equal(readFileSync(file, 'utf8'), stringify(SYNDICATE));
+  // One descriptor for the mode and the content, so both describe the same file.
+  const fd = openSync(join(got.agentsDir, got.file), 'r');
+  try {
+    assert.equal(fstatSync(fd).mode & 0o777, 0o600);
+    assert.equal(readFileSync(fd, 'utf8'), stringify(SYNDICATE));
+  } finally {
+    closeSync(fd);
+  }
 });
 
 test('MELCHIZEDEK_AGENT_ID names it; wrapped and URL-safe base64 both decode', () => {
