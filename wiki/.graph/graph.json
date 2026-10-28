@@ -2,29 +2,29 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-24"
+    "at": "2026-10-28"
   },
   "stats": {
-    "nodes": 1078,
-    "edges": 4279,
+    "nodes": 1083,
+    "edges": 4293,
     "byKind": {
-      "doc": 220,
+      "doc": 221,
       "provider": 8,
-      "env": 116,
+      "env": 118,
       "model": 13,
       "tool": 35,
-      "file": 247,
+      "file": 248,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 213,
+      "module": 214,
       "script": 52,
       "external": 13
     },
     "byRelation": {
-      "links_to": 844,
-      "requires_env": 175,
+      "links_to": 846,
+      "requires_env": 179,
       "routes_to": 13,
       "defined_in": 84,
       "documents": 61,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 983,
+      "imports": 985,
       "reads_table": 30,
       "runs": 76,
-      "derives_from": 1262,
+      "derives_from": 1268,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3795,
+      "extracted": 3809,
       "inferred": 484
     },
     "isolated": 5
@@ -2212,6 +2212,18 @@
       }
     },
     {
+      "id": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "kind": "doc",
+      "label": "ADR 0149: Every release publishes the server image, and a syndicate can arrive in one variable",
+      "source": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 257
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2460,7 +2472,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2614
+        "words": 2873
       }
     },
     {
@@ -4104,6 +4116,18 @@
       "source": "scripts/wiki/mcp_server.ts"
     },
     {
+      "id": "env:MELCHIZEDEK_AGENT_ID",
+      "kind": "env",
+      "label": "MELCHIZEDEK_AGENT_ID",
+      "source": "lib/envSyndicate.ts"
+    },
+    {
+      "id": "env:MELCHIZEDEK_AGENT_YAML",
+      "kind": "env",
+      "label": "MELCHIZEDEK_AGENT_YAML",
+      "source": "lib/envSyndicate.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_AGENTS_DIR",
       "kind": "env",
       "label": "MELCHIZEDEK_AGENTS_DIR",
@@ -5433,6 +5457,12 @@
       "source": "tests/embeddedPostgres.test.ts"
     },
     {
+      "id": "file:tests/envSyndicate.test.ts",
+      "kind": "file",
+      "label": "envSyndicate.test.ts",
+      "source": "tests/envSyndicate.test.ts"
+    },
+    {
       "id": "file:tests/events.test.ts",
       "kind": "file",
       "label": "events.test.ts",
@@ -6481,6 +6511,15 @@
       "source": "lib/doctor.ts",
       "attrs": {
         "lines": 1140
+      }
+    },
+    {
+      "id": "module:lib/envSyndicate.ts",
+      "kind": "module",
+      "label": "lib/envSyndicate.ts",
+      "source": "lib/envSyndicate.ts",
+      "attrs": {
+        "lines": 86
       }
     },
     {
@@ -8001,7 +8040,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 668
+        "lines": 692
       }
     },
     {
@@ -18517,6 +18556,41 @@
       "evidence": "/decisions/0148-search-budget-and-reembed.md:32"
     },
     {
+      "from": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "to": "file:.github/workflows/release.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "to": "file:tests/envSyndicate.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "to": "module:lib/envSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21353,6 +21427,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "file:.github/workflows/release.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md frontmatter"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "file:compose.yaml",
       "rel": "derives_from",
       "tier": "extracted",
@@ -21375,6 +21456,13 @@
     {
       "from": "/operations/setup.md",
       "to": "file:QUICKSTART.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md frontmatter"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "module:lib/envSyndicate.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/operations/setup.md frontmatter"
@@ -21412,189 +21500,196 @@
       "to": "/agents/council.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:39"
+      "evidence": "/operations/setup.md:41"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0012-direct-adapters-canonical.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:43"
+      "evidence": "/operations/setup.md:45"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:53"
+      "evidence": "/operations/setup.md:57"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:47"
+      "evidence": "/operations/setup.md:49"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0038-graceful-stop-readiness-first.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:53"
+      "evidence": "/operations/setup.md:57"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0039-public-deployments-state-their-posture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:47"
+      "evidence": "/operations/setup.md:49"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:68"
+      "evidence": "/operations/setup.md:72"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0042-append-only-audit-trail.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:57"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:66"
+      "evidence": "/operations/setup.md:70"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:64"
+      "evidence": "/operations/setup.md:68"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:35"
+      "evidence": "/operations/setup.md:37"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:64"
+      "evidence": "/operations/setup.md:68"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:64"
+      "evidence": "/operations/setup.md:68"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:29"
+      "evidence": "/operations/setup.md:31"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:68"
+      "evidence": "/operations/setup.md:72"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0130-embedded-postgres-single-process.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:53"
+      "evidence": "/operations/setup.md:57"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0131-ledger-over-direct-postgres.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:60"
+      "evidence": "/operations/setup.md:64"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0134-one-data-directory-variable.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:59"
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0136-ledger-cost-at-write-time-from-model-pricing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:60"
+      "evidence": "/operations/setup.md:64"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:60"
+      "evidence": "/operations/setup.md:64"
     },
     {
       "from": "/operations/setup.md",
-      "to": "/memory/architecture.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/operations/setup.md:53"
-    },
-    {
-      "from": "/operations/setup.md",
-      "to": "/models/chatgpt-signin.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/operations/setup.md:29"
-    },
-    {
-      "from": "/operations/setup.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/operations/setup.md:35"
-    },
-    {
-      "from": "/operations/setup.md",
-      "to": "/operations/agent-skills.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/operations/setup.md:29"
-    },
-    {
-      "from": "/operations/setup.md",
-      "to": "/operations/failure-modes.md",
+      "to": "/decisions/0149-a-published-server-image-and-a-syndicate-in-one-variable.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:55"
     },
     {
       "from": "/operations/setup.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:57"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:31"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:37"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:31"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/operations/failure-modes.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:59"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/operations/projects.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:72"
+      "evidence": "/operations/setup.md:76"
     },
     {
       "from": "/operations/setup.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:47"
+      "evidence": "/operations/setup.md:49"
     },
     {
       "from": "/overview/architecture.md",
@@ -26999,6 +27094,34 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/envSyndicate.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/envSyndicate.ts"
+    },
+    {
+      "from": "module:lib/envSyndicate.ts",
+      "to": "env:MELCHIZEDEK_AGENT_ID",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/envSyndicate.ts"
+    },
+    {
+      "from": "module:lib/envSyndicate.ts",
+      "to": "env:MELCHIZEDEK_AGENT_YAML",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/envSyndicate.ts"
+    },
+    {
+      "from": "module:lib/envSyndicate.ts",
+      "to": "env:MELCHIZEDEK_AGENTS_DIR",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/envSyndicate.ts"
     },
     {
       "from": "module:lib/guards/index.ts",
@@ -32574,6 +32697,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/envSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -32841,6 +32971,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:HOST",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
