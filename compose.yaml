@@ -36,7 +36,7 @@ services:
   phoenix:
     profiles: [traces]
     # Pinned by digest (latest on 2026-10-06); Dependabot proposes updates.
-    image: arizephoenix/phoenix@sha256:d240d8d4e364ee3483ed2de41ec12b760cc90bb0d4c6e2f190388772aba6fe1f
+    image: arizephoenix/phoenix@sha256:623813cbf1bbd4811456bb4936f21666ae50a1fbf862cf59ea0e3ca824b6b114
     ports: ["6006:6006"]
 
 volumes:
