@@ -1434,6 +1434,15 @@ npx melchizedek-registry rollback desk 3 --note "v4 misroutes refunds"
 npx melchizedek-registry retire desk --yes    # stop serving; history stays
 ```
 
+The server reads the registry from the database its storage is on: over
+`DATABASE_URL` when it is set (any Postgres with the migrations, in
+`MELCHIZEDEK_DB_SCHEMA` when that names a private schema), else over the
+Supabase API with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+`melchizedek-registry` reaches it the same way, `DATABASE_URL` first, and
+the library's functions take either a supabase-js client or a `pg.Pool`
+(`postgresRegistryReader(pool)` is the read side, which `postgresStorage`
+supplies as `registry`).
+
 `publish` and `rollback` validate against the same schema the loader uses
 before anything is written. The author recorded is
 `MELCHIZEDEK_REGISTRY_AUTHOR`, else the local user name; a direct write

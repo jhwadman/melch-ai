@@ -43,7 +43,7 @@ sources:
 
 The generated sections below are the db/ files verbatim: the numbered migrations in `db/migrations/`, the optional telemetry ledger, the hardening, and a legacy upgrade script. `npm run db -- apply` (the `melchizedek-db` bin; `print` emits the same SQL for the Supabase SQL Editor) runs the migrations in order, then `db/hardening.sql`; with `--telemetry`, `db/telemetry.sql` and the hardening again. Every migration is idempotent and records itself in `melchizedek_schema_version`. The same SQL runs on Supabase or on any Postgres with pgvector ([ADR 0021](/decisions/0021-postgres-first-storage.md)).
 
-`adk_agent_registry`, which `registry:<id>` and `A2A_REGISTRY_AGENTS` load agent configs from, is created by migration `0005_agent_registry` together with its append-only `adk_agent_registry_versions` history; the hardening locks it down like every other table.
+`adk_agent_registry`, which `registry:<id>` and `A2A_REGISTRY_AGENTS` load agent configs from, is created by migration `0005_agent_registry` together with its append-only `adk_agent_registry_versions` history; the hardening locks it down like every other table. The server reads it over `DATABASE_URL` when that is set and over the Supabase API otherwise; `lib/registry.ts` publishes, rolls back and retires through either, calling the migration's own `melchizedek_registry_publish` and `melchizedek_registry_activate` ([ADR 0150](/decisions/0150-the-registry-follows-database-url.md)).
 
 ## Token counts in the ledger
 

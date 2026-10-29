@@ -26,6 +26,19 @@ Unset, nothing changes.
 `prepare` (the build) before the sources were copied, so `docker build`
 failed; both stages now install with `--ignore-scripts`.
 
+**The registry works on any Postgres** (ADR 0150). With `DATABASE_URL`, the
+server loads `registry:<id>` and `A2A_REGISTRY_AGENTS` rows from that
+database (in `MELCHIZEDEK_DB_SCHEMA` when it names one) instead of over the
+Supabase API, and `melchizedek-registry` publishes, rolls back and retires
+there too. Without `DATABASE_URL`, nothing changes. In the library:
+`melchizedek-agents/registry` exports `postgresRegistryReader(pool)` and its
+functions take a supabase-js client or anything with pg's `query` (a
+`pg.Pool`, PGlite); `loadSyndicateFromRegistry(id, { registry })` reads
+through a `RegistryReader`; `postgresStorage` returns `registry`, and
+`createA2AApp` reads `storage.registry` when it is given. A deployment that
+sets both `DATABASE_URL` and Supabase credentials, for different databases,
+now reads the registry from `DATABASE_URL`'s.
+
 ## 1.13.0 — 2026-10-24
 
 **A Prompt Writer template.** `templates/prompt_writer.yaml` writes
