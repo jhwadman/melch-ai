@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-24"
+    "at": "2026-10-29"
   },
   "stats": {
-    "nodes": 1078,
-    "edges": 4279,
+    "nodes": 1080,
+    "edges": 4293,
     "byKind": {
-      "doc": 220,
+      "doc": 221,
       "provider": 8,
       "env": 116,
       "model": 13,
       "tool": 35,
-      "file": 247,
+      "file": 248,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
@@ -23,8 +23,8 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 844,
-      "requires_env": 175,
+      "links_to": 848,
+      "requires_env": 176,
       "routes_to": 13,
       "defined_in": 84,
       "documents": 61,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 983,
+      "imports": 986,
       "reads_table": 30,
       "runs": 76,
-      "derives_from": 1262,
+      "derives_from": 1268,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3795,
+      "extracted": 3809,
       "inferred": 484
     },
     "isolated": 5
@@ -2212,6 +2212,18 @@
       }
     },
     {
+      "id": "/decisions/0150-the-registry-follows-database-url.md",
+      "kind": "doc",
+      "label": "ADR 0150: The agent registry is read and written over DATABASE_URL when it is set",
+      "source": "/decisions/0150-the-registry-follows-database-url.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 238
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2232,7 +2244,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 19480
+        "words": 19513
       }
     },
     {
@@ -2556,7 +2568,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 3897
+        "words": 3953
       }
     },
     {
@@ -3964,7 +3976,7 @@
       "id": "env:DATABASE_URL",
       "kind": "env",
       "label": "DATABASE_URL",
-      "source": "scripts/memory_admin.ts",
+      "source": "scripts/registry.ts",
       "attrs": {}
     },
     {
@@ -5911,6 +5923,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/registryPostgres.test.ts",
+      "kind": "file",
+      "label": "registryPostgres.test.ts",
+      "source": "tests/registryPostgres.test.ts"
+    },
+    {
       "id": "file:tests/remoteAgent.test.ts",
       "kind": "file",
       "label": "remoteAgent.test.ts",
@@ -6309,7 +6327,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1417
+        "lines": 1425
       }
     },
     {
@@ -6534,7 +6552,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 842
+        "lines": 860
       }
     },
     {
@@ -7020,7 +7038,7 @@
       "label": "lib/registry.ts",
       "source": "lib/registry.ts",
       "attrs": {
-        "lines": 206
+        "lines": 275
       }
     },
     {
@@ -7326,7 +7344,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 325
+        "lines": 330
       }
     },
     {
@@ -8001,7 +8019,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 668
+        "lines": 669
       }
     },
     {
@@ -8127,7 +8145,7 @@
       "label": "scripts/registry.ts",
       "source": "scripts/registry.ts",
       "attrs": {
-        "lines": 193
+        "lines": 203
       }
     },
     {
@@ -18517,6 +18535,62 @@
       "evidence": "/decisions/0148-search-budget-and-reembed.md:32"
     },
     {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "file:tests/registryPostgres.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "module:lib/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "module:scripts/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md frontmatter"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "/memory/schema.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md:29"
+    },
+    {
+      "from": "/decisions/0150-the-registry-follows-database-url.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0150-the-registry-follows-database-url.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18893,6 +18967,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/schema.md:44"
+    },
+    {
+      "from": "/memory/schema.md",
+      "to": "/decisions/0150-the-registry-follows-database-url.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md:46"
     },
     {
       "from": "/memory/schema.md",
@@ -23296,6 +23377,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:117"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0150-the-registry-follows-database-url.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:100"
     },
     {
       "from": "/protocols/a2a.md",
@@ -30663,6 +30751,13 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/memory/erase.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30699,6 +30794,13 @@
     {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/registry.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -33752,6 +33854,20 @@
       "from": "module:scripts/registry.ts",
       "to": "module:lib/registry.ts",
       "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "env:DATABASE_URL",
+      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/registry.ts"
     },

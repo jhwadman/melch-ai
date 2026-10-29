@@ -47,7 +47,8 @@
  *                             only these may fall back to examples/ and templates/;
  *                             * serves every one (required with PUBLIC_URL)
  *   A2A_REGISTRY_AGENTS       comma list: bare ids that load from adk_agent_registry
- *                             (others are files; registry:<id> always is the registry)
+ *                             (others are files; registry:<id> always is the registry),
+ *                             over DATABASE_URL when set, else the Supabase API
  *   A2A_SHUTDOWN_GRACE_MS     how long SIGTERM waits for running tasks (25000)
  *   A2A_SHUTDOWN_DELAY_MS     of that, how long /readyz fails while requests are still served (5000)
  *   A2A_BUDGETS               daily budgets per UTC day (ADR 0026), JSON:

@@ -60,6 +60,7 @@ import { refuseChatGptSignInOnServedSurface } from '../chatgpt/state.ts';
 import { geminiAdapterSetting } from '../models/adapterResolver.ts';
 
 import { loadSyndicate, loadSyndicateFromRegistry, nestedLoader } from '../loadSyndicate.ts';
+import type { RegistryReader } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { providerForModel, resolveModel } from '../models/registry.ts';
 import type { ProviderEndpoint, ProviderId } from '../models/registry.ts';
@@ -246,6 +247,13 @@ export interface A2AAppOptions {
      * route answers 501.
      */
     feedback?: FeedbackStore;
+    /**
+     * Where registry rows load from (`registry:<id>`, `registryAgents`): a
+     * direct connection to the database holding adk_agent_registry.
+     * postgresStorage supplies one on its pool. Without it they load over
+     * the Supabase API (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY).
+     */
+    registry?: RegistryReader;
     /**
      * One turn at a time per conversation across instances (postgresStorage
      * supplies an advisory lock). Default: a lock in this process.
@@ -659,7 +667,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   // ── The default syndicate ──────────────────────────────────────────────────
   const config = checkOAuthHosts(
     options.defaultSyndicate.startsWith('registry:')
-      ? await loadSyndicateFromRegistry(options.defaultSyndicate.slice('registry:'.length), { bindings: bindings() })
+      ? await loadSyndicateFromRegistry(options.defaultSyndicate.slice('registry:'.length), { bindings: bindings(), ...(options.storage?.registry ? { registry: options.storage.registry } : {}) })
       : loadSyndicate(options.defaultSyndicate, { bindings: bindings() }),
     options.defaultSyndicate,
   );
@@ -1333,7 +1341,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     const registryId = agentId.startsWith('registry:') ? agentId.slice('registry:'.length) : registryIds.has(agentId) ? agentId : undefined;
     if (registryId) {
       try {
-        const loaded = await loadSyndicateFromRegistry(registryId, { bindings: bindings() });
+        const loaded = await loadSyndicateFromRegistry(registryId, { bindings: bindings(), ...(options.storage?.registry ? { registry: options.storage.registry } : {}) });
         return { config: checkOAuthHosts(loaded, `registry:${registryId}`), source: `registry:${registryId}` };
       } catch (err: unknown) {
         const why = err instanceof Error ? err.message : String(err);
