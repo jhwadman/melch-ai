@@ -4,6 +4,28 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**The server image is published with every release** (ADR 0149).
+`ghcr.io/jhwadman/melchizedek-serve:<version>` (and `:latest`) for
+linux/amd64 and linux/arm64, with a build-provenance attestation; the
+GitHub Release carries its digest as `melchizedek-serve-v<version>.digest`.
+Pull by that digest.
+
+**A syndicate in one environment variable.** `melchizedek-serve` (and
+`startServer` from `melchizedek-agents/server`) reads
+`MELCHIZEDEK_AGENT_YAML`, the whole syndicate file base64-encoded, and
+serves it as `MELCHIZEDEK_AGENT_ID` (default `agent`) and as the default
+syndicate, from a private directory that becomes the agents directory. A
+definition that does not load stops the boot. It refuses
+`MELCHIZEDEK_AGENTS_DIR` beside it, a syndicate argument other than its
+own, and a nested `yaml_reference` its `bundled_references` does not carry.
+Unset, nothing changes.
+
+**The `Dockerfile` builds again.** `npm ci` ran the package's own
+`prepare` (the build) before the sources were copied, so `docker build`
+failed; both stages now install with `--ignore-scripts`.
+
 ## 1.13.0 — 2026-10-24
 
 **A Prompt Writer template.** `templates/prompt_writer.yaml` writes

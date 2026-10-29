@@ -68,3 +68,90 @@ jobs:
           awk -v v="$VERSION" '$0 ~ "^## " v " " {f=1; next} /^## [0-9]/ {if (f) exit} f' CHANGELOG.md > release-notes.md
           gh release create "$GITHUB_REF_NAME" "melchizedek-agents-${GITHUB_REF_NAME}.cdx.json" \
             --title "melchizedek-agents $VERSION" --notes-file release-notes.md --verify-tag
+
+  # The server image (ADR 0149): the Dockerfile built from the same tag,
+  # booted once on amd64 with a syndicate in MELCHIZEDEK_AGENT_YAML (a failed
+  # boot pushes nothing), then built for linux/amd64 and linux/arm64 and
+  # pushed to GitHub Container Registry as
+  # ghcr.io/<owner>/melchizedek-serve:<version> (and :latest for a release
+  # without a pre-release suffix), with a build-provenance attestation. Hosts
+  # deploy it BY DIGEST: the digest is written to the job summary and attached
+  # to the GitHub Release as melchizedek-serve-<tag>.digest, so a re-tag can
+  # never change what a running deployment pulls. Verify a pull with
+  # gh attestation verify oci://ghcr.io/<owner>/melchizedek-serve@<digest> --owner <owner>.
+  # One-time setup: after the first push, make the package public under the
+  # owner's GitHub Packages settings and link it to this repository.
+  image:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write      # attach the digest to the Release
+      packages: write      # push to ghcr.io
+      id-token: write      # sign the attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/melchizedek-serve
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+          labels: |
+            org.opencontainers.image.title=melchizedek-serve
+            org.opencontainers.image.description=The Melchizedek A2A server; configured by environment only (see .env.example)
+      - name: build for this runner first, so a broken image is never pushed
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: melchizedek-serve:smoke
+          cache-to: type=gha,mode=max
+      - name: the image boots on a syndicate in its environment and answers /readyz
+        run: |
+          set -euo pipefail
+          YAML="$(printf '%s\n' 'syndicate_name: Smoke' 'memory_system: session-only' 'orchestrator:' '  name: Smoke' '  model: gemini-3.5-flash' '  instruction: Answer.' 'subagents: []' | base64 -w0)"
+          docker run -d --name smoke -p 4000:4000 \
+            -e A2A_SERVER_SECRET="$(openssl rand -hex 32)" -e MELCHIZEDEK_AGENT_YAML="$YAML" melchizedek-serve:smoke
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4000/readyz >/dev/null; then echo "ready after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          docker logs smoke
+          exit 1
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          provenance: mode=max
+          sbom: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/melchizedek-serve
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: the digest, in the summary and on the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER}/melchizedek-serve@${DIGEST}"
+          echo "$REF" > "melchizedek-serve-${GITHUB_REF_NAME}.digest"
+          printf '### Server image\n\n`%s`\n' "$REF" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$GITHUB_REF_NAME" "melchizedek-serve-${GITHUB_REF_NAME}.digest" --clobber

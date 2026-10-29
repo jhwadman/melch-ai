@@ -1342,6 +1342,19 @@ local conversation keeps talking to the same remote conversation.
 
 `Dockerfile` builds the compiled server and runs it as a non-root user with
 a health check; `compose.yaml` adds optional Ollama and Phoenix (traces).
+Every release also publishes it as `ghcr.io/jhwadman/melchizedek-serve:<version>`
+for linux/amd64 and linux/arm64, with a build-provenance attestation; the
+release carries the digest (`melchizedek-serve-v<version>.digest`), and a
+deployment should pull by that digest. The image needs no agents directory:
+`MELCHIZEDEK_AGENT_YAML` carries the syndicate file base64-encoded and serves
+it as `MELCHIZEDEK_AGENT_ID` (`agent`), or `A2A_REGISTRY_AGENTS` loads it from
+the registry.
+
+```bash
+docker run -p 4000:4000 -e A2A_SERVER_SECRET=… -e GOOGLE_GENAI_API_KEY=… \
+  -e MELCHIZEDEK_AGENT_YAML="$(base64 < agent.yaml)" ghcr.io/jhwadman/melchizedek-serve@sha256:…
+```
+
 `npx melchizedek-db print|apply|status` installs and checks the database.
 Set `PUBLIC_URL`, `A2A_SERVER_SECRET`, `A2A_AUTH`, `A2A_SERVED_AGENTS`,
 `A2A_TRUST_PROXY` and the provider keys from your secret manager; give the orchestrator's stop timeout at least
