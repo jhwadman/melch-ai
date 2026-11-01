@@ -4,6 +4,24 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.14.0 — 2026-11-01
+
+**Files in a message.** The A2A server takes inline file parts (`raw`, or 0.3's
+`file.bytes`): images and documents the agent's model reads go to it as blobs,
+text types as a text part, and anything else ends `rejected` naming what it
+does read. `A2A_MAX_FILE_BYTES` (default 10 MiB) caps one message's files, and
+0 restores the old refusal; `A2A_BODY_LIMIT` now defaults to what holds that
+limit as base64. A file by URL is still refused. The agent card's
+`defaultInputModes` lists the types.
+
+**`attachmentSupport(model)`** (from the barrel) says which file types a
+model's path takes and how large, for a caller that converts a file first.
+
+**Claude reads PDFs.** A `application/pdf` blob is a `document` block; it was
+dropped. The chat-completions adapters no longer label a non-image blob as an
+image, which failed the whole request; it is left out with a warning. A failed
+call's recorded request keeps a file's size, not its bytes.
+
 ## 1.13.0 — 2026-10-24
 
 **A Prompt Writer template.** `templates/prompt_writer.yaml` writes

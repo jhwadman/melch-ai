@@ -153,6 +153,10 @@ export {
 
 export { loadEnv } from './loadEnv.ts';
 
+// Which files a model's path takes in a user message, and how large.
+export { attachmentSupport, takesBlob } from './models/attachments.ts';
+export type { AttachmentSupport } from './models/attachments.ts';
+
 // Where credentials are read, by environment variable name (ADR 0133).
 export { setCredentialSource, credentialValue } from './models/credentialSource.ts';
 export type { CredentialSource } from './models/credentialSource.ts';

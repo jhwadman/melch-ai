@@ -102,6 +102,7 @@ import { setCredentialHosts } from '../tools/credentialHosts.ts';
 import { syndicateCredentialHostProblems } from '../tools/credentialUses.ts';
 import { syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
 import { credentialValue } from '../models/credentialSource.ts';
+import { attachmentSupport } from '../models/attachments.ts';
 const SURFACE_HEADERS = [
   ['x-surface', 'name'],
   ['x-surface-guild', 'guild'],
@@ -415,8 +416,10 @@ export interface A2AAppOptions {
   authFailureLimit?: { windowMs: number; max: number };
   /** Express `trust proxy` setting (hop count, boolean, or subnet list). */
   trustProxy?: number | boolean | string;
-  /** JSON body size limit, e.g. "1mb". */
+  /** JSON body size limit, e.g. "1mb". An inline file is base64 in this body: leave room for `maxFileBytes`. */
   bodyLimit?: string;
+  /** Largest total of inline files in one message, decoded bytes. Undefined or 0 refuses file parts. */
+  maxFileBytes?: number;
   /**
    * Allowlist of agent ids reachable at /:agentId/*. Undefined = any id with
    * a file in the deployment's own agents directory. Ids listed here may also
@@ -520,9 +523,12 @@ export function compileAgentCard(
     identity?: IdentityScheme;
     version: string;
     byok?: boolean;
+    /** The server takes file parts: the card names what this agent's model reads. */
+    files?: boolean;
   },
 ): AgentCard {
   const base = `${opts.baseUrl.replace(/\/$/, '')}${opts.routePrefix ?? ''}`;
+  const fileSupport = opts.files ? attachmentSupport(config.orchestrator?.model) : undefined;
   const securitySchemes: AgentCard['securitySchemes'] = {};
   if (opts.byok) {
     securitySchemes.apiKey = {
@@ -583,7 +589,7 @@ export function compileAgentCard(
     },
     securitySchemes,
     securityRequirements: Object.keys(requirement).length ? [{ schemes: requirement }] : [],
-    defaultInputModes: ['text/plain', 'application/json'],
+    defaultInputModes: ['text/plain', 'application/json', ...(fileSupport ? [...fileSupport.images, ...fileSupport.documents, ...fileSupport.media] : [])],
     defaultOutputModes: ['text/plain'],
     skills: (config.subagents ?? []).map((sub) => ({
       id: sub.name,
@@ -879,6 +885,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       memoryService: services.memoryService,
       compileFor,
       taskTimeoutMs: options.taskTimeoutMs,
+      maxFileBytes: options.maxFileBytes,
       streamText: options.streamText,
       turnLock,
       turnLockWaitMs: options.turnLockWaitMs,
@@ -895,6 +902,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     const version = executor.configHashFor().slice(0, 12);
     const cardFor = (base: string) =>
       compileAgentCard(cfg, {
+        files: !!options.maxFileBytes,
         baseUrl: base,
         routePrefix,
         bearer: !!options.serverSecret,

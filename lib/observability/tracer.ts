@@ -790,7 +790,7 @@ function safePayloadJson(value: unknown): string {
 
 /** What `llm.payload.request` records for a failed call: the ModelRequest less its signal, else the older `llmRequest`. */
 function payloadRequest(meta: LlmCallMeta): unknown {
-  if (meta.request === undefined) return meta.llmRequest;
+  if (meta.request === undefined) return withoutFileBytes(meta.llmRequest);
   let request: ModelRequest;
   try {
     request = typeof meta.request === 'function' ? meta.request() : meta.request;
@@ -798,7 +798,16 @@ function payloadRequest(meta: LlmCallMeta): unknown {
     return undefined;
   }
   const { signal: _signal, ...recorded } = request;
-  return recorded;
+  return withoutFileBytes(recorded);
+}
+
+/** A copy with each file's bytes replaced by their count: a request's base64 would fill the payload's cap and say nothing a reader can use. */
+function withoutFileBytes(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutFileBytes);
+  if (!value || typeof value !== 'object') return value;
+  const v = value as Record<string, unknown>;
+  if (typeof v.mimeType === 'string' && typeof v.data === 'string') return { ...v, data: `[${Math.floor((v.data.length * 3) / 4)} bytes not recorded]` };
+  return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, withoutFileBytes(x)]));
 }
 
 /**

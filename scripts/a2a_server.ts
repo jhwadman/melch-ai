@@ -38,7 +38,8 @@
  *   A2A_AUTH_FAILURE_MAX      failed authentications per window per IP (30)
  *   A2A_TRUST_PROXY           Express trust-proxy: hop count, true/false, or subnets
  *                             (false; required with PUBLIC_URL)
- *   A2A_BODY_LIMIT            JSON body limit ("1mb")
+ *   A2A_MAX_FILE_BYTES        inline files in one message, decoded bytes (10485760; 0 refuses file parts)
+ *   A2A_BODY_LIMIT            JSON body limit ("1mb", or "15mb" with file parts on)
  *   A2A_KEY_MODE              server (default): models run on the server's keys;
  *                             byok: the caller's X-API-Key pays. Under A2A_AUTH=secret
  *                             the mode also scopes data: X-User-Id in server mode,
@@ -507,7 +508,9 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
       authFailureLimit: { windowMs: 15 * 60 * 1000, max: envInt('A2A_AUTH_FAILURE_MAX', 30) },
       trustProxy: envTrustProxy(),
       ...(limitStore ? { limitStore } : {}),
-      bodyLimit: process.env.A2A_BODY_LIMIT?.trim() || '1mb',
+      maxFileBytes: envInt('A2A_MAX_FILE_BYTES', 10 * 1024 * 1024),
+      // Base64 is 4/3 of the bytes; the body must hold what the file limit allows.
+      bodyLimit: process.env.A2A_BODY_LIMIT?.trim() || `${Math.max(1, Math.ceil((envInt('A2A_MAX_FILE_BYTES', 10 * 1024 * 1024) * 4) / 3 / (1024 * 1024)) + 1)}mb`,
       servedAgents,
       registryAgents,
       keyMode,
