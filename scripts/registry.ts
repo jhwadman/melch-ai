@@ -13,8 +13,11 @@
  *   rollback <id> <version> [--note ""]  make a stored version active again
  *   retire <id> --yes                 stop serving an id; its history stays
  *
- * Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (the service role: the
- * registry is locked to it). The author recorded on a version is
+ * Reaches the registry over DATABASE_URL when it is set (a direct Postgres
+ * connection, as the server's storage; MELCHIZEDEK_DB_SCHEMA names a private
+ * schema), else over the Supabase API with SUPABASE_URL and
+ * SUPABASE_SERVICE_ROLE_KEY (the service role: the registry is locked to
+ * it). The author recorded on a version is
  * MELCHIZEDEK_REGISTRY_AUTHOR, else the local user name. A running server
  * caches each agent for its lifetime: restart it after publish or rollback.
  * Never prints a credential.
@@ -25,9 +28,11 @@ import { userInfo } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { createClient } from '@supabase/supabase-js';
+import pg from 'pg';
 import { parse, stringify } from 'yaml';
 
 import { loadEnv } from '../lib/loadEnv.ts';
+import { dbSchema, searchPathOption } from '../lib/storage/schema.ts';
 import {
   activateVersion,
   getVersion,
@@ -36,7 +41,7 @@ import {
   parseRegistryRef,
   publishAgent,
   retireAgent,
-  type RegistryClient,
+  type RegistryStore,
 } from '../lib/registry.ts';
 
 const USAGE = `usage: melchizedek-registry <command>
@@ -80,7 +85,7 @@ function flag(args: string[], name: string): string | undefined {
   return i === -1 ? undefined : args[i + 1];
 }
 
-export async function main(argv: string[], client?: RegistryClient): Promise<number> {
+export async function main(argv: string[], client?: RegistryStore): Promise<number> {
   const args = argv.filter((a) => a !== '--');
   const [cmd, ...rest] = args;
   const positional = rest.filter((a, i) => !a.startsWith('--') && rest[i - 1] !== '--note');
@@ -91,13 +96,18 @@ export async function main(argv: string[], client?: RegistryClient): Promise<num
 
   if (!client) {
     loadEnv(import.meta.url);
+    const databaseUrl = process.env.DATABASE_URL?.trim();
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-      console.error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required (the registry is locked to the service role).');
+    if (databaseUrl) {
+      const searchPath = searchPathOption(dbSchema());
+      client = new pg.Pool({ connectionString: databaseUrl, max: 2, ...(searchPath ? { options: searchPath } : {}) });
+    } else if (url && key) {
+      client = createClient(url, key) as unknown as RegistryStore;
+    } else {
+      console.error('Set DATABASE_URL (a direct Postgres connection), or SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (the registry is locked to the service role).');
       return 1;
     }
-    client = createClient(url, key) as unknown as RegistryClient;
   }
   const author = process.env.MELCHIZEDEK_REGISTRY_AUTHOR?.trim() || userInfo().username;
   const note = flag(rest, '--note');

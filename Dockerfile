@@ -15,7 +15,9 @@
 FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts: the package's own `prepare` is the build, which needs the
+# sources copied below; no dependency's install script does anything needed.
+RUN npm ci --ignore-scripts
 COPY . .
 RUN npm run build
 
@@ -25,7 +27,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev \
+RUN npm ci --omit=dev --ignore-scripts \
  && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY config ./config
