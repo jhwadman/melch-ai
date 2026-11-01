@@ -37,7 +37,7 @@ The [native loop](/overview/native-loop.md) runs every agent's turn; it is the e
 
 | Input | Who controls it | How it reaches the loop |
 |---|---|---|
-| The message | the person | Over A2A only as text: a `data` part becomes its JSON as text, a file part is refused (`a2aPartsToMessage`, `lib/a2a/executor.ts`), and the executor builds an approval answer itself from a decision. A library caller of `runSyndicateTurn` can pass any part: a function call, a function response. |
+| The message | the person | Over A2A as text or an inline file: a `data` part becomes its JSON as text, a file becomes a blob or text part only for a type its model reads and within `A2A_MAX_FILE_BYTES`, and a file by URL is refused (`a2aPartsToMessage`, `lib/a2a/executor.ts`), and the executor builds an approval answer itself from a decision. A library caller of `runSyndicateTurn` can pass any part: a function call, a function response. |
 | The model's answer | the provider, steered by everything in the prompt | Every part of every response, through the adapter. A tool call's name, id and arguments are the model's choice. |
 | A tool's result | the tool's code (trusted, registered by the operator); its content may come from a remote server (an MCP tool, a fetched page, an API) | The function response the loop stores. |
 | The session | the loop, a durable store, and ADK for a conversation it stored before 1.0.0 | Events read back on every step. |

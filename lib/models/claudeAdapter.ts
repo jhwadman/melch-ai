@@ -90,11 +90,18 @@ type AnthropicContentBlock =
   | { type: 'tool_use'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: true }
   | AnthropicImageBlock
+  | AnthropicDocumentBlock
   | SignedThinkingBlock;
 
 type AnthropicImageBlock = {
   type: 'image';
   source: { type: 'base64'; media_type: string; data: string } | { type: 'url'; url: string };
+};
+
+/** A PDF, which the Messages API reads page by page, text and pictures both. */
+type AnthropicDocumentBlock = {
+  type: 'document';
+  source: { type: 'base64'; media_type: 'application/pdf'; data: string } | { type: 'url'; url: string };
 };
 
 /** A `thinking` or `redacted_thinking` block exactly as the API returned it. */
@@ -160,11 +167,18 @@ const URL_SOURCE = 'URL source';
  * base64 only; never the URL), for the span and the warning. Undefined for
  * a blob with nothing in it.
  */
-function imageBlockFor(part: BlobPart, urlImages: boolean): AnthropicImageBlock | string | undefined {
+function imageBlockFor(part: BlobPart, urlImages: boolean): AnthropicImageBlock | AnthropicDocumentBlock | string | undefined {
   // The caller's type string reaches a log line and the ledger: printable, short.
   const named = (type: string) => type.replace(/[^\x20-\x7e]/g, '?').slice(0, 64);
   const declared = String(part.mimeType ?? '').toLowerCase();
   const untyped = UNTYPED.has(declared);
+  if (declared === 'application/pdf') {
+    if (part.data !== undefined) return part.data ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: part.data } } : undefined;
+    const uri = String(part.url ?? '');
+    if (!uri) return undefined;
+    if (!/^https:\/\//i.test(uri)) return `non-https URL (${/^[a-z][a-z0-9+.-]*:/i.exec(uri)?.[0] ?? 'no scheme'})`;
+    return urlImages ? { type: 'document', source: { type: 'url', url: uri } } : URL_SOURCE;
+  }
   if (part.data !== undefined) {
     if (!part.data) return undefined;
     const mediaType = untyped ? 'image/png' : declared;

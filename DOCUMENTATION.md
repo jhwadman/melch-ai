@@ -1056,7 +1056,7 @@ running". The lock is in-process by default and a Postgres advisory lock
 with `DATABASE_URL`, so it holds across instances. `tasks/cancel` stops a running task, including the model call
 in flight, and the task ends `canceled`. Final states: `completed`,
 `failed` (the message names the stage and the provider's reason),
-`canceled`, `rejected` (a file part, an empty message, or the server at
+`canceled`, `rejected` (a file its model does not read, a file by URL, an empty message, or the server at
 capacity). Message parts may be `text` or `data` (sent to the model as
 JSON); `file` parts are refused.
 

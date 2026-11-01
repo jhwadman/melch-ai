@@ -933,7 +933,10 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
             } else if (part.data) {
               // Inline only: a data URI for vision models. A URL blob is not
               // sent (Moonshot takes no public image URLs).
-              images.push({ type: 'image_url', image_url: { url: `data:${part.mimeType || 'image/png'};base64,${part.data}` } });
+              const type = !part.mimeType || part.mimeType === 'application/octet-stream' ? 'image/png' : part.mimeType;
+              // This wire has images only; a PDF labelled as one would fail the whole request.
+              if (type.startsWith('image/')) images.push({ type: 'image_url', image_url: { url: `data:${type};base64,${part.data}` } });
+              else console.warn(`⚠ A file part (${type.replace(/[^\x20-\x7e]/g, '?').slice(0, 64)}) is not sent: this path takes images only.`);
             }
           }
           const text = texts.join('\n');

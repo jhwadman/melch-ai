@@ -44,6 +44,8 @@ import type { AuditSink } from '../observability/audit.ts';
 import type { Policy } from './policy.ts';
 import { MAX_META_KEYS, metaAttributes, requestMetadata } from '../observability/metadata.ts';
 import type { Metadata } from '../observability/metadata.ts';
+import { attachmentSupport, takesBlob } from '../models/attachments.ts';
+import type { AttachmentSupport } from '../models/attachments.ts';
 
 /** Per-request caller context, set by the server's identity middleware. */
 export interface A2AContext {
@@ -221,19 +223,65 @@ export function describeFailedTurn(result: SyndicateTurnResult): string {
   return `Error: [${error.code}] The agent run failed — ${describeTurnError(error)}`;
 }
 
+/** What this server takes as a file part: the bytes it allows and what the agent's model reads. */
+export interface FilePartPolicy {
+  /** Largest total of files in one message, decoded bytes. */
+  maxBytes: number;
+  support: AttachmentSupport;
+}
+
+/** Types read as text whatever the model: they go to it as a text part. */
+const TEXT_FILE = /^(text\/[\w.+-]+|application\/(json|xml|yaml|x-yaml|x-ndjson|csv))$/;
+
+/** A file's name as the model reads it: printable and short, since the caller chose it. */
+const fileLabel = (name: unknown): string => (typeof name === 'string' ? name : '').replace(/[^\p{L}\p{N} ._()-]/gu, '_').slice(0, 120) || 'file';
+
+/** One inline file as model parts, or why it is refused. */
+function filePart(bytes: Buffer, declared: unknown, name: unknown, policy: FilePartPolicy): MessagePart | string {
+  const type = String(declared ?? '').split(';')[0].trim().toLowerCase();
+  const shown = type.replace(/[^\x20-\x7e]/g, '?').slice(0, 64) || 'a file with no type';
+  if (TEXT_FILE.test(type)) {
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      return `The file part declared as ${shown} is not UTF-8 text.`;
+    }
+    return { text: `<attached_file name="${fileLabel(name)}" type="${shown}">\n${text}\n</attached_file>` };
+  }
+  if (!takesBlob(policy.support, type)) return `This agent's model does not read ${shown}. It reads ${[...policy.support.images, ...policy.support.documents, ...policy.support.media].join(', ')} and text.`;
+  const limit = policy.support.images.includes(type) ? policy.support.maxImageBytes : policy.support.maxFileBytes;
+  if (bytes.length > limit) return `A ${shown} file may be at most ${limit} bytes for this agent's model; this one is ${bytes.length}.`;
+  return { inlineData: { mimeType: type, data: bytes.toString('base64') } };
+}
+
 /**
  * A2A message parts → model parts. Text passes through; a `data` part
  * becomes its JSON as text (callers inject structured payloads this way).
- * File parts (`url` or `raw` content) are refused with a clear error rather
- * than silently blanked: a file URL fetched server-side is an SSRF surface,
- * and inline bytes need a size policy this server does not yet have.
+ * An inline file (`raw` content, or 0.3's `file.bytes`) becomes a blob part
+ * the agent's model reads, or text when it is text, within `files`; anything
+ * else is refused with a clear error rather than silently blanked. A file by
+ * URL is always refused: fetching one server-side is an SSRF surface.
  *
  * Accepts A2A 1.0 parts (`content.$case`) and, for callers that hand in
  * plain objects, the 0.3 shapes (`kind: 'text' | 'data' | 'file'`).
  */
-export function a2aPartsToMessage(rawParts: unknown[]): { parts: MessagePart[]; refused?: string } {
+export function a2aPartsToMessage(rawParts: unknown[], files?: FilePartPolicy): { parts: MessagePart[]; refused?: string } {
   const parts: MessagePart[] = [];
-  const refusal = 'File parts are not supported by this server; send text or data parts.';
+  const refusal = files ? 'A file part given by URL is not fetched by this server; send its bytes.' : 'File parts are not supported by this server; send text or data parts.';
+  let total = 0;
+  /** Adds one inline file; a string is why the message is refused. */
+  const addFile = (value: unknown, declared: unknown, name: unknown): string | undefined => {
+    if (!files) return refusal;
+    const bytes = typeof value === 'string' ? Buffer.from(value, 'base64') : value instanceof Uint8Array ? Buffer.from(value) : null;
+    if (!bytes || bytes.length === 0) return 'A file part has no bytes.';
+    total += bytes.length;
+    if (total > files.maxBytes) return `The files in one message may total at most ${files.maxBytes} bytes on this server.`;
+    const part = filePart(bytes, declared, name, files);
+    if (typeof part === 'string') return part;
+    parts.push(part);
+    return undefined;
+  };
   for (const raw of rawParts) {
     if (typeof raw === 'string') {
       parts.push({ text: raw });
@@ -244,7 +292,11 @@ export function a2aPartsToMessage(rawParts: unknown[]): { parts: MessagePart[]; 
     if (content?.$case) {
       if (content.$case === 'text' && typeof content.value === 'string' && content.value.length > 0) parts.push({ text: content.value });
       else if (content.$case === 'data') parts.push({ text: JSON.stringify(content.value) });
-      else if (content.$case === 'url' || content.$case === 'raw') return { parts, refused: refusal };
+      else if (content.$case === 'url') return { parts, refused: refusal };
+      else if (content.$case === 'raw') {
+        const refused = addFile(content.value, p.mediaType, p.filename);
+        if (refused) return { parts, refused };
+      }
       continue;
     }
     const kind = p.kind ?? (p.text !== undefined ? 'text' : p.data !== undefined ? 'data' : p.file !== undefined ? 'file' : undefined);
@@ -253,7 +305,9 @@ export function a2aPartsToMessage(rawParts: unknown[]): { parts: MessagePart[]; 
     } else if (kind === 'data') {
       parts.push({ text: JSON.stringify(p.data) });
     } else if (kind === 'file') {
-      return { parts, refused: refusal };
+      if (p.file?.bytes === undefined) return { parts, refused: refusal };
+      const refused = addFile(p.file.bytes, p.file.mimeType, p.file.name);
+      if (refused) return { parts, refused };
     }
   }
   return { parts };
@@ -269,6 +323,8 @@ export interface ExecutorOptions {
   compileFor: (ctx: A2AContext) => CompileOptions;
   /** Wall-clock budget per task in ms; 0 or undefined = none. */
   taskTimeoutMs?: number;
+  /** Largest total of inline files in one message, decoded bytes; 0 or undefined refuses file parts. */
+  maxFileBytes?: number;
   /** Shared across every executor on the server. */
   limiter: TaskLimiter;
   /** The agent id this executor serves ('' for the default syndicate). */
@@ -763,7 +819,10 @@ export class SyndicateExecutor implements AgentExecutor {
       ctxForReport = ctx;
 
       const rawParts: unknown[] = message?.parts ?? message?.content ?? [];
-      const mapped = a2aPartsToMessage(rawParts);
+      const mapped = a2aPartsToMessage(
+        rawParts,
+        this.opts.maxFileBytes ? { maxBytes: this.opts.maxFileBytes, support: attachmentSupport(this.opts.config.orchestrator?.model, { callerKey: !!ctx.apiKey }) } : undefined,
+      );
       const refused = mapped.refused;
       let parts: MessagePart[] = mapped.parts;
       if (refused) {
