@@ -311,6 +311,16 @@ its threshold comes from `num_ctx`.
 truncated answer; a Claude chat forced past the window recovers in one
 retry; the e2e token curve flattens after the first compaction.
 
+**Done (2026-11-02), with two changes from the above:** no floor on the
+default threshold (60% of a 4,096-token Ollama window is right; a floor
+of 12,000 would exceed it), and no `error.kind` on the contract: the loop
+classifies the overflow (`isContextOverflow`, message and status) at the
+one place that acts on it. The window table, `context: off`, the lifted
+schema rule, the forced compaction with half the tail and one retry, and
+`contextWindow` on the capability report are in; `doctor` says nothing
+new. Not done: the live acceptance runs (Ollama 40 turns, a Claude chat
+forced past its window) and confirming the newest Claude ids' windows.
+
 ADR 0154: compaction is on by default from a per-model window table, and a
 context overflow forces one compaction and retry.
 

@@ -47,6 +47,32 @@ export function errorDecision(err: unknown): RetryDecision {
   return (err as { name?: string } | undefined)?.name === 'AbortError' ? { ...decision, retryable: false } : decision;
 }
 
+/**
+ * The provider refused the request because the prompt no longer fits the
+ * model's window (ADR 0154): a 400 (or 413, or a status it did not give)
+ * whose message says so in one of the providers' spellings. The loop
+ * answers it with a forced compaction and one retry; the fallback never
+ * redirects it (it is the request's fault, not the provider's).
+ *
+ *   Anthropic  "prompt is too long: 213463 tokens > 200000 maximum"
+ *   OpenAI     "This model's maximum context length is 128000 tokens …" /
+ *              "Your input exceeds the context window of this model" (context_length_exceeded)
+ *   Gemini     "The input token count (…) exceeds the maximum number of tokens allowed (…)"
+ *   xAI        "This model's maximum prompt length is 131072 …"
+ *   Moonshot   "Your request exceeded model token limit: 262144"
+ *   DeepSeek   "This model's maximum context length is 1000000 tokens …"
+ *   llama.cpp  "the request exceeds the available context size"
+ *   Ollama reports nothing: it truncates the prompt instead.
+ */
+const OVERFLOW_MESSAGE =
+  /prompt is too long|context[_ ]length|context window|maximum (?:prompt|context) length|input token count .*exceeds|exceeds the (?:available )?context|exceeded model token limit|request_too_large|input is too long|too many tokens/i;
+
+export function isContextOverflow(error: { message?: string; status?: number } | undefined): boolean {
+  if (!error?.message) return false;
+  if (error.status !== undefined && error.status !== 400 && error.status !== 413) return false;
+  return OVERFLOW_MESSAGE.test(error.message);
+}
+
 /** What a non-2xx HTTP status says about trying again. */
 export function statusDecision(status: number): RetryDecision {
   return { retryable: isRetryableStatus(status), status };

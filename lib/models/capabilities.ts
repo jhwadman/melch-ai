@@ -25,6 +25,7 @@ import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
 import { claudeGeneration, claudeUrlImagesOn } from './claudeModels.ts';
+import { contextWindowOf } from './contextWindow.ts';
 import type { ReasoningSetting } from '../loadSyndicate.ts';
 
 /** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
@@ -70,6 +71,8 @@ export interface CapabilityReport {
   dropped: string[];
   /** Declared client-side tools; portable across every path. */
   portable: string[];
+  /** The tokens the model's context holds (lib/models/contextWindow.ts); absent for a provider the table does not know. */
+  contextWindow?: number;
 }
 
 export function describeCapabilities(
@@ -110,6 +113,7 @@ export function describeCapabilities(
     native,
     dropped,
     portable,
+    ...(contextWindowOf(model) !== undefined ? { contextWindow: contextWindowOf(model) } : {}),
   };
 }
 

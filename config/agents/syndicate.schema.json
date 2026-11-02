@@ -1013,34 +1013,42 @@
           "additionalProperties": false
         },
         "context": {
-          "description": "What the model is sent of a long conversation: older tool results as recallable stubs (on by default), and a summary instead of an overflowing window (compact_after_tokens).",
-          "type": "object",
-          "properties": {
-            "compact_after_tokens": {
-              "description": "Compact when the last request's prompt passed this many tokens. Unset: no compaction. The orchestrator of a delegate syndicate only.",
-              "type": "integer",
-              "minimum": 1000,
-              "maximum": 9007199254740991
+          "description": "What the model is sent of a long conversation: older tool results as recallable stubs, and a summary of earlier turns past a share of the window; both on by default. \"off\" sends everything as it is.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "compact_after_tokens": {
+                  "description": "Compact when the last request's prompt passed this many tokens. Default: 60% of the model's context window; 0 never compacts.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "keep_recent_events": {
+                  "description": "Events kept verbatim after the summary, and before masking. Default 6.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "summary_model": {
+                  "description": "The model that writes the summary. Default: the agent's own.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mask_over_chars": {
+                  "description": "An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "additionalProperties": false
             },
-            "keep_recent_events": {
-              "description": "Events kept verbatim after the summary, and before masking. Default 6.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "summary_model": {
-              "description": "The model that writes the summary. Default: the agent's own.",
+            {
               "type": "string",
-              "minLength": 1
-            },
-            "mask_over_chars": {
-              "description": "An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.",
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "const": "off"
             }
-          },
-          "additionalProperties": false
+          ]
         },
         "examples": {
           "description": "Few-shot exchanges (input, output) added to every request's instruction.",
@@ -2132,34 +2140,42 @@
             "additionalProperties": false
           },
           "context": {
-            "description": "What the model is sent of a long conversation: older tool results as recallable stubs (on by default), and a summary instead of an overflowing window (compact_after_tokens).",
-            "type": "object",
-            "properties": {
-              "compact_after_tokens": {
-                "description": "Compact when the last request's prompt passed this many tokens. Unset: no compaction. The orchestrator of a delegate syndicate only.",
-                "type": "integer",
-                "minimum": 1000,
-                "maximum": 9007199254740991
+            "description": "What the model is sent of a long conversation: older tool results as recallable stubs, and a summary of earlier turns past a share of the window; both on by default. \"off\" sends everything as it is.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "compact_after_tokens": {
+                    "description": "Compact when the last request's prompt passed this many tokens. Default: 60% of the model's context window; 0 never compacts.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "keep_recent_events": {
+                    "description": "Events kept verbatim after the summary, and before masking. Default 6.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "summary_model": {
+                    "description": "The model that writes the summary. Default: the agent's own.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mask_over_chars": {
+                    "description": "An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
               },
-              "keep_recent_events": {
-                "description": "Events kept verbatim after the summary, and before masking. Default 6.",
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 100
-              },
-              "summary_model": {
-                "description": "The model that writes the summary. Default: the agent's own.",
+              {
                 "type": "string",
-                "minLength": 1
-              },
-              "mask_over_chars": {
-                "description": "An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.",
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
+                "const": "off"
               }
-            },
-            "additionalProperties": false
+            ]
           },
           "examples": {
             "description": "Few-shot exchanges (input, output) added to every request's instruction.",

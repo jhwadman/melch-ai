@@ -37,6 +37,7 @@ import {
   SUMMARY_INSTRUCTION,
   SUMMARY_MAX_TOKENS,
   eventsToCompact,
+  resolveContext,
   retainStartIndex,
 } from '../lib/runtime/native/compaction.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
@@ -309,10 +310,10 @@ test('under the threshold or within keep_recent_events nothing is summarized', (
     ...(tokens ? { usageMetadata: { promptTokenCount: tokens } } : {}),
   });
   const session = { events: [ev(1), ev(2), ev(3, 999)] } as unknown as Session;
-  assert.equal(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 1 }, { agentName: 'Chat', session }), undefined, 'at the threshold');
+  assert.equal(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 1 }, 'scripted/chat'), { agentName: 'Chat', session }), undefined, 'at the threshold');
   session.events.push(ev(4, 1001));
-  assert.equal(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 4 }, { agentName: 'Chat', session }), undefined, 'all kept');
-  assert.deepEqual(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 1 }, { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
+  assert.equal(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 4 }, 'scripted/chat'), { agentName: 'Chat', session }), undefined, 'all kept');
+  assert.deepEqual(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 1 }, 'scripted/chat'), { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
 });
 
 /** The fifth turn's scripts, for a session four turns in. */

@@ -5,26 +5,26 @@
     "at": "2026-11-02"
   },
   "stats": {
-    "nodes": 1094,
-    "edges": 4354,
+    "nodes": 1099,
+    "edges": 4371,
     "byKind": {
-      "doc": 225,
+      "doc": 226,
       "provider": 8,
-      "env": 118,
+      "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 252,
+      "file": 254,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 216,
+      "module": 217,
       "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 867,
-      "requires_env": 182,
+      "links_to": 870,
+      "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
       "documents": 61,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 995,
+      "imports": 999,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1293,
+      "derives_from": 1302,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3870,
+      "extracted": 3887,
       "inferred": 484
     },
     "isolated": 5
@@ -2272,6 +2272,18 @@
       }
     },
     {
+      "id": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "kind": "doc",
+      "label": "ADR 0154: Compaction is on by default from a per-model window table, and a context overflow forces one compaction and retry",
+      "source": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 382
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2556,7 +2568,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9654
+        "words": 9713
       }
     },
     {
@@ -4301,6 +4313,12 @@
       "attrs": {}
     },
     {
+      "id": "env:OLLAMA_CONTEXT_LENGTH",
+      "kind": "env",
+      "label": "OLLAMA_CONTEXT_LENGTH",
+      "source": "lib/models/contextWindow.ts"
+    },
+    {
       "id": "env:OLLAMA_RETRY_WITHOUT_THINKING",
       "kind": "env",
       "label": "OLLAMA_RETRY_WITHOUT_THINKING",
@@ -5465,6 +5483,18 @@
       "source": "tests/compile.test.ts"
     },
     {
+      "id": "file:tests/contextOverflow.test.ts",
+      "kind": "file",
+      "label": "contextOverflow.test.ts",
+      "source": "tests/contextOverflow.test.ts"
+    },
+    {
+      "id": "file:tests/contextWindow.test.ts",
+      "kind": "file",
+      "label": "contextWindow.test.ts",
+      "source": "tests/contextWindow.test.ts"
+    },
+    {
       "id": "file:tests/contractToolDeclarations.test.ts",
       "kind": "file",
       "label": "contractToolDeclarations.test.ts",
@@ -6555,7 +6585,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 312
+        "lines": 314
       }
     },
     {
@@ -6735,7 +6765,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 529
+        "lines": 533
       }
     },
     {
@@ -6772,6 +6802,15 @@
       "source": "lib/models/claudeModels.ts",
       "attrs": {
         "lines": 304
+      }
+    },
+    {
+      "id": "module:lib/models/contextWindow.ts",
+      "kind": "module",
+      "label": "lib/models/contextWindow.ts",
+      "source": "lib/models/contextWindow.ts",
+      "attrs": {
+        "lines": 82
       }
     },
     {
@@ -6816,7 +6855,7 @@
       "label": "lib/models/errorResponse.ts",
       "source": "lib/models/errorResponse.ts",
       "attrs": {
-        "lines": 71
+        "lines": 97
       }
     },
     {
@@ -7185,7 +7224,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 966
+        "lines": 986
       }
     },
     {
@@ -7203,7 +7242,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 308
+        "lines": 338
       }
     },
     {
@@ -7248,7 +7287,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 757
+        "lines": 764
       }
     },
     {
@@ -7518,7 +7557,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1466
+        "lines": 1462
       }
     },
     {
@@ -18935,6 +18974,83 @@
       "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md:29"
     },
     {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "file:tests/contextOverflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "file:tests/contextWindow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md:31"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md:31"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -22885,6 +23001,13 @@
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:195"
@@ -28526,6 +28649,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28691,6 +28821,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeModels.ts"
+    },
+    {
+      "from": "module:lib/models/contextWindow.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/contextWindow.ts"
+    },
+    {
+      "from": "module:lib/models/contextWindow.ts",
+      "to": "env:OLLAMA_CONTEXT_LENGTH",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/contextWindow.ts"
     },
     {
       "from": "module:lib/models/contract.ts",
@@ -29891,6 +30035,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30056,6 +30207,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
     },
     {
       "from": "module:lib/runtime/native/compaction.ts",

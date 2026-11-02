@@ -476,14 +476,17 @@ const agentFields = {
     .optional()
     .describe('How this agent\'s run_code tool behaves (ADR 0137). Needs run_code in `tools`.'),
   context: z
-    .strictObject({
-      compact_after_tokens: z.number().int().min(1000).optional().describe('Compact when the last request\'s prompt passed this many tokens. Unset: no compaction. The orchestrator of a delegate syndicate only.'),
-      keep_recent_events: z.number().int().min(1).max(100).optional().describe('Events kept verbatim after the summary, and before masking. Default 6.'),
-      summary_model: z.string().min(1).optional().describe('The model that writes the summary. Default: the agent\'s own.'),
-      mask_over_chars: z.number().int().min(0).optional().describe('An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.'),
-    })
+    .union([
+      z.strictObject({
+        compact_after_tokens: z.number().int().min(0).optional().describe('Compact when the last request\'s prompt passed this many tokens. Default: 60% of the model\'s context window; 0 never compacts.'),
+        keep_recent_events: z.number().int().min(1).max(100).optional().describe('Events kept verbatim after the summary, and before masking. Default 6.'),
+        summary_model: z.string().min(1).optional().describe('The model that writes the summary. Default: the agent\'s own.'),
+        mask_over_chars: z.number().int().min(0).optional().describe('An older tool result longer than this many characters is sent as a stub the model can recall. Default 1000; 0 masks none.'),
+      }),
+      z.literal('off'),
+    ])
     .optional()
-    .describe('What the model is sent of a long conversation: older tool results as recallable stubs (on by default), and a summary instead of an overflowing window (compact_after_tokens).'),
+    .describe('What the model is sent of a long conversation: older tool results as recallable stubs, and a summary of earlier turns past a share of the window; both on by default. "off" sends everything as it is.'),
   examples: z
     .array(z.strictObject({ input: z.string().min(1), output: z.string().min(1) }))
     .min(1)
@@ -1022,13 +1025,6 @@ function crossFieldProblems(raw: unknown): Problem[] {
     const model = typeof agent.model === 'string' ? agent.model : isObj(raw.orchestrator) && typeof raw.orchestrator.model === 'string' ? raw.orchestrator.model : '';
     if (agent.code_execution !== undefined && model && !/^gemini-/.test(model)) {
       out.push({ path: [...path, 'code_execution'], message: `code_execution: gemini needs a gemini-* model (this agent's is ${model})` });
-    }
-    const compacts = isObj(agent.context) && agent.context.compact_after_tokens !== undefined;
-    if (compacts && (!isOrchestrator || isObj(raw.dispatch) || isObj(raw.workflow) || isObj(raw.script))) {
-      out.push({
-        path: [...path, 'context', 'compact_after_tokens'],
-        message: 'context compaction applies to the orchestrator of a delegate syndicate: a dispatch route reads a bounded projection, a workflow node sees only its input, a script\'s agent() call starts fresh, and a subagent starts fresh on every call',
-      });
     }
     if (agent.mode !== undefined && !isObj(raw.workflow) && !isObj(raw.script)) {
       out.push({ path: [...path, 'mode'], message: 'mode: task applies to workflow nodes and script agents, whose output is the finish_task arguments' });

@@ -130,6 +130,7 @@ import { randomUUID } from 'node:crypto';
 
 import { circuitOpen, recordFailure, recordSuccess } from '../../models/circuitBreaker.ts';
 import type { FinalModelResponse, ModelAdapter } from '../../models/contract.ts';
+import { isContextOverflow } from '../../models/errorResponse.ts';
 import { providerForModel } from '../../models/providerMap.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { toContractJsonSchema } from '../../models/schemaNormalize.ts';
@@ -770,11 +771,14 @@ async function* modelStep(
   agent: NativeAgent,
   ctx: AgentLoopContext,
   stepOptions: Omit<ModelStepOptions, 'adapter' | 'onPartial'>,
+  overflowRetry = false,
 ): AsyncGenerator<TurnEvent, ModelStepResult> {
   const adapterFor = ctx.adapterFor ?? resolveAdapter;
   const fallbackId = agent.fallbackModel;
+  // ADR 0154: a prompt the provider refused as too long is handed back unstored once, for the loop to compact and retry.
+  const overflow = (final: FinalModelResponse) => overflowRetry && isContextOverflow(final.error);
   if (!fallbackId) {
-    return yield* withPartials((onPartial) => runModelStep({ ...stepOptions, adapter: adapterFor(agent.model), onPartial }));
+    return yield* withPartials((onPartial) => runModelStep({ ...stepOptions, adapter: adapterFor(agent.model), onPartial, redirect: (final) => overflow(final) }));
   }
   const log = ctx.log ?? ((m: string) => console.warn(m));
   const onFallback = (why: string) => {
@@ -795,12 +799,15 @@ async function* modelStep(
       },
       // ADR 0044: a retryable failure counts against the provider, and redirects when nothing was produced.
       redirect: (final: FinalModelResponse, produced: boolean) => {
+        if (overflow(final)) return true;
         if (!final.error?.retryable) return false;
         recordFailure(provider);
         return !produced && final.parts.length === 0;
       },
     }),
   );
+  // An overflow is the request's fault, not the provider's: never the fallback's to answer.
+  if (first.redirected && isContextOverflow(first.redirected)) return first;
   if (first.redirected) {
     return yield* onFallback(`${agent.model} failed (${first.redirected.code}: ${first.redirected.message.slice(0, 120)})`);
   }
@@ -846,6 +853,9 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
     return sessions.append(session, event);
   };
   let steps = 0;
+  // A context overflow (ADR 0154) forces one compaction and one retry of the step; a second overflow ends the run on its error.
+  let overflowRetried = false;
+  let forceCompaction = false;
   let lastEvent: TurnEvent | undefined;
   const selfCorrection = ctx.selfCorrection ?? new SelfCorrection();
   const correction = selfCorrection.forModel(agent.name, ctx.invocationId);
@@ -893,7 +903,9 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
       ...(ctx.isolationScope !== undefined ? { isolationScope: ctx.isolationScope } : {}),
       ...(currentTurnSignal() ? { signal: currentTurnSignal() } : {}),
       ...(ctx.log ? { log: ctx.log } : {}),
+      ...(forceCompaction ? { force: true } : {}),
     });
+    forceCompaction = false;
     if (compacted) {
       // A turn that stopped during the summary stores nothing and makes no step (as ADK's Runner recorded it).
       if (ctx.signal?.aborted || currentTurnSignal()?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
@@ -908,9 +920,17 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
     steps += 1;
     // Telemetry hook: each step is a model.call span.
     const step = yield* traceModelCall(agent, ctx, (traced) =>
-      modelStep(agent, traced, { ...traced, agent, beforeAppend: beforeStore, stateOverlay: runTemp.values(), ...(correction ? { correction } : {}) }),
+      modelStep(agent, traced, { ...traced, agent, beforeAppend: beforeStore, stateOverlay: runTemp.values(), ...(correction ? { correction } : {}) }, !overflowRetried),
     );
     if (step.stopped) return { reason: 'stopped', steps, lastEvent, stop: step.stopped };
+    // The prompt no longer fits the window (ADR 0154): the refused call was handed back unstored; the next
+    // pass compacts whatever the threshold says, with half the tail, and the step runs once more.
+    if (step.redirected && isContextOverflow(step.redirected)) {
+      overflowRetried = true;
+      forceCompaction = true;
+      ctx.log?.(`[compaction] ${agent.name}: the prompt overflowed the window (${step.redirected.message.slice(0, 120)}); compacting and retrying the step once`);
+      continue;
+    }
     const modelEvent = step.event;
     if (!modelEvent) return { reason: 'empty', steps, lastEvent };
     yield modelEvent;
