@@ -232,10 +232,24 @@ export interface ModelRequest {
    * request on.
    */
   model: string;
-  /** The system prompt. */
+  /**
+   * The system prompt. Only text that is the same from one request of the
+   * agent to the next belongs here: every provider caches the prompt as a
+   * prefix (tools, then system, then the history), so a word that changes
+   * here misses the whole history behind it. Text for this step alone goes
+   * in `turnNotes`.
+   */
   system?: string;
   /** The conversation, oldest first. */
   messages: Message[];
+  /**
+   * Text the model reads this step that is not part of the durable
+   * instruction: recalled facts, a note for this turn. Each adapter places
+   * it after the history, where it leaves the cached prefix alone: as text
+   * at the end of the last user message, or as a user message of its own
+   * when the history ends on tool results. Absent means none.
+   */
+  turnNotes?: string;
   /** Client-side tools. */
   tools?: ToolDeclaration[];
   /** Provider-side tools, by name. */

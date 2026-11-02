@@ -141,6 +141,7 @@
     "telemetry:stats": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts stats",
     "telemetry:prune": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts prune",
     "telemetry:replay": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts replay",
+    "context:report": "node --disable-warning=DEP0040 --experimental-strip-types scripts/context_report.ts",
     "telemetry:embed": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts embed"
   },
   "peerDependencies": {

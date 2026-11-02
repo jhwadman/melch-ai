@@ -94,10 +94,10 @@ A `CORRECTION` record carries a quote of what it supersedes. The service embeds 
 
 `search` is hybrid: pgvector cosine (top 24 via the `match_memory_facts` RPC), then in-process re-ranking — boosts for index-key hits (+0.12), year (+0.08) and month (+0.10) matches parsed from the query, and active status (+0.05) — sliced to 10. Agents reach it by declaring `load_memory` / `preload_memory` in YAML with `memory_system: "long-term"`. Both are the engine's own tools (`lib/tools/memoryTools.ts`, [tool contracts](/tools/tool-contracts.md)):
 
-- `preload_memory` searches with the first text part of the message that started the run and writes the recalled facts into the instruction before each request, inside a `<PAST_CONVERSATIONS>` block.
+- `preload_memory` searches with the first text part of the message that started the run and writes the recalled facts into the request's `turnNotes` before each request, inside a `<PAST_CONVERSATIONS>` block. The notes go after the history, not into the system prompt, so the prefix the provider caches is the same request to request ([ADR 0151](/decisions/0151-a-stable-prefix-and-automatic-cache-control.md)).
 - `load_memory` searches with a query the model chooses and returns the facts as text, and while the run has memory it adds a note to the instruction saying so.
 
-The [Gemini adapter](/models/gemini-adapter.md#from-the-native-step) receives `load_memory` as a function declaration and both tools' text in the system instruction; `tests/geminiNativeTools.test.ts` runs a session in which Gemini calls `load_memory` and answers from the facts it returns.
+The [Gemini adapter](/models/gemini-adapter.md#from-the-native-step) receives `load_memory` as a function declaration, its note in the system instruction and `preload_memory`'s block as the last text of the last user content; `tests/geminiNativeTools.test.ts` runs a session in which Gemini calls `load_memory` and answers from the facts it returns.
 
 Both search through the tool context's `searchMemory`, bound to the run's own `<appName>/<userId>` silo, so a query chooses what to recall and never whose. A model reads the same declaration, note, results and block that ADK's tools of the same names produced.
 

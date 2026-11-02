@@ -131,6 +131,7 @@ export function stateOf(request: ModelRequest): JevState {
   const texts: string[] = [];
   if (request.system?.trim()) texts.push(request.system.trim());
   for (const m of request.messages) texts.push(...messageTexts(m));
+  if (request.turnNotes?.trim()) texts.push(request.turnNotes.trim());
   return texts.length === 1 ? texts[0]! : texts;
 }
 
