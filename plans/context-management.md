@@ -255,6 +255,15 @@ The "a summary model that answers no text fails the turn" case inverts.
 summary model for each shipped provider family (Claude, Gemini, GPT,
 Ollama qwen3); token count of the summary stays under budget.
 
+**Done (2026-11-02):** the sectioned, anchored summary with tool activity,
+the output cap, skip-on-failure with the `compaction.skipped` span event,
+`summaryFormat`, the rewritten parity tests (the when and the stored event
+still held to ADK's recordings; the summary request asserted on its own),
+and `tests/compactionProbes.test.ts`, offline against the summarizer's
+input and live when `COMPACTION_PROBE_MODEL` names a funded model.
+Not done: the live acceptance run per provider family (needs keys; run
+`COMPACTION_PROBE_MODEL=<id> npm test -- tests/compactionProbes.test.ts`).
+
 ADR 0153: compaction writes a sectioned, anchored summary that includes
 tool activity and skips on failure. Supersedes ADR 0078.
 
