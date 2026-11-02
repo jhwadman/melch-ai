@@ -34,6 +34,7 @@ import { buildWorkflowGraph } from '../../lib/workflow/graph.ts';
 import { runWorkflowGraph } from '../../lib/workflow/scheduler.ts';
 import type { NodeRunner } from '../../lib/workflow/scheduler.ts';
 import { toolNodeRunner } from '../../lib/workflow/toolNode.ts';
+import { SUMMARY_INSTRUCTION } from '../../lib/runtime/native/compaction.ts';
 import { ScriptedModel, shimResolver } from './scriptedModel.ts';
 import type { ModelScript } from './scriptedModel.ts';
 import type { AdkReference } from './adkReference.ts';
@@ -176,18 +177,30 @@ export const comparable = (events: TurnEvent[]): unknown => {
         const compacted = e as TurnEvent & { isCompacted?: boolean; startTime?: number; endTime?: number };
         if (!compacted.isCompacted) return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' };
         assert.ok(times.includes(compacted.startTime!) && times.includes(compacted.endTime!), "a compaction's startTime and endTime are stored events' times");
-        return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>', startTime: 0, endTime: 0 };
+        // The engine's format mark (ADR 0153) is its own; ADK wrote none.
+        const { summaryFormat: _format, ...rest } = e as TurnEvent & { summaryFormat?: string };
+        return { ...rest, id: '<id>', timestamp: 0, invocationId: '<inv>', startTime: 0, endTime: 0 };
       }),
   );
   interrupts.forEach((id, i) => (json = json.split(JSON.stringify(id)).join(JSON.stringify(`<interrupt ${i + 1}>`))));
   return JSON.parse(json, (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v));
 };
 
+/** ADK's LlmSummarizer prompt, as the recorded summary requests start. */
+const ADK_SUMMARY_PROMPT =
+  'The following is a conversation history between a user and an AI agent. Please summarize the conversation, focusing on key information and decisions made, as well as any unresolved questions or tasks. The summary should be concise and capture the essence of the interaction.';
+const isAdkSummary = (r: unknown): boolean => String((r as any)?.messages?.[0]?.parts?.[0]?.text ?? '').startsWith(ADK_SUMMARY_PROMPT);
+const isOwnSummary = (r: unknown): boolean => (r as any)?.system === SUMMARY_INSTRUCTION;
+
 /** Holds a native side equal to ADK's: stored events, requests, routes, output, progress. */
 function agrees(native: Side, adk: AdkSide, scripts: Scripts, how: string): void {
   assert.deepEqual(comparable(native.events), comparable(adk.events), `${how}: the stored events`);
   for (const key of Object.keys(scripts)) {
-    assert.deepEqual(requestsOf(native.models[key]!), adk.requests[key], `${how}: the requests ${key} received`);
+    // The summarizer's requests are the engine's own (ADR 0153): as many as ADK made, asserted in tests/compaction.test.ts.
+    const ours = requestsOf(native.models[key]!) as unknown[];
+    const theirs = (adk.requests[key] ?? []) as unknown[];
+    assert.equal(ours.filter(isOwnSummary).length, theirs.filter(isAdkSummary).length, `${how}: the summary calls ${key} received`);
+    assert.deepEqual(ours.filter((r) => !isOwnSummary(r)), theirs.filter((r) => !isAdkSummary(r)), `${how}: the requests ${key} received`);
   }
   assert.deepEqual(native.routes, adk.routes, `${how}: the routes`);
   assert.deepEqual(native.output, adk.output, `${how}: the workflow output`);

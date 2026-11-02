@@ -138,6 +138,8 @@ function masked(event: TurnEvent, overChars: number, onMasked?: (ref: string) =>
 export interface CompactedEvent extends TurnEvent {
   isCompacted: true;
   compactedContent?: string;
+  /** The summary's format (ADR 0153: 'sections/1'); absent on one ADK wrote. */
+  summaryFormat?: string;
   startTime?: number;
   endTime?: number;
   isScratchpad?: boolean;

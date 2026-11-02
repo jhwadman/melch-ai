@@ -892,6 +892,7 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
       ...(ctx.branch !== undefined ? { branch: ctx.branch } : {}),
       ...(ctx.isolationScope !== undefined ? { isolationScope: ctx.isolationScope } : {}),
       ...(currentTurnSignal() ? { signal: currentTurnSignal() } : {}),
+      ...(ctx.log ? { log: ctx.log } : {}),
     });
     if (compacted) {
       // A turn that stopped during the summary stores nothing and makes no step (as ADK's Runner recorded it).
