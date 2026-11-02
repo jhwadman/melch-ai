@@ -48,7 +48,8 @@
  *                             only these may fall back to examples/ and templates/;
  *                             * serves every one (required with PUBLIC_URL)
  *   A2A_REGISTRY_AGENTS       comma list: bare ids that load from adk_agent_registry
- *                             (others are files; registry:<id> always is the registry)
+ *                             (others are files; registry:<id> always is the registry),
+ *                             over DATABASE_URL when set, else the Supabase API
  *   A2A_SHUTDOWN_GRACE_MS     how long SIGTERM waits for running tasks (25000)
  *   A2A_SHUTDOWN_DELAY_MS     of that, how long /readyz fails while requests are still served (5000)
  *   A2A_BUDGETS               daily budgets per UTC day (ADR 0026), JSON:
@@ -82,6 +83,10 @@
  *   MELCHIZEDEK_OAUTH_HOSTS   provider=host,host;…: the hosts each provider's tokens may
  *                             be sent to. Unset: authorization_code grants are refused,
  *                             client_credentials allowed (ADR 0114)
+ *   MELCHIZEDEK_AGENT_YAML    the syndicate file, base64 (base64 < agent.yaml): served as
+ *                             MELCHIZEDEK_AGENT_ID (agent) and the default, from a private
+ *                             directory that becomes the agents directory. For a host
+ *                             that only takes variables; excludes MELCHIZEDEK_AGENTS_DIR
  *   MELCHIZEDEK_CREDENTIAL_HOSTS  VARIABLE=host,host;…: the hosts each static credential
  *                             variable a YAML sends (bearer_env, api_key.env,
  *                             client_secret_env) may be sent to. Set, it is the whole
@@ -127,6 +132,7 @@ import { setCredentialHosts } from '../lib/tools/credentialHosts.ts';
 import type { AuditSink } from '../lib/observability/audit.ts';
 import type { CredentialRows } from '../lib/tools/credentialStore.ts';
 import { resolveAgentsDir } from '../lib/project.ts';
+import { envSyndicate } from '../lib/envSyndicate.ts';
 
 // Re-exported for existing importers (tests/failNarration.test.ts).
 export { describeTurnError } from '../lib/a2a/executor.ts';
@@ -278,7 +284,10 @@ export function serverOAuth(options: {
   };
 }
 
-export async function startServer(syndicateName: string = 'syndicate.yaml', extensions: ServerExtensions = {}): Promise<Server> {
+/** What the server serves when it is given no syndicate. */
+const DEFAULT_SYNDICATE = 'syndicate.yaml';
+
+export async function startServer(syndicateName: string = DEFAULT_SYNDICATE, extensions: ServerExtensions = {}): Promise<Server> {
   loadEnv(import.meta.url);
   // Conversation content stays out of stdout unless the operator opts in:
   // the root span carries the full user message and answer.
@@ -290,6 +299,22 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     refuseChatGptSignInOnServedSurface('melchizedek-serve');
   } catch (err: unknown) {
     fatal(err instanceof Error ? err.message : String(err));
+  }
+
+  // A syndicate in the environment (the published image, no database): it
+  // becomes the agents directory and the default syndicate.
+  let fromEnv: ReturnType<typeof envSyndicate>;
+  try {
+    fromEnv = envSyndicate();
+  } catch (err: unknown) {
+    fatal(err instanceof Error ? err.message : String(err));
+  }
+  if (fromEnv) {
+    if (![DEFAULT_SYNDICATE, fromEnv.id, fromEnv.file].includes(syndicateName)) {
+      fatal(`MELCHIZEDEK_AGENT_YAML is set, so this server serves '${fromEnv.id}'; it was also asked to serve '${syndicateName}'. Drop the argument or the variable.`);
+    }
+    process.env.MELCHIZEDEK_AGENTS_DIR = fromEnv.agentsDir;
+    syndicateName = fromEnv.file;
   }
 
   const publicUrl = process.env.PUBLIC_URL?.trim() || undefined;
@@ -655,10 +680,10 @@ if (invokedAsMain) {
     console.log(`\nAdd this entry to A2A_CALLERS (entries separated by ';'):\n  ${entry}`);
     process.exit(0);
   }
-  startServer(arg || 'syndicate.yaml').catch((error) => {
+  startServer(arg || DEFAULT_SYNDICATE).catch((error) => {
     if (error?.code === 'ENOENT') {
       console.error(
-        `[A2A] Syndicate not found: ${arg || 'syndicate.yaml'}.\n`
+        `[A2A] Syndicate not found: ${arg || DEFAULT_SYNDICATE}.\n`
         + '      Pass your syndicate: melchizedek-serve <name>.yaml\n'
         + '      (agents directory: MELCHIZEDEK_AGENTS_DIR, else the agents folder in melchizedek.json, else <cwd>/config/agents)',
       );

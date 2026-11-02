@@ -27,6 +27,8 @@ import { postgresCredentialStore } from './credentialStore.ts';
 import type { CredentialStoreOptions } from '../../tools/credentialStore.ts';
 import type { CredentialStore } from '../../tools/auth.ts';
 import { searchPathOption } from '../schema.ts';
+import { postgresRegistryReader } from '../../registry.ts';
+import type { RegistryReader } from '../../loadSyndicate.ts';
 import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
 import { attachLedger } from '../../observability/tracer.ts';
@@ -120,6 +122,8 @@ export interface PostgresStorageOptions {
 
 export interface PostgresStorage {
   pool: Pool;
+  /** The agent registry in this database (migration 0005): what the server loads `registry:<id>` and A2A_REGISTRY_AGENTS from. */
+  registry: RegistryReader;
   sessionService: PostgresSessionService;
   memoryService?: SupabaseVectorMemoryService;
   taskStore: (agentId: string) => PostgresTaskStore;
@@ -268,6 +272,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
 
   return {
     pool,
+    registry: postgresRegistryReader(pool),
     sessionService,
     turnLock,
     ...(credentials ? { credentials } : {}),

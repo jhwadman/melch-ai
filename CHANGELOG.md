@@ -4,6 +4,41 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.15.0 — 2026-11-01
+
+**The server image is published with every release** (ADR 0149).
+`ghcr.io/jhwadman/melchizedek-serve:<version>` (and `:latest`) for
+linux/amd64 and linux/arm64, with a build-provenance attestation; the
+GitHub Release carries its digest as `melchizedek-serve-v<version>.digest`.
+Pull by that digest.
+
+**A syndicate in one environment variable.** `melchizedek-serve` (and
+`startServer` from `melchizedek-agents/server`) reads
+`MELCHIZEDEK_AGENT_YAML`, the whole syndicate file base64-encoded, and
+serves it as `MELCHIZEDEK_AGENT_ID` (default `agent`) and as the default
+syndicate, from a private directory that becomes the agents directory. A
+definition that does not load stops the boot. It refuses
+`MELCHIZEDEK_AGENTS_DIR` beside it, a syndicate argument other than its
+own, and a nested `yaml_reference` its `bundled_references` does not carry.
+Unset, nothing changes.
+
+**The `Dockerfile` builds again.** `npm ci` ran the package's own
+`prepare` (the build) before the sources were copied, so `docker build`
+failed; both stages now install with `--ignore-scripts`.
+
+**The registry works on any Postgres** (ADR 0150). With `DATABASE_URL`, the
+server loads `registry:<id>` and `A2A_REGISTRY_AGENTS` rows from that
+database (in `MELCHIZEDEK_DB_SCHEMA` when it names one) instead of over the
+Supabase API, and `melchizedek-registry` publishes, rolls back and retires
+there too. Without `DATABASE_URL`, nothing changes. In the library:
+`melchizedek-agents/registry` exports `postgresRegistryReader(pool)` and its
+functions take a supabase-js client or anything with pg's `query` (a
+`pg.Pool`, PGlite); `loadSyndicateFromRegistry(id, { registry })` reads
+through a `RegistryReader`; `postgresStorage` returns `registry`, and
+`createA2AApp` reads `storage.registry` when it is given. A deployment that
+sets both `DATABASE_URL` and Supabase credentials, for different databases,
+now reads the registry from `DATABASE_URL`'s.
+
 ## 1.14.0 — 2026-11-01
 
 **Files in a message.** The A2A server takes inline file parts (`raw`, or 0.3's

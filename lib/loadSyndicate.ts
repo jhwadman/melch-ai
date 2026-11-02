@@ -801,16 +801,34 @@ export function validateRegistryConfig(config: Record<string, any>): void {
 }
 
 /**
- * Loads a syndicate configuration from the Supabase registry.
- * @param registryId The document ID in the adk_agent_registry table
- * @param options Load options (bindings and overrides)
+ * Where registry rows are read from over a direct database connection
+ * (DATABASE_URL): `postgresRegistryReader(pool)` in lib/registry.ts, which
+ * postgresStorage supplies as `registry`.
+ */
+export interface RegistryReader {
+  /** The active definition of `id`, or with `version` that stored version; undefined when there is none. */
+  definition(id: string, version?: number): Promise<unknown>;
+}
+
+/**
+ * Loads a syndicate configuration from the registry: through `registry`
+ * (a direct Postgres connection) when given, else over the Supabase API.
+ * @param registryId The document ID in the adk_agent_registry table; `<id>@<version>` loads one stored version
+ * @param options Load options (bindings and overrides), and the reader
  */
 export async function loadSyndicateFromRegistry(
   registryId: string,
-  options: LoadSyndicateOptions = {}
+  options: LoadSyndicateOptions & { registry?: RegistryReader } = {}
 ): Promise<SyndicateYamlConfig> {
+  const { registry, ...loadOptions } = options;
+  if (registry) {
+    const pinnedRef = /^(.+)@(\d+)$/.exec(registryId);
+    const definition = pinnedRef ? await registry.definition(pinnedRef[1]!, Number(pinnedRef[2])) : await registry.definition(registryId);
+    if (definition === undefined || definition === null) throw new Error(`Registry document ${registryId} not found`);
+    return resolveAndValidate(definition, `registry:${registryId}`, loadOptions);
+  }
   if (!hasSupabaseCredentials()) {
-    throw new Error('Supabase credentials not available for registry loading.');
+    throw new Error('No registry to load from: set DATABASE_URL (a direct Postgres connection), or SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
   }
 
   const supabaseUrl = process.env.SUPABASE_URL!;
@@ -835,7 +853,7 @@ export async function loadSyndicateFromRegistry(
 
   // The registry row is the live copy of a file (scripts/deploy_agent.ts), so
   // it answers to the same schema; the label says where the bad copy lives.
-  return resolveAndValidate(data.yaml_content, `registry:${registryId}`, options);
+  return resolveAndValidate(data.yaml_content, `registry:${registryId}`, loadOptions);
 }
 
 
