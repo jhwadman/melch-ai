@@ -4,7 +4,46 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## 1.15.0 — 2026-11-01
+## 1.15.0 — 2026-11-02
+
+**Breaking — read before upgrading**
+
+- **Compaction and masking are on for every agent** (ADR 0152, 0154). A
+  `context:` block used to be allowed on delegates only and nothing
+  compacted unless it set `compact_after_tokens`. Now every agent compacts
+  when a request passes 60% of its model's context window
+  (`lib/models/contextWindow.ts` holds the table; an unknown model counts
+  as 100k; an Ollama model reads its own context length, default 4,096),
+  and a tool result older than the last 6 events and longer than 1,000
+  characters goes to the model as a stub it can fetch back with
+  `recall_tool_result`. `context: off` on an agent restores the old
+  behaviour; `compact_after_tokens: 0` and `mask_over_chars: 0` switch
+  the two off separately; `keep_recent_events` and `summary_model` are
+  the other keys. A request the provider refuses as too long is retried
+  once after a forced compaction.
+- **A `defineTool` result is capped at 20,000 characters** unless the spec
+  sets `maxResultChars` (0 lifts the cap). A tool that returned more now
+  returns the head and a note saying so.
+
+**The prompt prefix is stable** (ADR 0151). Text that changes between an
+agent's requests (`preload_memory`'s recall) leaves the system prompt for
+`ModelRequest.turnNotes`, which every adapter places after the history, so
+a provider's prefix cache covers the tools, the system prompt and the
+history. An `InstructionTool` marked `volatile: true` writes there. The
+Claude adapter sends `cache_control: { type: 'ephemeral' }` on Anthropic's
+own API.
+
+**The summary is sectioned and anchored** (ADR 0153): Intent, Stated facts,
+Decisions, Artifacts, Open, Last state, written from the previous summary
+and the new span only, tool calls and results included, within 1,200 words.
+A summary the model fails to write is skipped (the turn goes on with the
+full history, and the span records `compaction.skipped`) instead of
+replacing the history with nothing. A compacted event carries
+`summaryFormat: 'sections/1'`; the summary's own model call carries
+`llm.purpose: compaction` and `llm.compaction.events`.
+
+**`CapabilityReport.contextWindow`** says how many tokens a model's context
+holds, when the table knows the model.
 
 **The server image is published with every release** (ADR 0149).
 `ghcr.io/jhwadman/melchizedek-serve:<version>` (and `:latest`) for
