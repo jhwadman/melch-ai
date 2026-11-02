@@ -165,6 +165,8 @@ const nest = defineTool({
   name: 'nest',
   description: 'Return a deep value.',
   schema: z.object({}).passthrough(),
+  // Uncapped (ADR 0152), so the loop's depth guard sees the value, as it does an own Tool's.
+  maxResultChars: 0,
   execute: async () => deepObject(5_000),
 });
 

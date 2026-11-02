@@ -182,6 +182,17 @@ stub reaching every adapter as a function result.
 **Acceptance.** In the e2e chat, input tokens per step on turn 20 are at
 most 50% of the Phase 0 baseline, with Phase 1's cache ratio held.
 
+**Done (2026-11-02), with one change from the above:** no stored marker.
+A prefix change invalidates the cache only from the changed event on, so
+a tail that slides one event per step costs the re-caching of the tail
+alone, and a marker would be one more event kind for the app and the
+compactor to understand. Masking is on by default for every agent on the
+loop (`mask_over_chars`, default 1,000; 0 off), `recall_tool_result` is
+listed only while something is masked, `defineTool` results are capped at
+the shared limit by default (`web_extract` keeps its own `char_limit`),
+and `context:` no longer needs `compact_after_tokens`.
+Not done: the acceptance measurement on a real 20-turn chat.
+
 ADR 0152: old tool results are masked in the projection behind a stored
 boundary, and `recall_tool_result` reads them back.
 

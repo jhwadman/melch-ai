@@ -5,25 +5,25 @@
     "at": "2026-11-02"
   },
   "stats": {
-    "nodes": 1089,
-    "edges": 4328,
+    "nodes": 1092,
+    "edges": 4345,
     "byKind": {
-      "doc": 223,
+      "doc": 224,
       "provider": 8,
       "env": 118,
       "model": 13,
       "tool": 35,
-      "file": 250,
+      "file": 251,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 215,
+      "module": 216,
       "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 858,
+      "links_to": 863,
       "requires_env": 182,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 990,
+      "imports": 995,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1281,
+      "derives_from": 1288,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3844,
+      "extracted": 3861,
       "inferred": 484
     },
     "isolated": 5
@@ -2248,6 +2248,18 @@
       }
     },
     {
+      "id": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "kind": "doc",
+      "label": "ADR 0152: Old tool results go to the model as recallable stubs, and defineTool results are capped by default",
+      "source": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 376
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2532,7 +2544,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9167
+        "words": 9433
       }
     },
     {
@@ -2700,7 +2712,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3561
+        "words": 3595
       }
     },
     {
@@ -5647,6 +5659,12 @@
       "source": "tests/helpers/workflowParity.ts"
     },
     {
+      "id": "file:tests/historyMasking.test.ts",
+      "kind": "file",
+      "label": "historyMasking.test.ts",
+      "source": "tests/historyMasking.test.ts"
+    },
+    {
       "id": "file:tests/identity.test.ts",
       "kind": "file",
       "label": "identity.test.ts",
@@ -7167,7 +7185,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 227
+        "lines": 220
       }
     },
     {
@@ -7185,7 +7203,7 @@
       "label": "lib/runtime/native/history.ts",
       "source": "lib/runtime/native/history.ts",
       "attrs": {
-        "lines": 323
+        "lines": 425
       }
     },
     {
@@ -7198,12 +7216,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/native/recall.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/recall.ts",
+      "source": "lib/runtime/native/recall.ts",
+      "attrs": {
+        "lines": 51
+      }
+    },
+    {
       "id": "module:lib/runtime/native/request.ts",
       "kind": "module",
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 747
+        "lines": 757
       }
     },
     {
@@ -7473,7 +7500,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1464
+        "lines": 1466
       }
     },
     {
@@ -7824,7 +7851,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 229
+        "lines": 231
       }
     },
     {
@@ -7833,7 +7860,7 @@
       "label": "lib/tools/webExtractTool.ts",
       "source": "lib/tools/webExtractTool.ts",
       "attrs": {
-        "lines": 481
+        "lines": 485
       }
     },
     {
@@ -18771,6 +18798,69 @@
       "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md:29"
     },
     {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "file:tests/historyMasking.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/recall.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md:29"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -22415,21 +22505,21 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:180"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:245"
+      "evidence": "/overview/native-loop.md:254"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:279"
+      "evidence": "/overview/native-loop.md:288"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22443,14 +22533,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:206"
+      "evidence": "/overview/native-loop.md:215"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:157"
+      "evidence": "/overview/native-loop.md:158"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22464,14 +22554,14 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:115"
+      "evidence": "/overview/native-loop.md:116"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:241"
+      "evidence": "/overview/native-loop.md:250"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22492,7 +22582,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:267"
+      "evidence": "/overview/native-loop.md:276"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22506,91 +22596,91 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:206"
+      "evidence": "/overview/native-loop.md:215"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:378"
+      "evidence": "/overview/native-loop.md:387"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:247"
+      "evidence": "/overview/native-loop.md:256"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:186"
+      "evidence": "/overview/native-loop.md:195"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:281"
+      "evidence": "/overview/native-loop.md:290"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:234"
+      "evidence": "/overview/native-loop.md:243"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:267"
+      "evidence": "/overview/native-loop.md:276"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:213"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:210"
+      "evidence": "/overview/native-loop.md:219"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:297"
+      "evidence": "/overview/native-loop.md:306"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:129"
+      "evidence": "/overview/native-loop.md:130"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:160"
+      "evidence": "/overview/native-loop.md:161"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:214"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22604,7 +22694,7 @@
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:363"
+      "evidence": "/overview/native-loop.md:372"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22618,21 +22708,21 @@
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:328"
+      "evidence": "/overview/native-loop.md:337"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:291"
+      "evidence": "/overview/native-loop.md:300"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:318"
+      "evidence": "/overview/native-loop.md:327"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22646,7 +22736,7 @@
       "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:310"
+      "evidence": "/overview/native-loop.md:319"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22660,49 +22750,49 @@
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:275"
+      "evidence": "/overview/native-loop.md:284"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:331"
+      "evidence": "/overview/native-loop.md:340"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:301"
+      "evidence": "/overview/native-loop.md:310"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:271"
+      "evidence": "/overview/native-loop.md:280"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:322"
+      "evidence": "/overview/native-loop.md:331"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:392"
+      "evidence": "/overview/native-loop.md:401"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:395"
+      "evidence": "/overview/native-loop.md:404"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22713,10 +22803,17 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:187"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:133"
+      "evidence": "/overview/native-loop.md:134"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22744,14 +22841,14 @@
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:275"
+      "evidence": "/overview/native-loop.md:284"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:399"
+      "evidence": "/overview/native-loop.md:408"
     },
     {
       "from": "/overview/native-loop.md",
@@ -24834,6 +24931,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -24859,6 +24963,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:112"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -30076,6 +30187,34 @@
       "evidence": "lib/runtime/native/interrupts.ts"
     },
     {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/models/capabilities.ts",
       "rel": "imports",
@@ -30134,6 +30273,13 @@
     {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/recall.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/request.ts"
