@@ -2,29 +2,29 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-01"
+    "at": "2026-11-02"
   },
   "stats": {
-    "nodes": 1088,
-    "edges": 4315,
+    "nodes": 1102,
+    "edges": 4379,
     "byKind": {
-      "doc": 223,
+      "doc": 227,
       "provider": 8,
-      "env": 118,
+      "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 250,
+      "file": 255,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 215,
-      "script": 52,
+      "module": 218,
+      "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 850,
-      "requires_env": 180,
+      "links_to": 870,
+      "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
       "documents": 61,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 993,
-      "reads_table": 30,
-      "runs": 76,
-      "derives_from": 1277,
+      "imports": 1004,
+      "reads_table": 31,
+      "runs": 77,
+      "derives_from": 1305,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3831,
+      "extracted": 3895,
       "inferred": 484
     },
     "isolated": 5
@@ -1380,7 +1380,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 82
+        "words": 110
       }
     },
     {
@@ -2236,6 +2236,18 @@
       }
     },
     {
+      "id": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "kind": "doc",
+      "label": "ADR 0151: The prompt prefix is stable, per-step text rides after the history, and Claude requests carry automatic cache control",
+      "source": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 259
+      }
+    },
+    {
       "id": "/decisions/0151-file-parts-over-a2a.md",
       "kind": "doc",
       "label": "ADR 0151: The A2A server takes inline files, within a size limit and what the model reads",
@@ -2248,6 +2260,42 @@
       }
     },
     {
+      "id": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "kind": "doc",
+      "label": "ADR 0152: Old tool results go to the model as recallable stubs, and defineTool results are capped by default",
+      "source": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 376
+      }
+    },
+    {
+      "id": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "kind": "doc",
+      "label": "ADR 0153: Compaction writes a sectioned, anchored summary that includes tool activity, and skips on failure",
+      "source": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 424
+      }
+    },
+    {
+      "id": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "kind": "doc",
+      "label": "ADR 0154: Compaction is on by default from a per-model window table, and a context overflow forces one compaction and retry",
+      "source": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 382
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2256,7 +2304,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1927
+        "words": 1963
       }
     },
     {
@@ -2364,7 +2412,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1553
+        "words": 1673
       }
     },
     {
@@ -2400,7 +2448,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8498
+        "words": 8717
       }
     },
     {
@@ -2532,7 +2580,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9085
+        "words": 9713
       }
     },
     {
@@ -2700,7 +2748,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3509
+        "words": 3595
       }
     },
     {
@@ -4277,6 +4325,12 @@
       "attrs": {}
     },
     {
+      "id": "env:OLLAMA_CONTEXT_LENGTH",
+      "kind": "env",
+      "label": "OLLAMA_CONTEXT_LENGTH",
+      "source": "lib/models/contextWindow.ts"
+    },
+    {
       "id": "env:OLLAMA_RETRY_WITHOUT_THINKING",
       "kind": "env",
       "label": "OLLAMA_RETRY_WITHOUT_THINKING",
@@ -5429,10 +5483,28 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/compactionProbes.test.ts",
+      "kind": "file",
+      "label": "compactionProbes.test.ts",
+      "source": "tests/compactionProbes.test.ts"
+    },
+    {
       "id": "file:tests/compile.test.ts",
       "kind": "file",
       "label": "compile.test.ts",
       "source": "tests/compile.test.ts"
+    },
+    {
+      "id": "file:tests/contextOverflow.test.ts",
+      "kind": "file",
+      "label": "contextOverflow.test.ts",
+      "source": "tests/contextOverflow.test.ts"
+    },
+    {
+      "id": "file:tests/contextWindow.test.ts",
+      "kind": "file",
+      "label": "contextWindow.test.ts",
+      "source": "tests/contextWindow.test.ts"
     },
     {
       "id": "file:tests/contractToolDeclarations.test.ts",
@@ -5651,6 +5723,12 @@
       "kind": "file",
       "label": "workflowParity.ts",
       "source": "tests/helpers/workflowParity.ts"
+    },
+    {
+      "id": "file:tests/historyMasking.test.ts",
+      "kind": "file",
+      "label": "historyMasking.test.ts",
+      "source": "tests/historyMasking.test.ts"
     },
     {
       "id": "file:tests/identity.test.ts",
@@ -5923,6 +6001,12 @@
       "label": "project.test.ts",
       "source": "tests/project.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/promptPrefix.test.ts",
+      "kind": "file",
+      "label": "promptPrefix.test.ts",
+      "source": "tests/promptPrefix.test.ts"
     },
     {
       "id": "file:tests/publicPosture.test.ts",
@@ -6519,7 +6603,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 312
+        "lines": 314
       }
     },
     {
@@ -6708,7 +6792,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 529
+        "lines": 533
       }
     },
     {
@@ -6717,7 +6801,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 1028
+        "lines": 1038
       }
     },
     {
@@ -6735,7 +6819,7 @@
       "label": "lib/models/claudeAdapter.ts",
       "source": "lib/models/claudeAdapter.ts",
       "attrs": {
-        "lines": 756
+        "lines": 769
       }
     },
     {
@@ -6748,12 +6832,21 @@
       }
     },
     {
+      "id": "module:lib/models/contextWindow.ts",
+      "kind": "module",
+      "label": "lib/models/contextWindow.ts",
+      "source": "lib/models/contextWindow.ts",
+      "attrs": {
+        "lines": 82
+      }
+    },
+    {
       "id": "module:lib/models/contract.ts",
       "kind": "module",
       "label": "lib/models/contract.ts",
       "source": "lib/models/contract.ts",
       "attrs": {
-        "lines": 499
+        "lines": 513
       }
     },
     {
@@ -6789,7 +6882,7 @@
       "label": "lib/models/errorResponse.ts",
       "source": "lib/models/errorResponse.ts",
       "attrs": {
-        "lines": 71
+        "lines": 97
       }
     },
     {
@@ -6825,7 +6918,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 991
+        "lines": 998
       }
     },
     {
@@ -6843,7 +6936,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 1129
+        "lines": 1136
       }
     },
     {
@@ -6852,7 +6945,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 932
+        "lines": 934
       }
     },
     {
@@ -6879,7 +6972,7 @@
       "label": "lib/models/jevAdapter.ts",
       "source": "lib/models/jevAdapter.ts",
       "attrs": {
-        "lines": 159
+        "lines": 160
       }
     },
     {
@@ -7158,7 +7251,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 965
+        "lines": 986
       }
     },
     {
@@ -7176,7 +7269,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 227
+        "lines": 341
       }
     },
     {
@@ -7194,7 +7287,7 @@
       "label": "lib/runtime/native/history.ts",
       "source": "lib/runtime/native/history.ts",
       "attrs": {
-        "lines": 323
+        "lines": 427
       }
     },
     {
@@ -7207,12 +7300,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/native/recall.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/recall.ts",
+      "source": "lib/runtime/native/recall.ts",
+      "attrs": {
+        "lines": 51
+      }
+    },
+    {
       "id": "module:lib/runtime/native/request.ts",
       "kind": "module",
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 740
+        "lines": 764
       }
     },
     {
@@ -7482,7 +7584,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1464
+        "lines": 1462
       }
     },
     {
@@ -7608,7 +7710,7 @@
       "label": "lib/tools/memoryTools.ts",
       "source": "lib/tools/memoryTools.ts",
       "attrs": {
-        "lines": 128
+        "lines": 131
       }
     },
     {
@@ -7824,7 +7926,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 499
+        "lines": 506
       }
     },
     {
@@ -7833,7 +7935,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 229
+        "lines": 231
       }
     },
     {
@@ -7842,7 +7944,7 @@
       "label": "lib/tools/webExtractTool.ts",
       "source": "lib/tools/webExtractTool.ts",
       "attrs": {
-        "lines": 481
+        "lines": 485
       }
     },
     {
@@ -8095,6 +8197,15 @@
       "source": "scripts/assistant_worker.ts",
       "attrs": {
         "lines": 284
+      }
+    },
+    {
+      "id": "module:scripts/context_report.ts",
+      "kind": "module",
+      "label": "scripts/context_report.ts",
+      "source": "scripts/context_report.ts",
+      "attrs": {
+        "lines": 204
       }
     },
     {
@@ -8368,6 +8479,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts"
+      }
+    },
+    {
+      "id": "script:context:report",
+      "kind": "script",
+      "label": "npm run context:report",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/context_report.ts"
       }
     },
     {
@@ -13926,10 +14046,17 @@
     },
     {
       "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:26"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:27"
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:28"
     },
     {
       "from": "/decisions/0079-native-questions-resume-through-the-history.md",
@@ -18692,6 +18819,76 @@
       "evidence": "/decisions/0150-the-registry-follows-database-url.md:29"
     },
     {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "file:tests/promptPrefix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "module:scripts/context_report.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md frontmatter"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md:29"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md:29"
+    },
+    {
+      "from": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md:29"
+    },
+    {
       "from": "/decisions/0151-file-parts-over-a2a.md",
       "to": "file:tests/filePartsA2a.test.ts",
       "rel": "derives_from",
@@ -18711,6 +18908,195 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0151-file-parts-over-a2a.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "file:tests/historyMasking.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/recall.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md frontmatter"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md:29"
+    },
+    {
+      "from": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0152-old-tool-results-are-masked-and-recallable.md:29"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "file:tests/compaction.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md frontmatter"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "file:tests/compactionProbes.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md frontmatter"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md frontmatter"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md frontmatter"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md frontmatter"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md:27"
+    },
+    {
+      "from": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md:29"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "file:tests/contextOverflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "file:tests/contextWindow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md frontmatter"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md:31"
+    },
+    {
+      "from": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md:31"
     },
     {
       "from": "/memory/architecture.md",
@@ -18858,6 +19244,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:82"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/architecture.md",
@@ -19795,7 +20188,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/claude-adapter.md:76"
+      "evidence": "/models/claude-adapter.md:78"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -19809,7 +20202,7 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/claude-adapter.md:57"
+      "evidence": "/models/claude-adapter.md:59"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -19830,7 +20223,7 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/claude-adapter.md:82"
+      "evidence": "/models/claude-adapter.md:84"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -19844,7 +20237,7 @@
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/claude-adapter.md:49"
+      "evidence": "/models/claude-adapter.md:51"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -19858,7 +20251,7 @@
       "to": "/decisions/0109-structured-output-beside-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/claude-adapter.md:49"
+      "evidence": "/models/claude-adapter.md:51"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -19866,6 +20259,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/claude-adapter.md:43"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:45"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -20334,7 +20734,7 @@
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:105"
+      "evidence": "/models/model-contract.md:106"
     },
     {
       "from": "/models/model-contract.md",
@@ -20348,42 +20748,42 @@
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:213"
+      "evidence": "/models/model-contract.md:216"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:127"
+      "evidence": "/models/model-contract.md:128"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:207"
+      "evidence": "/models/model-contract.md:210"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:389"
+      "evidence": "/models/model-contract.md:394"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:389"
+      "evidence": "/models/model-contract.md:394"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:104"
+      "evidence": "/models/model-contract.md:105"
     },
     {
       "from": "/models/model-contract.md",
@@ -20397,7 +20797,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:181"
+      "evidence": "/models/model-contract.md:183"
     },
     {
       "from": "/models/model-contract.md",
@@ -20411,28 +20811,28 @@
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:379"
+      "evidence": "/models/model-contract.md:384"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:294"
+      "evidence": "/models/model-contract.md:299"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:181"
+      "evidence": "/models/model-contract.md:183"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:382"
+      "evidence": "/models/model-contract.md:387"
     },
     {
       "from": "/models/model-contract.md",
@@ -20446,63 +20846,70 @@
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:428"
+      "evidence": "/models/model-contract.md:433"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:105"
+      "evidence": "/models/model-contract.md:106"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0144-typesafe-jev-decision-provider.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:300"
+      "evidence": "/models/model-contract.md:305"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0146-gateway-search-and-embeddings.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:296"
+      "evidence": "/models/model-contract.md:301"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:98"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:391"
+      "evidence": "/models/model-contract.md:396"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:267"
+      "evidence": "/models/model-contract.md:271"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:197"
+      "evidence": "/models/model-contract.md:199"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/jev-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:300"
+      "evidence": "/models/model-contract.md:305"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:263"
+      "evidence": "/models/model-contract.md:267"
     },
     {
       "from": "/models/model-contract.md",
@@ -22336,21 +22743,21 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:178"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:243"
+      "evidence": "/overview/native-loop.md:254"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:277"
+      "evidence": "/overview/native-loop.md:288"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22364,14 +22771,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:204"
+      "evidence": "/overview/native-loop.md:215"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:155"
+      "evidence": "/overview/native-loop.md:158"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22385,14 +22792,14 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:113"
+      "evidence": "/overview/native-loop.md:116"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:239"
+      "evidence": "/overview/native-loop.md:250"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22413,7 +22820,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:265"
+      "evidence": "/overview/native-loop.md:276"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22427,91 +22834,91 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:204"
+      "evidence": "/overview/native-loop.md:215"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:376"
+      "evidence": "/overview/native-loop.md:387"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:245"
+      "evidence": "/overview/native-loop.md:256"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:184"
+      "evidence": "/overview/native-loop.md:195"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:279"
+      "evidence": "/overview/native-loop.md:290"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:232"
+      "evidence": "/overview/native-loop.md:243"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:265"
+      "evidence": "/overview/native-loop.md:276"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:211"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:208"
+      "evidence": "/overview/native-loop.md:219"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:295"
+      "evidence": "/overview/native-loop.md:306"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:127"
+      "evidence": "/overview/native-loop.md:130"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:158"
+      "evidence": "/overview/native-loop.md:161"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:212"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22525,7 +22932,7 @@
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:361"
+      "evidence": "/overview/native-loop.md:372"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22539,21 +22946,21 @@
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:326"
+      "evidence": "/overview/native-loop.md:337"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:289"
+      "evidence": "/overview/native-loop.md:300"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:316"
+      "evidence": "/overview/native-loop.md:327"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22567,7 +22974,7 @@
       "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:308"
+      "evidence": "/overview/native-loop.md:319"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22581,63 +22988,91 @@
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:273"
+      "evidence": "/overview/native-loop.md:284"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:329"
+      "evidence": "/overview/native-loop.md:340"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:299"
+      "evidence": "/overview/native-loop.md:310"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:269"
+      "evidence": "/overview/native-loop.md:280"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0135-delegated-runs-report-live-through-on-agent-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:320"
+      "evidence": "/overview/native-loop.md:331"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:390"
+      "evidence": "/overview/native-loop.md:401"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:393"
+      "evidence": "/overview/native-loop.md:404"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:94"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:187"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:131"
+      "evidence": "/overview/native-loop.md:134"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:93"
+      "evidence": "/overview/native-loop.md:95"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22658,14 +23093,14 @@
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:273"
+      "evidence": "/overview/native-loop.md:284"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:397"
+      "evidence": "/overview/native-loop.md:408"
     },
     {
       "from": "/overview/native-loop.md",
@@ -24741,6 +25176,20 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:53"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0152-old-tool-results-are-masked-and-recallable.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -24766,6 +25215,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:112"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -28276,6 +28732,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28441,6 +28904,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeModels.ts"
+    },
+    {
+      "from": "module:lib/models/contextWindow.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/contextWindow.ts"
+    },
+    {
+      "from": "module:lib/models/contextWindow.ts",
+      "to": "env:OLLAMA_CONTEXT_LENGTH",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/contextWindow.ts"
     },
     {
       "from": "module:lib/models/contract.ts",
@@ -29641,6 +30118,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -29806,6 +30290,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/models/contextWindow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
     },
     {
       "from": "module:lib/runtime/native/compaction.ts",
@@ -30018,6 +30509,34 @@
       "evidence": "lib/runtime/native/interrupts.ts"
     },
     {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/recall.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/recall.ts"
+    },
+    {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/models/capabilities.ts",
       "rel": "imports",
@@ -30076,6 +30595,13 @@
     {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/recall.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/request.ts"
@@ -33280,6 +33806,41 @@
       "evidence": "scripts/assistant_worker.ts"
     },
     {
+      "from": "module:scripts/context_report.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/context_report.ts"
+    },
+    {
+      "from": "module:scripts/context_report.ts",
+      "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/context_report.ts"
+    },
+    {
+      "from": "module:scripts/context_report.ts",
+      "to": "table:adk_telemetry",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "scripts/context_report.ts"
+    },
+    {
+      "from": "module:scripts/context_report.ts",
+      "to": "env:SUPABASE_SERVICE_ROLE_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/context_report.ts"
+    },
+    {
+      "from": "module:scripts/context_report.ts",
+      "to": "env:SUPABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/context_report.ts"
+    },
+    {
       "from": "module:scripts/db.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
@@ -34710,6 +35271,13 @@
     {
       "from": "script:chat:syndicate",
       "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:context:report",
+      "to": "module:scripts/context_report.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

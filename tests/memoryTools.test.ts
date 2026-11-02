@@ -233,9 +233,13 @@ const MEMORY_CONFIG = {
 /** One turn: what the model was sent on each call, what was searched, and what the session stored. */
 async function memoryTurn() {
   const sessionService = new InProcessSessionService();
-  const sent: Array<{ system: unknown; tools: unknown }> = [];
+  const sent: Array<{ system: unknown; notes: string | undefined; tools: unknown }> = [];
   const desk = new ScriptedLlm('scripted/desk', (req, n) => {
-    sent.push({ system: req.config?.systemInstruction, tools: structuredClone(req.config?.tools) });
+    // The recalled block rides after the history (ModelRequest.turnNotes): the last text of the last user content.
+    const last = (req.contents ?? [])[(req.contents ?? []).length - 1];
+    const lastText = last?.role === 'user' ? last.parts?.[last.parts.length - 1]?.text : undefined;
+    const notes = typeof lastText === 'string' && lastText.includes('<PAST_CONVERSATIONS>') ? lastText : undefined;
+    sent.push({ system: req.config?.systemInstruction, notes, tools: structuredClone(req.config?.tools) });
     return n === 1 ? call('load_memory', { query: 'tea' }) : text('Green tea.');
   });
   const memory = recordingMemory();
@@ -262,7 +266,8 @@ test("a turn recalls with the engine's memory tools as the recorded ADK turn did
   const run = await memoryTurn();
   assert.equal(run.status, 'completed');
   assert.equal(run.sent.length, 2);
-  assert.match(String(run.sent[0].system), /<PAST_CONVERSATIONS>[\s\S]*green tea[\s\S]*<\/PAST_CONVERSATIONS>/);
+  assert.match(String(run.sent[0].notes), /<PAST_CONVERSATIONS>[\s\S]*green tea[\s\S]*<\/PAST_CONVERSATIONS>/);
+  assert.ok(!String(run.sent[0].system).includes('<PAST_CONVERSATIONS>'), 'the recalled block changes every request, so it stays out of the system prompt');
   assert.ok(String(run.sent[0].system).includes(LOAD_MEMORY_INSTRUCTION));
   assert.equal(run.responses.length, 1);
   assert.equal((run.responses[0].response as any).memories.length, MEMORIES.length);
@@ -271,7 +276,13 @@ test("a turn recalls with the engine's memory tools as the recorded ADK turn did
   // The all-ADK turn (ADK 2.2's runtime and session store), recorded.
   const onAdk = await reference<Awaited<ReturnType<typeof memoryTurn>>>('turn-on-adk');
   assert.equal(run.text, onAdk.text);
-  assert.deepEqual(run.sent.map((s) => s.system), onAdk.sent.map((s) => s.system), 'the instruction, preloaded block and memory note');
+  // ADK wrote the block into the system instruction at preload_memory's place in the tool order; the engine
+  // sends the same words with the block after the history (ModelRequest.turnNotes) and the rest unchanged.
+  for (const [i, s] of run.sent.entries()) {
+    const theirs = String(onAdk.sent[i]!.system);
+    assert.ok(s.notes && theirs.includes(s.notes), `call ${i + 1}: ADK's instruction carried the block the engine sends after the history`);
+    assert.equal(theirs.replace(`\n\n${s.notes}`, ''), s.system, `call ${i + 1}: the instruction and memory note, the block aside`);
+  }
   assert.deepEqual(run.searches, onAdk.searches);
   assert.deepEqual(asJson(run.responses), onAdk.responses);
 });

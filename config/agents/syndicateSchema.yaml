@@ -368,14 +368,19 @@ orchestrator:
   # run_code:
   #   attach: true
 
-  # [optional] Summarize a long conversation instead of overflowing the
-  # window: past `compact_after_tokens` (the last request's prompt), earlier
-  # turns become one summary and the last `keep_recent_events` stay
-  # verbatim. The full history stays stored. Orchestrator of a delegate
-  # syndicate only (ADR 0033).
+  # [optional] What the model is sent of a long conversation; both parts are
+  # on by default, and `context: off` turns both off. A tool result older
+  # than the last `keep_recent_events` events and longer than
+  # `mask_over_chars` goes as a stub the model can read back with
+  # recall_tool_result (0 masks none). Past `compact_after_tokens` (default
+  # 60% of the model's context window; 0 never compacts) the earlier turns
+  # become one sectioned summary, and a prompt that overflows the window
+  # anyway is compacted and retried once. The full history stays stored
+  # either way (ADR 0152, ADR 0153, ADR 0154).
   # context:
-  #   compact_after_tokens: 60000
+  #   mask_over_chars: 1000
   #   keep_recent_events: 6
+  #   compact_after_tokens: 60000
   #   summary_model: "gemini-3.5-flash-lite"   # default: this agent's model
 
   # [optional] "task" on a WORKFLOW NODE: the agent works with its tools

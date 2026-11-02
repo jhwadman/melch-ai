@@ -428,6 +428,13 @@ export class ClaudeAdapter implements ModelAdapter {
       }
       if (blocks.length > 0) messages.push({ role, content: blocks });
     });
+    // This step's notes, after the history: on the last user message (tool
+    // results are user content here too), so the cached prefix before it holds.
+    if (request.turnNotes) {
+      const last = messages[messages.length - 1];
+      if (last?.role === 'user') last.content.push({ type: 'text', text: request.turnNotes });
+      else messages.push({ role: 'user', content: [{ type: 'text', text: request.turnNotes }] });
+    }
     if (droppedImages.size > 0) {
       setLlmSpanAttribute('llm.image.dropped', [...droppedImages].join(','));
       for (const what of droppedImages) {
@@ -556,6 +563,12 @@ export class ClaudeAdapter implements ModelAdapter {
       ...(thinking ? { thinking } : {}),
       ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
       ...(plan?.dropBlock ? { betas: [THINKING_BINDING_BETA] } : {}),
+      // Automatic prompt caching: the API puts the breakpoint on the last
+      // cacheable block and moves it forward as the history grows, so each
+      // step reads the previous step's prefix at the cached price. The loop
+      // keeps the prefix stable for it (ModelRequest.turnNotes). Anthropic's
+      // own API only until Bedrock and Vertex are confirmed to take the field.
+      ...(endpoint.platform === 'direct' ? { cache_control: { type: 'ephemeral' } } : {}),
     };
     return { body, beta: plan?.dropBlock === true, structuredTool: structuredTool !== undefined };
   }

@@ -240,7 +240,13 @@ test('capResult cuts a long result and says so; the shared limit is the existing
 
   const big = defineTool({ name: 'big', description: 'Big.', schema: z.object({}), maxResultChars: 5, execute: async () => 'abcdefgh' });
   assert.equal(await big.execute({}), 'abcde… [cut at 5 characters]');
-  assert.equal(await LOOKUP.execute({ key: 'k'.repeat(30_000) }).then((r) => r.length > 30_000), true, 'no cap unless the tool sets one');
+  // The shared limit is the default (ADR 0152); 0 turns the cap off.
+  const huge = 'z'.repeat(MAX_RESULT_CHARS + 1);
+  const capped = defineTool({ name: 'capped', description: 'Capped.', schema: z.object({}), execute: async () => huge });
+  assert.equal(((await capped.execute({})) as string).length, MAX_RESULT_CHARS + '… [cut at 20000 characters]'.length);
+  const uncapped = defineTool({ name: 'uncapped', description: 'Uncapped.', schema: z.object({}), maxResultChars: 0, execute: async () => huge });
+  assert.equal(await uncapped.execute({}), huge);
+  assert.equal(await LOOKUP.execute({ key: 'k'.repeat(30_000) }).then((r) => r.length < 30_000), true, 'the shared cap applies unless the tool sets its own');
 });
 
 // ── The WS1-9 follow-ups ─────────────────────────────────────────────────────

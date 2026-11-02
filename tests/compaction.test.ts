@@ -1,18 +1,20 @@
 /**
  * tests/compaction.test.ts — `context:` compaction on the native loop
- * (lib/runtime/native/compaction.ts, WS2-9, ADR 0033).
+ * (lib/runtime/native/compaction.ts, WS2-9, ADR 0033, ADR 0153).
  *
  * Each parity case reads a conversation as ADK 2.2 ran it through
  * runSyndicateTurn (scripted adapters behind the pre-1.0 shim, ADK's
  * TokenBasedContextCompactor and LlmSummarizer), recorded in
  * tests/fixtures/adk-reference/compaction (tests/helpers/adkReference.ts),
  * then runs the same conversation through runAgentLoop with the same
- * scripts: the stores must hold the same events, the compacted event
- * included (ids and times aside; its startTime and endTime must be the
- * summarized events' times on each side), and every adapter must be handed
- * the same requests. A session ADK compacted then continues on the native
- * loop with the same request. Then the failure case, the ledger, and the
- * turn runner. Offline: scripted adapters only.
+ * scripts. The when and the stored event are still ADK's: the stores must
+ * hold the same events, the compacted event included (ids, times and the
+ * engine's format mark aside; its startTime and endTime must be the
+ * summarized events' times on each side), and the agents must be handed
+ * the same requests. The summary request is the engine's own (ADR 0153):
+ * it is asserted here, not against ADK's. A session ADK compacted then
+ * continues on the native loop with the same request. Then the failure
+ * cases, the ledger, and the turn runner. Offline: scripted adapters only.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -28,7 +30,16 @@ import { SupabaseSpanExporter } from '../lib/observability/supabaseSpanExporter.
 import { onSpanEnd, traceAgentRun } from '../lib/observability/tracer.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
-import { SUMMARY_FAILED, SUMMARY_PROMPT, eventsToCompact, retainStartIndex } from '../lib/runtime/native/compaction.ts';
+import {
+  NEW_EVENTS_HEADING,
+  PREVIOUS_SUMMARY_HEADING,
+  SUMMARY_FORMAT,
+  SUMMARY_INSTRUCTION,
+  SUMMARY_MAX_TOKENS,
+  eventsToCompact,
+  resolveContext,
+  retainStartIndex,
+} from '../lib/runtime/native/compaction.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
@@ -175,10 +186,19 @@ function comparable(events: TurnEvent[]): unknown {
     assert.ok(times.includes(e.startTime) && times.includes(e.endTime), 'startTime and endTime are summarized events\' times');
   }
   return JSON.parse(
-    JSON.stringify(events.map((e: any) => ({ ...e, id: '<id>', timestamp: 0, ...(e.isCompacted ? { startTime: 0, endTime: 0 } : {}) }))),
+    JSON.stringify(events.map(({ summaryFormat: _format, ...e }: any) => ({ ...e, id: '<id>', timestamp: 0, ...(e.isCompacted ? { startTime: 0, endTime: 0 } : {}) }))),
     (_key, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
   );
 }
+
+/** ADK's LlmSummarizer prompt, as the recorded summary requests start. */
+const ADK_SUMMARY_PROMPT =
+  'The following is a conversation history between a user and an AI agent. Please summarize the conversation, focusing on key information and decisions made, as well as any unresolved questions or tasks. The summary should be concise and capture the essence of the interaction.';
+const firstText = (r: unknown): string => String((r as any)?.messages?.[0]?.parts?.[0]?.text ?? '');
+/** A request ADK's summarizer made. */
+const adkSummaryRequest = (r: unknown): boolean => firstText(r as any).startsWith(ADK_SUMMARY_PROMPT);
+/** A request the engine's summarizer made (ADR 0153). */
+const ownSummaryRequest = (r: ModelRequest): boolean => r.system === SUMMARY_INSTRUCTION;
 
 const withoutSignal = (r: ModelRequest) => {
   const { signal: _s, ...rest } = r;
@@ -191,10 +211,14 @@ interface Handed {
   requests: Record<string, unknown[]>;
 }
 
+/** The agents' requests match ADK's; the summarizer's are the engine's own and are set aside on both sides (as many on each). */
 function assertSameRequests(native: Record<string, ScriptedModel>, adk: Handed): void {
   for (const key of Object.keys(adk.calls)) {
+    const theirs = adk.requests[key] ?? [];
+    const ours = native[key]?.requests ?? [];
     assert.equal(native[key]?.calls, adk.calls[key], `calls to ${key}`);
-    assert.deepEqual(native[key]?.requests.map(withoutSignal), adk.requests[key], `requests to ${key}`);
+    assert.equal(ours.filter(ownSummaryRequest).length, theirs.filter(adkSummaryRequest).length, `summary calls to ${key}`);
+    assert.deepEqual(ours.filter((r) => !ownSummaryRequest(r)).map(withoutSignal), theirs.filter((r) => !adkSummaryRequest(r)), `requests to ${key}`);
   }
 }
 
@@ -232,12 +256,16 @@ test('ADR 0033: past the threshold, the earlier turns become one summary, as on 
   assert.equal(compacted.length, 1);
   assert.equal(compacted[0]!.author, 'system');
   assert.equal(compacted[0]!.invocationId, '');
-  // The summary request: ADK's prompt, then the summarized events.
+  assert.equal((compacted[0] as any).summaryFormat, SUMMARY_FORMAT);
+  // The summary request (ADR 0153): the fixed instruction, then the new events; no previous summary yet.
   const sent = native.models.sum!.requests[0]!;
-  const prompt = (sent.messages[0]!.parts[0] as any).text as string;
-  assert.ok(prompt.startsWith(`${SUMMARY_PROMPT}\n\n[Event 1 - Author: user]\nquestion 1\n\n[Event 2 - Author: Chat]\nanswer 1\n\n`));
+  assert.equal(sent.system, SUMMARY_INSTRUCTION, 'the same system prompt every call');
+  const input = firstText(sent);
+  assert.ok(!input.includes(PREVIOUS_SUMMARY_HEADING), 'no previous summary');
+  assert.ok(input.startsWith(`${NEW_EVENTS_HEADING}\n\n[Event 1 - Author: user]\nquestion 1\n\n[Event 2 - Author: Chat]\nanswer 1\n\n`), input.slice(0, 200));
   assert.equal(sent.tools?.length ?? 0, 0, 'no tools');
-  assert.equal(sent.system, undefined, 'no system prompt');
+  assert.equal(sent.sampling?.maxOutputTokens, SUMMARY_MAX_TOKENS, 'a capped output');
+  assert.equal(sent.stream, false);
   // The fourth request reads the summary in place of what it covers.
   const fourth = native.models.chat!.requests[3]!;
   assert.match((fourth.messages[0]!.parts[0] as any).text, /^\[Previous Context Summary\]:\nSUMMARY 1/);
@@ -249,17 +277,22 @@ test('a later compaction folds the earlier summary in, and the cut never splits 
   const long = (n: number) => `question ${n} ${'x'.repeat(1800)}`;
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 3 }, { tools: ['compaction_lookup'] });
   const chat: ModelScript = (req, n) => {
-    const text = (req.messages[0]?.parts[0] as any)?.text as string;
-    if (text?.startsWith(SUMMARY_PROMPT)) return answer(`SUMMARY at call ${n}`);
+    if (ownSummaryRequest(req)) return answer(`SUMMARY at call ${n}`);
     const last = req.messages.at(-1)!;
     return last.role === 'tool' ? answer(`done ${n}`) : toolCall('compaction_lookup', { key: `k${n}` }, `call-${n}`);
   };
   const { native, nativeEvents } = await assertParity('later-compaction', config, { chat }, [long(1), long(2), long(3), long(4)]);
   const compacted = nativeEvents.filter((e: any) => e.isCompacted) as any[];
   assert.ok(compacted.length >= 2, `compacted ${compacted.length} times`);
-  const summaries = native.models.chat!.requests.filter((r) => ((r.messages[0]?.parts[0] as any)?.text as string)?.startsWith(SUMMARY_PROMPT));
+  const summaries = native.models.chat!.requests.filter(ownSummaryRequest);
   assert.equal(summaries.length, compacted.length);
-  assert.match((summaries[1]!.messages[0]!.parts[0] as any).text, /\[Event 1 - Author: system\]\nSUMMARY at call/, 'the second summary reads the first');
+  // Anchored (ADR 0153): the second summary reads the first under its heading, then only the events since it.
+  const second = firstText(summaries[1]!);
+  assert.match(second, new RegExp(`^${PREVIOUS_SUMMARY_HEADING}\\nSUMMARY at call \\d+\\n\\n${NEW_EVENTS_HEADING}\\n\\n\\[Event 1 - Author: `));
+  assert.ok(!second.includes('Author: system'), 'the previous summary is not retold as an event');
+  // Tool activity survives into the summarizer's input: calls as JSON, results as text.
+  assert.match(firstText(summaries[0]!), /\[called compaction_lookup with \{"key":"k1"\}\]/);
+  assert.match(firstText(summaries[0]!), /\[compaction_lookup returned: \{"result":"found k1"\}\]/);
 });
 
 test('retainStartIndex moves back past a call to keep its answer with it', () => {
@@ -277,10 +310,10 @@ test('under the threshold or within keep_recent_events nothing is summarized', (
     ...(tokens ? { usageMetadata: { promptTokenCount: tokens } } : {}),
   });
   const session = { events: [ev(1), ev(2), ev(3, 999)] } as unknown as Session;
-  assert.equal(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 1 }, { agentName: 'Chat', session }), undefined, 'at the threshold');
+  assert.equal(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 1 }, 'scripted/chat'), { agentName: 'Chat', session }), undefined, 'at the threshold');
   session.events.push(ev(4, 1001));
-  assert.equal(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 4 }, { agentName: 'Chat', session }), undefined, 'all kept');
-  assert.deepEqual(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 1 }, { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
+  assert.equal(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 4 }, 'scripted/chat'), { agentName: 'Chat', session }), undefined, 'all kept');
+  assert.deepEqual(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 1 }, 'scripted/chat'), { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
 });
 
 /** The fifth turn's scripts, for a session four turns in. */
@@ -303,26 +336,41 @@ test('a session compacted on ADK continues on the native loop with the same requ
   await nativeAfter.start(handedOver);
   await nativeAfter.turn(turns[4]!);
   assert.deepEqual(withoutSignal(nativeAfter.models.chat!.requests[0]!), adkOnly.requests.chat![4], 'ADK → native: the fifth request');
-  assert.deepEqual(nativeAfter.models.sum!.requests.map(withoutSignal), adkOnly.requests.sum!.slice(1), 'ADK → native: the fifth turn\'s summary');
+  // The fifth turn's summary is the engine's own, anchored on the summary ADK wrote.
+  const adkSummary = (handedOver.find((e: any) => e.isCompacted) as any).compactedContent as string;
+  assert.equal(nativeAfter.models.sum!.calls, adkOnly.requests.sum!.length - 1, 'as many summary calls as ADK made on the fifth turn');
+  assert.ok(firstText(nativeAfter.models.sum!.requests[0]!).startsWith(`${PREVIOUS_SUMMARY_HEADING}\n${adkSummary}\n\n${NEW_EVENTS_HEADING}\n\n`));
 });
 
-test('a summary model that answers no text fails the turn, as on ADK, and nothing is compacted', async () => {
+test('a summary model that answers no text, or runs past the budget, skips the compaction: the step runs, nothing is stored (ADR 0153)', async () => {
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
-  const scripts: Models = { chat: growing(), sum: () => answer('') };
   const turns = ['question 1', 'question 2', 'question 3'];
-  const failed = new RegExp(SUMMARY_FAILED.replace('.', '\\.'));
   const adk = await reference<{ rejected: string | null; chatCalls: number; compacted: boolean }>('summary-fails');
-  // ADK's summarizer threw out of the agent's run, and the turn with it.
-  assert.match(String(adk.rejected), failed, 'the ADK turn rejected');
+  // ADK's summarizer threw out of the agent's run, and the turn with it; the engine no longer fails a turn for its housekeeping.
+  assert.ok(adk.rejected && !adk.compacted);
 
-  resetCircuits();
-  const native = new NativeSide(config, build(scripts));
-  await native.start();
-  for (const t of turns) await native.turn(t);
-  await assert.rejects(native.turn('question 4'), failed);
-  assert.equal(native.models.chat!.calls, adk.chatCalls, 'no step after the failed summary');
-  assert.ok(!(await native.events()).some((e: any) => e.isCompacted));
-  assert.ok(!adk.compacted);
+  for (const [name, sum] of [
+    ['no text', () => answer('')],
+    ['over budget', () => answer('word '.repeat(1_900))],
+  ] as Array<[string, ModelScript]>) {
+    resetCircuits();
+    const logged: string[] = [];
+    const native = new NativeSide(config, build({ chat: growing(), sum }));
+    await native.start();
+    for (const t of turns) await native.turn(t);
+    const quiet = console.log;
+    console.log = (...args: unknown[]) => logged.push(args.join(' '));
+    try {
+      await native.turn('question 4');
+    } finally {
+      console.log = quiet;
+    }
+    assert.equal(native.models.chat!.calls, adk.chatCalls + 1, `${name}: the step after the failed summary still runs`);
+    assert.equal(native.models.sum!.calls, 1, `${name}: the summarizer was tried once`);
+    assert.ok(!(await native.events()).some((e: any) => e.isCompacted), `${name}: nothing compacted`);
+    // The fourth request still carries the whole history.
+    assert.equal(native.models.chat!.requests[3]!.messages.length, 7, `${name}: uncompacted`);
+  }
 });
 
 // ── The ledger ───────────────────────────────────────────────────────────────
@@ -360,6 +408,9 @@ function scrubbed(row: Record<string, any>): Record<string, any> {
     if ('engine.version' in copy) copy['engine.version'] = '<engine>';
     // ADK never wrote the per-model usage the ledger prices a turn from (ADR 0136); tests/postgresLedger.test.ts checks its value.
     delete copy['syndicate.usage'];
+    // What the summary's llm.request says it is for (ADR 0153), which ADK's never did.
+    delete copy['llm.purpose'];
+    delete copy['llm.compaction.events'];
     return copy;
   };
   if (out.attributes) out.attributes = scrub(out.attributes);

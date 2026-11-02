@@ -29,6 +29,17 @@
  *   - ADK's own call ids (`adk-…`) are removed: the provider never sees them.
  *   The contents are deep copies, so nothing here changes a stored event.
  *
+ * MASKING (ADR 0152, not ADK's): a tool result older than the verbatim tail
+ * (the last `keep` projected events, the tail start moved back so no
+ * answer loses its call) and longer than `overChars` is sent as a stub,
+ * `{ masked: true, tool, ref, chars, head }`, in place of its payload. `ref`
+ * is the stored event's id, which `recall_tool_result`
+ * (lib/runtime/native/recall.ts) reads back. The call stays as it is, so
+ * the model still sees what it asked for; the stored event is untouched.
+ * The tail slides one event per step, so the only cache miss is from the
+ * event that just left it, and the prefix before it holds. Another agent's
+ * masked result is retold as the stub.
+ *
  * The result is genai-shaped content, as stored. The request builder maps it
  * to the model contract through lib/models/genaiMapping.ts.
  */
@@ -56,6 +67,68 @@ export interface HistoryScope {
   branch?: string;
   /** The invocation's isolation scope; undefined outside one. */
   isolationScope?: string;
+  /** Mask old tool results (ADR 0152): the rule, or `false` for none. Default: DEFAULT_MASK. */
+  mask?: MaskRule | false;
+  /** Told each stored event id whose result the projection masked. */
+  onMasked?: (ref: string) => void;
+}
+
+/** When an old tool result becomes a stub. */
+export interface MaskRule {
+  /** Results longer than this many characters (their JSON) are masked; 0 masks none. */
+  overChars: number;
+  /** The last projected events kept verbatim. */
+  keep: number;
+}
+
+export const DEFAULT_MASK_OVER_CHARS = 1_000;
+export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+export const DEFAULT_MASK: MaskRule = { overChars: DEFAULT_MASK_OVER_CHARS, keep: DEFAULT_KEEP_RECENT_EVENTS };
+/** The characters of a masked result's text that stay in its stub. */
+export const MASK_HEAD_CHARS = 200;
+
+/** The stub a masked tool result is sent as. */
+export interface MaskedResult {
+  masked: true;
+  tool: string;
+  /** The stored event's id: what recall_tool_result takes. */
+  ref: string;
+  /** The characters of the original. */
+  chars: number;
+  head: string;
+}
+
+export function isMaskedResult(value: unknown): value is MaskedResult {
+  return !!value && typeof value === 'object' && (value as { masked?: unknown }).masked === true && typeof (value as { ref?: unknown }).ref === 'string';
+}
+
+/** Where the verbatim tail starts: `keep` from the end, moved back so no answer loses its call (ADK's compactor rule). */
+export function retainStartIndex(raw: readonly TurnEvent[], keep: number): number {
+  let start = Math.max(0, raw.length - keep);
+  while (start > 0) {
+    if (getFunctionResponses(raw[start] as TurnEvent).length > 0 && getFunctionCalls(raw[start - 1] as TurnEvent).length > 0) start--;
+    else break;
+  }
+  return start;
+}
+
+/** `event` with each tool result over `overChars` as its stub; the event itself when none is. */
+function masked(event: TurnEvent, overChars: number, onMasked?: (ref: string) => void): TurnEvent {
+  const parts = event.content?.parts;
+  if (!parts || overChars <= 0) return event;
+  let changed = false;
+  const out = parts.map((part) => {
+    const response = part.functionResponse;
+    if (!response || isMaskedResult(response.response)) return part;
+    const text = safeStringify(response.response);
+    if (text.length <= overChars) return part;
+    changed = true;
+    onMasked?.(event.id);
+    const stub: MaskedResult = { masked: true, tool: response.name ?? '', ref: event.id, chars: text.length, head: text.slice(0, MASK_HEAD_CHARS) };
+    const replaced: TurnPart = { ...part, functionResponse: { ...response, response: stub as unknown as Record<string, unknown> } };
+    return replaced;
+  });
+  return changed ? { ...event, content: { ...event.content, parts: out } } : event;
 }
 
 /**
@@ -65,6 +138,8 @@ export interface HistoryScope {
 export interface CompactedEvent extends TurnEvent {
   isCompacted: true;
   compactedContent?: string;
+  /** The summary's format (ADR 0153: 'sections/1'); absent on one ADK wrote. */
+  summaryFormat?: string;
   startTime?: number;
   endTime?: number;
   isScratchpad?: boolean;
@@ -242,17 +317,30 @@ function stripAdkCallIds(content: TurnContent | undefined): void {
 }
 
 /** The contents of every visible event, projected for `agentName` (ADK's getContents). The compactor's estimate reads it too. */
-export function contentsOf(events: readonly TurnEvent[], agentName: string, branch: string | undefined, scope: string | undefined): TurnContent[] {
-  const kept: TurnEvent[] = [];
+export function contentsOf(
+  events: readonly TurnEvent[],
+  agentName: string,
+  branch: string | undefined,
+  scope: string | undefined,
+  mask: MaskRule | false = DEFAULT_MASK,
+  onMasked?: (ref: string) => void,
+): TurnContent[] {
+  const included: TurnEvent[] = [];
   for (const event of events) {
     if (!isVisible(event, scope)) continue;
     if (isCompacted(event)) {
-      kept.push(summaryOf(event));
+      included.push(summaryOf(event));
       continue;
     }
     if (!shouldInclude(event, branch, scope)) continue;
-    kept.push(fromAnotherAgent(agentName, event) ? retold(event) : event);
+    included.push(event);
   }
+  // Old tool results become stubs before another agent's are retold.
+  const tail = mask ? retainStartIndex(included, mask.keep) : 0;
+  const kept = included.map((event, i) => {
+    const seen = mask && i < tail ? masked(event, mask.overChars, onMasked) : event;
+    return fromAnotherAgent(agentName, seen) ? retold(seen) : seen;
+  });
   const arranged = answersNextToTheirCalls(latestAnswerNextToItsCall(kept));
   return arranged.map((event) => {
     const content = clone(event.content) as TurnContent;
@@ -283,17 +371,33 @@ function turnStart(events: readonly TurnEvent[], anchor: number): number {
  */
 export function projectHistory(events: readonly TurnEvent[], scope: HistoryScope): TurnContent[] {
   const active = activeEvents(events, scope.isolationScope);
+  const mask = scope.mask ?? DEFAULT_MASK;
   if ((scope.includeContents ?? 'default') === 'default') {
-    return contentsOf(active, scope.agentName, scope.branch, scope.isolationScope);
+    return contentsOf(active, scope.agentName, scope.branch, scope.isolationScope, mask, scope.onMasked);
   }
   for (let i = active.length - 1; i >= 0; i--) {
     const event = active[i] as TurnEvent;
     if (!shouldInclude(event, scope.branch, scope.isolationScope)) continue;
     if (event.author === 'user' || fromAnotherAgent(scope.agentName, event)) {
-      return contentsOf(active.slice(turnStart(active, i)), scope.agentName, scope.branch, scope.isolationScope);
+      return contentsOf(active.slice(turnStart(active, i)), scope.agentName, scope.branch, scope.isolationScope, mask, scope.onMasked);
     }
   }
   return [];
+}
+
+/**
+ * The stored tool result `ref` names (a masked stub's ref: the event's id),
+ * when that event is one this agent's projection would include, else
+ * undefined. What recall_tool_result reads.
+ */
+export function storedToolResult(events: readonly TurnEvent[], ref: string, scope: HistoryScope): { tool: string; response: unknown } | undefined {
+  for (const event of activeEvents(events, scope.isolationScope)) {
+    if (event.id !== ref || isCompacted(event) || !shouldInclude(event, scope.branch, scope.isolationScope)) continue;
+    const response = getFunctionResponses(event)[0];
+    if (!response) return undefined;
+    return { tool: response.name ?? '', response: response.response };
+  }
+  return undefined;
 }
 
 // ── Gemini code execution in the history ─────────────────────────────────────

@@ -425,6 +425,10 @@ async function fetchPage(url: URL): Promise<ExtractedPage | string> {
 
 export const webExtractContract = defineTool({
   name: WEB_EXTRACT_TOOL_NAME,
+  // The caller's char_limit governs the size (up to MAX_CHAR_LIMIT); the
+  // shared default cap would cut under it. Old results are masked in the
+  // history instead (ADR 0152).
+  maxResultChars: MAX_CHAR_LIMIT,
   description:
     'Read web pages in full. Fetches each URL directly and returns the clean page text ' +
     '(markdown-ish, no summarization) — use it after web_search, or with any known URL, ' +

@@ -23,5 +23,6 @@ sources:
 **Decided (2026-10-08):** `lib/runtime/native/compaction.ts` ports ADK's `TokenBasedContextCompactor` and `LlmSummarizer` rule for rule and stores the compacted event before the step. The summary call is charged and traced as an `llm.request` under `agent.invoke`, outside any `model.call`, with no fallback model; a failed summary fails the turn.
 
 **Instead of:** running ADK's compactor from the loop, the summary inside model.call, a fallback for the summary model, skipping compaction on a failed summary
+**Superseded by:** [ADR 0153](/decisions/0153-compaction-writes-a-sectioned-anchored-summary.md), for the summary's words and the failure (a failed summary now skips the compaction); the port of the when and the stored event stands
 
 How it works: [Native loop](/overview/native-loop.md)

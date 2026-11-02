@@ -31,7 +31,7 @@ import type { z } from 'zod';
 
 import type { ToolDeclaration } from '../models/contract.ts';
 import { mapSchemaNodes, zodInputJsonSchema, zodToolParameters } from '../models/schemaNormalize.ts';
-import { LONG_RUNNING_NOTE, capResult, isTool, toToolContext } from './tool.ts';
+import { LONG_RUNNING_NOTE, MAX_RESULT_CHARS, capResult, isTool, toToolContext } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
 
 /**
@@ -75,7 +75,7 @@ export interface ToolSpec<S extends z.ZodType = z.ZodType, R = string> {
   execute: (input: z.infer<S>, context: ToolContext) => Promise<R>;
   /** The answer comes later; the handler resolves to undefined while it is pending (ask_user). */
   longRunning?: boolean;
-  /** Cut the result to this many characters (capResult). Off unless set; MAX_RESULT_CHARS is the shared limit. */
+  /** Cut the result to this many characters (capResult). Default MAX_RESULT_CHARS, the shared limit; 0 for no cap. */
   maxResultChars?: number;
   /** Text for the system instruction of each request that lists the tool (Tool.instruction, ADR 0059). */
   instruction?: (ctx: ToolContext) => Promise<string | undefined>;
@@ -137,7 +137,9 @@ export function defineTool<S extends z.ZodType, R = string>(spec: ToolSpec<S, R>
       const parsed = spec.schema.safeParse(args ?? {});
       if (!parsed.success) return invalidArguments(spec.name, parsed.error);
       const result = await spec.execute(parsed.data as z.infer<S>, toToolContext(context));
-      return spec.maxResultChars === undefined ? result : (capResult(result, spec.maxResultChars) as R | string);
+      // Capped at the shared limit unless the spec says otherwise; 0 turns the cap off (ADR 0152).
+      const max = spec.maxResultChars ?? MAX_RESULT_CHARS;
+      return max > 0 ? (capResult(result, max) as R | string) : result;
     },
   };
   Object.defineProperty(tool, DEFINED, { value: true });

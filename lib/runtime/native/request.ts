@@ -80,8 +80,11 @@ import type { TurnContent, TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
-import type { ContextConfig } from './compaction.ts';
+import type { ContextSetting } from './compaction.ts';
+import { resolveContext } from './compaction.ts';
 import { convertCodeExecutionParts, projectHistory } from './history.ts';
+import type { HistoryScope } from './history.ts';
+import { RECALL_NOTE, recallToolResultTool } from './recall.ts';
 import { finishTaskTool } from './taskMode.ts';
 import { withStateOverlay } from './tempState.ts';
 
@@ -98,6 +101,12 @@ export interface NativeAgent {
   description?: string;
   /** The model id, as the YAML names it. */
   model: string;
+  /**
+   * The YAML's model id when `model` is not it (a resolver handed the
+   * compiler an adapter, whose own id `model` then carries): what the
+   * context-window table reads for `context:`'s defaults (ADR 0154).
+   */
+  modelId?: string;
   /**
    * The agent's instruction. A string has `{key}` placeholders filled from
    * session state (`{key?}` is optional); a function's result is used as it is.
@@ -129,7 +138,7 @@ export interface NativeAgent {
   /** `fallback_model:`: answers a provider-side failure of the agent's model (ADR 0044). The loop calls it as its own leaf adapter. */
   fallbackModel?: string;
   /** `context:` (ADR 0033): compact the history into a summary past a token threshold. The loop runs it before each step (compaction.ts). */
-  context?: ContextConfig;
+  context?: ContextSetting;
   /** The syndicate's `max_concurrency` (ADR 0116): delegated calls one step runs at once. Default DEFAULT_MAX_CONCURRENCY (delegate.ts). */
   maxConcurrency?: number;
 }
@@ -617,13 +626,20 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   if (agent.instruction) system = appendInstructions(system, [await resolveInstruction(agent.instruction, instructionCtx, ctx.workflowScope)]);
   if (schemaWithTools) system = appendInstructions(system, [SET_MODEL_RESPONSE_INSTRUCTION]);
 
-  // 3. The history, and Gemini code execution's parts in it.
-  const contents = projectHistory(ctx.session.events, {
+  // 3. The history, and Gemini code execution's parts in it. Old tool results
+  // over the agent's mask_over_chars become stubs (ADR 0152); when any did,
+  // recall_tool_result is listed and the system prompt says so.
+  const context = resolveContext(agent.context, agent.modelId ?? model);
+  const historyScope: HistoryScope = {
     agentName: agent.name,
     includeContents: agent.includeContents ?? 'default',
     branch: ctx.branch,
     isolationScope: ctx.isolationScope,
-  });
+    mask: context.maskOverChars > 0 ? { overChars: context.maskOverChars, keep: context.keepRecentEvents } : false,
+  };
+  const maskedRefs = new Set<string>();
+  const contents = projectHistory(ctx.session.events, { ...historyScope, onMasked: (ref) => maskedRefs.add(ref) });
+  if (maskedRefs.size > 0) system = appendInstructions(system, [RECALL_NOTE]);
   const configNatives: NativeTool[] = [];
   if (agent.codeExecution === 'gemini') {
     if (!isGemini2OrAbove(model)) throw new Error(`Gemini code execution tool is not supported for model ${model}`);
@@ -655,10 +671,11 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   if (taskMode) all.push(finishTaskTool(agent.outputSchema));
   else if (schemaWithTools) all.push(setModelResponseTool(agent.outputSchema as Record<string, unknown>));
   if (ctx.extraTools) all.push(...ctx.extraTools);
+  if (maskedRefs.size > 0) all.push(recallToolResultTool(ctx.session.events, historyScope));
 
   // One entry per name, in first-listed order, the later object winning (ADK's toolsDict).
   const dict = new Map<string, { tool: unknown; declaration?: ToolDeclaration; native?: NativeTool }>();
-  const instructionTexts: Array<() => Promise<string | undefined>> = [];
+  const instructionTexts: Array<{ write: () => Promise<string | undefined>; volatile: boolean }> = [];
   const contentWriters: Array<() => Promise<void>> = [];
   for (const union of all) {
     const expanded = isToolset(union) ? await union.getTools(toolsetContext) : [union];
@@ -674,7 +691,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
       const writer: InstructionTool | undefined = instructionToolOf(listedTool);
       if (writer) {
-        instructionTexts.push(() => writer.instruction(toolContext));
+        instructionTexts.push({ write: () => writer.instruction(toolContext), volatile: writer.volatile === true });
         continue;
       }
       const own = toolOf(listedTool);
@@ -685,7 +702,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
       if (own?.instruction) {
         const write = own.instruction.bind(own);
-        instructionTexts.push(() => write(toolContext));
+        instructionTexts.push({ write: () => write(toolContext), volatile: false });
       }
       if (own?.contents) {
         const add = own.contents.bind(own);
@@ -693,10 +710,16 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
     }
   }
-  // As ADK ran each tool's processLlmRequest in turn, each instruction lands in that order.
-  for (const text of instructionTexts) {
-    const written = await text();
-    if (written) system = appendInstructions(system, [written]);
+  // Each tool's text lands in the agent's tool order. A stable text joins the
+  // system prompt; a volatile one (preload_memory's recall for this message)
+  // becomes the request's turnNotes, after the history, so the prefix every
+  // provider caches (tools, system, history) is the same request to request.
+  let turnNotes: string | undefined;
+  for (const { write, volatile } of instructionTexts) {
+    const written = await write();
+    if (!written) continue;
+    if (volatile) turnNotes = appendInstructions(turnNotes, [written]);
+    else system = appendInstructions(system, [written]);
   }
   // ...and what it adds to the history (load_skill_resource's binary file, ADR 0083), after the history.
   for (const write of contentWriters) await write();
@@ -725,6 +748,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     model,
     ...(systemPrompt !== undefined ? { system: systemPrompt } : {}),
     messages,
+    ...(turnNotes !== undefined ? { turnNotes } : {}),
     ...(tools.length > 0 ? { tools } : {}),
     ...(nativeTools.size > 0 ? { nativeTools: [...nativeTools] } : {}),
     ...(toolChoice !== undefined ? { toolChoice } : {}),

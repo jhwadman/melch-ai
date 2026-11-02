@@ -149,7 +149,7 @@ function replayedItems(part: Part, replay: ReasoningReplay): WireItem[] {
  * followed by the item it preceded; one that does not puts its calls before
  * its text, as ADK always built it.
  */
-export function responsesInput(request: Pick<ModelRequest, 'system' | 'messages'>, replay?: ReasoningReplay): ResponsesInput {
+export function responsesInput(request: Pick<ModelRequest, 'system' | 'messages' | 'turnNotes'>, replay?: ReasoningReplay): ResponsesInput {
   const system: string[] = request.system ? [request.system] : [];
   const input: WireItem[] = [];
   const droppedBlobs: string[] = [];
@@ -205,6 +205,8 @@ export function responsesInput(request: Pick<ModelRequest, 'system' | 'messages'
     }
     flush();
   }
+  // This step's notes, after the history, as one more user item, so the cached prefix before them holds.
+  if (request.turnNotes) input.push({ role: 'user', content: [{ type: 'input_text', text: request.turnNotes }] });
 
   return { ...(system.length > 0 ? { instructions: system.join('\n\n') } : {}), input, droppedBlobs };
 }

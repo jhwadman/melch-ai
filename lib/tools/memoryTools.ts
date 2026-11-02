@@ -104,6 +104,9 @@ ${lines.join('\n')}
 
 export const preloadMemoryTool: InstructionTool = {
   name: 'preload_memory',
+  // The block answers this message's query, so it differs every request: it
+  // rides in turnNotes, after the history, and the cached prefix holds.
+  volatile: true,
   /**
    * The facts recalled for the first text part of the message that started
    * the run. Nothing when that part has no text, the run has no memory,
