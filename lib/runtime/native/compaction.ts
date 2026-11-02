@@ -56,7 +56,7 @@ import type { LlmRequest, LlmResponse } from '../../models/genaiMapping.ts';
 
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
-import { traceLlmGeneration } from '../../observability/tracer.ts';
+import { setLlmSpanAttribute, traceLlmGeneration } from '../../observability/tracer.ts';
 import { createTurnEvent } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
@@ -278,6 +278,9 @@ export async function summarize(
   const request = summaryRequest(events, model, options.signal);
   const sources = new WeakMap<LlmResponse, ModelResponse>();
   async function* inner(): AsyncGenerator<LlmResponse, void> {
+    // What this llm.request is for, so a ledger reader tells a summary from the agent's own calls (ADR 0153).
+    setLlmSpanAttribute('llm.purpose', 'compaction');
+    setLlmSpanAttribute('llm.compaction.events', events.length);
     for await (const response of adapter.generate(request)) {
       const mapped = modelResponseToLlmResponse(response);
       sources.set(mapped, response);

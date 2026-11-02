@@ -336,6 +336,18 @@ context overflow forces one compaction and retry.
 - Settings gets no new control. `context:` in the syndicate file is the
   control.
 
+**Done (2026-11-02):** the engine stamps the summary's `llm.request` with
+`llm.purpose: compaction` and `llm.compaction.events`; the app reads it
+into `SpanRow.purpose` and `SpanNode.purpose`, the model-call bar sets its
+usage as facts (sans tabular figures, dim units, the cached share beside
+the input) with "Summary of earlier turns" before the model id, and the
+span tree says "summary of earlier turns" on that row; `syndicate-file.md`'s
+`context` row went through the Scribe. Not done: a look at the new bar in
+the running app (the design-laws profile has no traces), and re-vendoring
+the engine so the mark appears (a release step; the cached share shows
+on today's engine). The live pass found one pre-existing overflow, the
+Sessions table's last column at 960px, outside this change.
+
 ## Cross-cutting
 
 **Docs** (`sync-wiki`, each in the same change): `wiki/overview/native-
