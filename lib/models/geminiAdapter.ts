@@ -367,6 +367,13 @@ function buildRequest(request: ModelRequest, options: BuildOptions): BuiltReques
     // A content with no parts fails the whole request on Vertex AI.
     if (parts.length) contents.push({ role: message.role === 'assistant' ? 'model' : 'user', parts });
   });
+  // This step's notes, after the history, on the last user content (function
+  // responses are user content too), so the cached prefix before it holds.
+  if (request.turnNotes) {
+    const last = contents[contents.length - 1];
+    if (last?.role === 'user') last.parts!.push({ text: request.turnNotes });
+    else contents.push({ role: 'user', parts: [{ text: request.turnNotes }] });
+  }
 
   const config: GenerateContentConfig = {};
   if (system.length) config.systemInstruction = { parts: system.map((text) => ({ text })) };

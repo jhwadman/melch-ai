@@ -986,6 +986,16 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       }
     });
 
+    // This step's notes, after the history: joined to a last user message's
+    // text, or a user message of their own after tool results, so the cached
+    // prefix before them holds. Never a trailing system message: some
+    // OpenAI-compatible servers take system first only.
+    if (request.turnNotes) {
+      const last = messages[messages.length - 1];
+      if (last?.role === 'user' && typeof last.content === 'string') last.content = `${last.content}\n\n${request.turnNotes}`;
+      else if (last?.role === 'user' && Array.isArray(last.content)) last.content.push({ type: 'text', text: request.turnNotes });
+      else messages.push({ role: 'user', content: request.turnNotes });
+    }
     if (system.length > 0) messages.unshift({ role: 'system', content: system.join('\n\n') });
     return messages;
   }

@@ -95,8 +95,9 @@ Every tool the registry resolves is one or the other, except `preload_memory`, w
 | Field | Why |
 |---|---|
 | `model` | The id as the YAML names it. It equals the adapter's own `model`; a fallback wrapper ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)) rewrites it when it hands the request on. The adapter maps it to the wire name (a platform's model map, a gateway's id, `ollama/` stripped). |
-| `system` | The system prompt. One string: every provider has one place for it. |
+| `system` | The system prompt. One string: every provider has one place for it. Only text that is the same from one request of the agent to the next belongs here: every provider caches the prompt as a prefix (tools, system, history), and a word that changes here misses the whole history behind it ([ADR 0151](/decisions/0151-a-stable-prefix-and-automatic-cache-control.md)). |
 | `messages` | The conversation, oldest first. |
+| `turnNotes` | Text the model reads this step that is not part of the durable instruction: the facts `preload_memory` recalls for this message. Each adapter places it after the history, where it leaves the cached prefix alone (the rows below). Absent means none. |
 | `tools` | Client-side tools. |
 | `nativeTools` | Provider-side tools, by name. |
 | `toolChoice` | See above. |
@@ -172,6 +173,7 @@ The Gemini API (`generateContent`, `streamGenerateContent`), on Google AI or Ver
 | Contract | Wire |
 |---|---|
 | `system`, system messages | `systemInstruction.parts[].text`, system messages appended in order |
+| `turnNotes` | a text part at the end of the last `user` content (function responses are user content too), or a new user content when the history ends on a model turn |
 | user / assistant / tool message | `contents[]` with `role: 'user'` / `'model'` / `'user'` |
 | `TextPart` | `{ text }` |
 | `ThinkingPart` | not sent. Received as `{ text, thought: true }`. |
@@ -199,6 +201,7 @@ The Messages API, on Anthropic's API or through Bedrock or Vertex AI (ADR 0023).
 | Contract | Wire |
 |---|---|
 | `system`, system messages | `system`, system messages appended in order |
+| `turnNotes` | a text block at the end of the last `user` message (tool results are user content too), or a new user message when the history ends on an assistant turn |
 | user / assistant message | `role: 'user'` / `'assistant'` |
 | tool message | one `role: 'user'` message holding every `tool_result` of the assistant message before it |
 | `TextPart` | `{ type: 'text', text }` |
@@ -228,6 +231,7 @@ The Responses API, on OpenAI's API or Azure OpenAI (ADR 0023).
 | Contract | Wire |
 |---|---|
 | `system`, system messages | `instructions`, system messages appended in order |
+| `turnNotes` | one more `{ role: 'user', content: [{ type: 'input_text' }] }` item after the history |
 | user / assistant text | `{ role, content: [{ type: 'input_text' \| 'output_text', text }] }` |
 | `ThinkingPart` | not sent. Received from `reasoning` items' `summary`. |
 | `ToolCallPart` | `{ type: 'function_call', call_id: id, name, arguments: <JSON text> }` |
@@ -269,6 +273,7 @@ The three share one base, `ChatCompletionsAdapter` (`lib/models/chatCompletionsA
 | Contract | Wire |
 |---|---|
 | `system`, system messages | one `{ role: 'system' }` message first, `system` and then the system messages' text, joined by blank lines |
+| `turnNotes` | joined to a last `user` message's text after a blank line (or pushed as a text part when it carries images), else a user message of its own after tool messages; never a trailing system message, which some OpenAI-compatible servers refuse |
 | user message | `{ role: 'user', content }`: a string, or text and `{ type: 'image_url', image_url: { url: <data URI> } }` parts. A URL blob is not sent. |
 | assistant message | `{ role: 'assistant', content: <text> \| null, tool_calls: [{ id, type: 'function', function: { name, arguments } }] }`; blobs are not sent |
 | tool message | one `{ role: 'tool', tool_call_id: id, content: <JSON text> }` per result. The JSON is the genai envelope: the result when it is an object, else `{ result }`, and `{ error: result }` with `isError`. |

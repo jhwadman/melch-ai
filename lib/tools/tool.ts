@@ -212,11 +212,18 @@ export function toolsetOf(value: unknown): Toolset | undefined {
 
 /**
  * Listed under an agent's `tools:` like a Tool, but declares no function and
- * is never called: it only adds text to the system instruction of each model
- * request, as `Tool.instruction` does (preload_memory).
+ * is never called: it only adds text to each model request, as
+ * `Tool.instruction` does (preload_memory).
+ *
+ * The text lands in the system prompt unless the tool is `volatile`: text
+ * that differs from one request to the next (recalled facts for this
+ * message) goes in the request's `turnNotes`, after the history, so the
+ * provider's cached prefix (tools, system, history) survives it.
  */
 export interface InstructionTool {
   readonly name: string;
+  /** The text changes between requests: it goes in `ModelRequest.turnNotes`, not the system prompt. */
+  readonly volatile?: boolean;
   instruction(ctx: ToolContext): Promise<string | undefined>;
 }
 

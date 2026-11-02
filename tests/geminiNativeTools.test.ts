@@ -240,11 +240,17 @@ test('load_memory is declared to Gemini as written, and the system instruction c
   const system = systemOf(body);
   assert.ok(system.includes('Answer from the record.'));
   assert.ok(system.includes(LOAD_MEMORY_INSTRUCTION), 'load_memory’s note');
-  assert.ok(
-    system.includes('<PAST_CONVERSATIONS>\nTime: 2026-03-12T09:00:00Z\nmemory_service: Creatinine was 1.4 mg/dL on 2026-03-12.\n</PAST_CONVERSATIONS>'),
-    'preload_memory’s recalled block',
+  assert.ok(!system.includes('<PAST_CONVERSATIONS>'), 'the recalled block is not in the system instruction: it changes every request');
+  // The recall for this message rides after the history, on the last user content, so the cached prefix holds.
+  const last = body.contents[body.contents.length - 1];
+  assert.equal(last.role, 'user');
+  assert.equal(
+    last.parts[last.parts.length - 1].text,
+    'The following content is from your previous conversations with the user.\n'
+      + "They may be useful for answering the user's current query.\n"
+      + '<PAST_CONVERSATIONS>\nTime: 2026-03-12T09:00:00Z\nmemory_service: Creatinine was 1.4 mg/dL on 2026-03-12.\n</PAST_CONVERSATIONS>\n',
+    'preload_memory’s recalled block, after the history',
   );
-  assert.ok(system.indexOf('<PAST_CONVERSATIONS>') < system.indexOf(LOAD_MEMORY_INSTRUCTION), 'in the agent’s tool order');
 });
 
 test('without memory, neither memory tool writes into the system instruction', async () => {
@@ -373,7 +379,9 @@ test('Ares: the orchestrator declares WarScribe and load_memory with the preload
   const ares = bodies.get('Ares');
   assert.deepEqual(declaredNames(ares), ['WarScribe', 'load_memory']);
   assert.deepEqual(geminiOwnTools(ares), []);
-  assert.ok(systemOf(ares).includes('<PAST_CONVERSATIONS>'), 'preload_memory wrote the recalled facts');
+  const aresLast = ares.contents[ares.contents.length - 1];
+  assert.ok(aresLast.parts[aresLast.parts.length - 1].text.includes('<PAST_CONVERSATIONS>'), 'preload_memory wrote the recalled facts after the history');
+  assert.ok(!systemOf(ares).includes('<PAST_CONVERSATIONS>'), 'and not into the system instruction');
   assert.ok(systemOf(ares).includes(LOAD_MEMORY_INSTRUCTION));
   const scribe = bodies.get('WarScribe');
   assert.deepEqual(scribe.tools, [{ googleSearch: {} }], 'google_search as a request flag, declared as no function');

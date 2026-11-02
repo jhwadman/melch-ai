@@ -994,9 +994,16 @@ export function modelRequestToLlmRequest(request: ModelRequest): LlmRequest {
   if (sampling?.stop?.length) config.stopSequences = [...sampling.stop];
   if (request.signal) config.abortSignal = request.signal;
 
+  // This step's notes, after the history, as the Gemini adapter places them.
+  const contents = messagesToContents({ messages: request.messages }).contents;
+  if (request.turnNotes) {
+    const last = contents[contents.length - 1];
+    if (last?.role === 'user') (last.parts ??= []).push({ text: request.turnNotes });
+    else contents.push({ role: 'user', parts: [{ text: request.turnNotes }] });
+  }
   return {
     model: request.model,
-    contents: messagesToContents({ messages: request.messages }).contents,
+    contents,
     config,
     liveConnectConfig: {},
     toolsDict: Object.fromEntries(declarations.map((d) => [d.name, declaredTool(d)])),

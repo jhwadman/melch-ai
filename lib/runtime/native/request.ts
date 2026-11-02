@@ -658,7 +658,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
 
   // One entry per name, in first-listed order, the later object winning (ADK's toolsDict).
   const dict = new Map<string, { tool: unknown; declaration?: ToolDeclaration; native?: NativeTool }>();
-  const instructionTexts: Array<() => Promise<string | undefined>> = [];
+  const instructionTexts: Array<{ write: () => Promise<string | undefined>; volatile: boolean }> = [];
   const contentWriters: Array<() => Promise<void>> = [];
   for (const union of all) {
     const expanded = isToolset(union) ? await union.getTools(toolsetContext) : [union];
@@ -674,7 +674,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
       const writer: InstructionTool | undefined = instructionToolOf(listedTool);
       if (writer) {
-        instructionTexts.push(() => writer.instruction(toolContext));
+        instructionTexts.push({ write: () => writer.instruction(toolContext), volatile: writer.volatile === true });
         continue;
       }
       const own = toolOf(listedTool);
@@ -685,7 +685,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
       if (own?.instruction) {
         const write = own.instruction.bind(own);
-        instructionTexts.push(() => write(toolContext));
+        instructionTexts.push({ write: () => write(toolContext), volatile: false });
       }
       if (own?.contents) {
         const add = own.contents.bind(own);
@@ -693,10 +693,16 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
     }
   }
-  // As ADK ran each tool's processLlmRequest in turn, each instruction lands in that order.
-  for (const text of instructionTexts) {
-    const written = await text();
-    if (written) system = appendInstructions(system, [written]);
+  // Each tool's text lands in the agent's tool order. A stable text joins the
+  // system prompt; a volatile one (preload_memory's recall for this message)
+  // becomes the request's turnNotes, after the history, so the prefix every
+  // provider caches (tools, system, history) is the same request to request.
+  let turnNotes: string | undefined;
+  for (const { write, volatile } of instructionTexts) {
+    const written = await write();
+    if (!written) continue;
+    if (volatile) turnNotes = appendInstructions(turnNotes, [written]);
+    else system = appendInstructions(system, [written]);
   }
   // ...and what it adds to the history (load_skill_resource's binary file, ADR 0083), after the history.
   for (const write of contentWriters) await write();
@@ -725,6 +731,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     model,
     ...(systemPrompt !== undefined ? { system: systemPrompt } : {}),
     messages,
+    ...(turnNotes !== undefined ? { turnNotes } : {}),
     ...(tools.length > 0 ? { tools } : {}),
     ...(nativeTools.size > 0 ? { nativeTools: [...nativeTools] } : {}),
     ...(toolChoice !== undefined ? { toolChoice } : {}),

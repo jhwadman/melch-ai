@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-11-01
+  at: 2026-11-02
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -33,7 +33,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 | `module` | `module:<name>` | 215 | one source module |
 | `env` | `env:<name>` | 118 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 99 | one orchestrator or subagent inside a syndicate |
-| `script` | `script:<name>` | 52 | an npm script entrypoint |
+| `script` | `script:<name>` | 53 | an npm script entrypoint |
 | `syndicate` | `syndicate:<name>` | 37 | one agent-team definition (a YAML) |
 | `tool` | `tool:<name>` | 35 | a tool an agent may declare by name |
 | `table` | `table:<name>` | 20 | a database table |
@@ -50,17 +50,17 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1277 | declared in the document’s `sources:` frontmatter |
-| `imports` | extracted | A imports B | 993 | a static import edge between source files |
-| `links_to` | extracted | A links to B | 850 | a resolved markdown link between documents |
-| `requires_env` | extracted | A requires B | 180 | this environment variable must be set for the node to work |
+| `derives_from` | extracted | A derives from B | 1281 | declared in the document’s `sources:` frontmatter |
+| `imports` | extracted | A imports B | 990 | a static import edge between source files |
+| `links_to` | extracted | A links to B | 858 | a resolved markdown link between documents |
+| `requires_env` | extracted | A requires B | 182 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 99 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 99 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 84 | where the thing is declared in source |
-| `runs` | extracted | A runs B | 76 | an entrypoint — a script, a process, a worker — executes this |
+| `runs` | extracted | A runs B | 77 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 61 | the document derives from, and describes, this entity |
-| `reads_table` | extracted | A reads or writes B | 30 | the module names this table |
+| `reads_table` | extracted | A reads or writes B | 31 | the module names this table |
 | `routes_to` | extracted | A routes to B | 13 | the model id resolves to this provider adapter |
 | `connects_mcp` | extracted | A dials B | 6 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
