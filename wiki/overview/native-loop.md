@@ -97,6 +97,7 @@ MCP and OpenAPI tools are own Tools too ([MCP](/protocols/mcp.md), [OpenAPI tool
    - It skips events on another branch or in another isolation scope, empty ones, and the `adk_request_confirmation`, `adk_request_credential` and `adk_request_input` calls.
    - It retells another agent's turns to this one as a user message ("For context:", "[name] said: …").
    - A compaction summary stands in for the events it covers.
+   - An old tool result over `mask_over_chars` goes as a recallable stub (see [Masking](#masking)).
    - It moves tool answers next to their calls, and strips the engine's own `adk-` call ids (ADK's spelling).
 
    With `code_execution: gemini`, code parts are read as fenced text, as ADK's code-execution processor read them.
@@ -181,9 +182,17 @@ The generator returns an `AgentLoopEnd`:
 | `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
 | `empty` | the model answered nothing | |
 
+## Masking
+
+Most of a long conversation's input is tool results, each read once and resent on every step. The projection sends a result older than the verbatim tail (the last `keep_recent_events` projected events, default 6, the tail start moved back so no answer loses its call) and longer than `context.mask_over_chars` (default 1,000) as a stub, `{ masked: true, tool, ref, chars, head }`: the stored event's id, the original's length and its first 200 characters ([ADR 0152](/decisions/0152-old-tool-results-are-masked-and-recallable.md)). The call stays, so the model sees what it asked for; the stored event is untouched; a small result stays whole; another agent's masked result is retold as the stub. The tail slides one event per step, so the only cache miss is from the event that just left it.
+
+On a request whose projection masked anything, the builder lists `recall_tool_result` (`lib/runtime/native/recall.ts`) and adds one fixed line to the system prompt. The tool is made per request, closed over that session's events and the agent's history scope: it returns the stored result, cut at the shared tool-result limit, for a ref whose event the agent's own projection would include, and `{ error: "No such result." }` for any other. It reads no network and no file.
+
+Masking is on for every agent on the loop; `context: { mask_over_chars: 0 }` turns it off for one. `tests/historyMasking.test.ts` covers the stub, the tail, the retelling, the scope rule and a turn in which the model reads a stub back.
+
 ## Compaction
 
-An agent with `context: { compact_after_tokens, keep_recent_events?, summary_model? }` ([ADR 0033](/decisions/0033-context-task-code.md)) compacts on the native loop as ADK's `TokenBasedContextCompactor` and `LlmSummarizer` did. `lib/runtime/native/compaction.ts` is a rule-for-rule port, and the loop calls `compactBeforeStep` before every step ([ADR 0078](/decisions/0078-native-compaction-ports-adk-compactor.md)).
+An agent with `context: { compact_after_tokens, keep_recent_events?, summary_model? }` ([ADR 0033](/decisions/0033-context-task-code.md); `context:` without `compact_after_tokens` masks and never compacts) compacts on the native loop as ADK's `TokenBasedContextCompactor` and `LlmSummarizer` did. `lib/runtime/native/compaction.ts` is a rule-for-rule port, and the loop calls `compactBeforeStep` before every step ([ADR 0078](/decisions/0078-native-compaction-ports-adk-compactor.md)).
 
 1. **When.** The active events are the latest compaction and what follows it, in the run's isolation scope. Three things must hold:
    - they hold more raw events than `keep_recent_events` (default 6);

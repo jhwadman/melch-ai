@@ -381,7 +381,8 @@ test('the projection replays the interrupted turn raw', async () => {
 
 registerTool(
   'transcript_quotes',
-  defineTool({ name: 'transcript_quotes', description: 'Quotes for a ticker.', schema: z.object({ ticker: z.string() }), execute: async () => 'x'.repeat(23_000) }),
+  // Uncapped (ADR 0152): the recorded ADK conversation read the whole 23,000 bytes.
+  defineTool({ name: 'transcript_quotes', description: 'Quotes for a ticker.', schema: z.object({ ticker: z.string() }), maxResultChars: 0, execute: async () => 'x'.repeat(23_000) }),
   { override: true },
 );
 

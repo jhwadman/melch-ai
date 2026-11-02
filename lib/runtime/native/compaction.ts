@@ -51,23 +51,25 @@ import type { LlmRequest, LlmResponse } from '../../models/genaiMapping.ts';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
 import { traceLlmGeneration } from '../../observability/tracer.ts';
-import { createTurnEvent, getFunctionCalls, getFunctionResponses } from '../events.ts';
+import { createTurnEvent } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
-import { activeEvents, contentsOf, isCompacted } from './history.ts';
+import { DEFAULT_KEEP_RECENT_EVENTS, activeEvents, contentsOf, isCompacted, retainStartIndex } from './history.ts';
 import type { CompactedEvent } from './history.ts';
 
-/** An agent's `context:` block, in the YAML's spelling (ADR 0033). */
+export { DEFAULT_KEEP_RECENT_EVENTS, retainStartIndex };
+
+/** An agent's `context:` block, in the YAML's spelling (ADR 0033, ADR 0152). */
 export interface ContextConfig {
-  /** Compact when the last request's prompt passed this many tokens. */
-  compact_after_tokens: number;
-  /** Events kept verbatim after the summary. Default 6. */
+  /** Compact when the last request's prompt passed this many tokens. Unset: no compaction. */
+  compact_after_tokens?: number;
+  /** Events kept verbatim after the summary, and before masking. Default 6. */
   keep_recent_events?: number;
   /** The model that writes the summary. Default: the agent's own. */
   summary_model?: string;
+  /** A tool result older than the verbatim tail and longer than this becomes a stub (ADR 0152). Default 1,000; 0 masks none. */
+  mask_over_chars?: number;
 }
-
-export const DEFAULT_KEEP_RECENT_EVENTS = 6;
 
 /** ADK's LlmSummarizer default prompt, which compile's summarizer uses. */
 export const SUMMARY_PROMPT =
@@ -87,16 +89,6 @@ export interface CompactionScope {
 }
 
 // ── When (ADK's shouldCompact) ───────────────────────────────────────────────
-
-/** Where the verbatim tail starts: `keep` from the end, moved back so no answer loses its call. */
-export function retainStartIndex(raw: readonly TurnEvent[], keep: number): number {
-  let start = Math.max(0, raw.length - keep);
-  while (start > 0) {
-    if (getFunctionResponses(raw[start] as TurnEvent).length > 0 && getFunctionCalls(raw[start - 1] as TurnEvent).length > 0) start--;
-    else break;
-  }
-  return start;
-}
 
 /** The latest prompt token count an active event carries, else the estimate from the projected history. */
 function promptTokens(active: readonly TurnEvent[], scope: CompactionScope): number | undefined {
@@ -121,6 +113,7 @@ function promptTokens(active: readonly TurnEvent[], scope: CompactionScope): num
  * when there is one), or undefined when the agent should not compact.
  */
 export function eventsToCompact(config: ContextConfig, scope: CompactionScope): TurnEvent[] | undefined {
+  if (config.compact_after_tokens === undefined) return undefined;
   const keep = config.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS;
   const active = activeEvents(scope.session.events, scope.isolationScope);
   const raw = active.filter((e) => !isCompacted(e));
@@ -128,7 +121,7 @@ export function eventsToCompact(config: ContextConfig, scope: CompactionScope): 
   const start = retainStartIndex(raw, keep);
   if (start === 0) return undefined;
   const tokens = promptTokens(active, scope);
-  if (tokens === undefined || tokens <= config.compact_after_tokens) return undefined;
+  if (tokens === undefined || tokens <= (config.compact_after_tokens as number)) return undefined;
   const present = active.find(isCompacted);
   const cut = raw.slice(0, start);
   return present ? [present, ...cut] : cut;
