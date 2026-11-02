@@ -114,8 +114,12 @@ test('schema: each key where it means something', () => {
   });
   assert.throws(() => validateSyndicateConfig(base({ model: 'claude-sonnet-4-6', code_execution: 'gemini' }), 't'), /needs a gemini-\* model/);
   assert.doesNotThrow(() => validateSyndicateConfig(base({ context: { compact_after_tokens: 50000 } }), 't'));
-  assert.throws(() => validateSyndicateConfig(base({ context: { compact_after_tokens: 50000 } }, { dispatch: { default_route: 'Sub' } }), 't'), /delegate syndicate/);
-  assert.throws(() => validateSyndicateConfig(base({ context: { compact_after_tokens: 50 } }), 't'), /compact_after_tokens/);
+  // ADR 0154: context applies to any agent (masking and compaction are on by default), and `off` turns both off.
+  assert.doesNotThrow(() => validateSyndicateConfig(base({ context: { compact_after_tokens: 50000 } }, { dispatch: { default_route: 'Sub' } }), 't'));
+  assert.doesNotThrow(() => validateSyndicateConfig(base({ context: 'off' }), 't'));
+  assert.doesNotThrow(() => validateSyndicateConfig(base({ context: { compact_after_tokens: 0, mask_over_chars: 0 } }), 't'));
+  assert.throws(() => validateSyndicateConfig(base({ context: { compact_after_tokens: -1 } }), 't'), /compact_after_tokens/);
+  assert.throws(() => validateSyndicateConfig(base({ context: 'on' }), 't'), /context/);
   assert.throws(() => validateSyndicateConfig(base({ mode: 'task' }), 't'), /mode: task applies to workflow nodes/);
   assert.doesNotThrow(() => validateSyndicateConfig(base({ mode: 'task' }, { workflow: { edges: [['START', 'Lead', 'Sub']] } }), 't'));
 });

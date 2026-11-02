@@ -60,14 +60,15 @@ import { traceLlmGeneration } from '../../observability/tracer.ts';
 import { createTurnEvent } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
-import { DEFAULT_KEEP_RECENT_EVENTS, activeEvents, contentsOf, isCompacted, retainStartIndex } from './history.ts';
+import { compactAfterTokens } from '../../models/contextWindow.ts';
+import { DEFAULT_KEEP_RECENT_EVENTS, DEFAULT_MASK_OVER_CHARS, activeEvents, contentsOf, isCompacted, retainStartIndex } from './history.ts';
 import type { CompactedEvent } from './history.ts';
 
 export { DEFAULT_KEEP_RECENT_EVENTS, retainStartIndex };
 
-/** An agent's `context:` block, in the YAML's spelling (ADR 0033, ADR 0152). */
+/** An agent's `context:` block, in the YAML's spelling (ADR 0033, ADR 0152, ADR 0154). */
 export interface ContextConfig {
-  /** Compact when the last request's prompt passed this many tokens. Unset: no compaction. */
+  /** Compact when the last request's prompt passed this many tokens. Default: 60% of the model's window; 0 never compacts. */
   compact_after_tokens?: number;
   /** Events kept verbatim after the summary, and before masking. Default 6. */
   keep_recent_events?: number;
@@ -75,6 +76,32 @@ export interface ContextConfig {
   summary_model?: string;
   /** A tool result older than the verbatim tail and longer than this becomes a stub (ADR 0152). Default 1,000; 0 masks none. */
   mask_over_chars?: number;
+}
+
+/** `context:` as the YAML may spell it: the block, or `off` for no masking and no compaction. */
+export type ContextSetting = ContextConfig | 'off';
+
+/** What the loop reads: every knob with its default filled in for `model`. */
+export interface ResolvedContext {
+  /** Undefined: never compacts. */
+  compactAfterTokens: number | undefined;
+  keepRecentEvents: number;
+  summaryModel: string | undefined;
+  /** 0: masks none. */
+  maskOverChars: number;
+}
+
+/** The agent's `context:` with the defaults filled in (ADR 0154): on unless `off`, the threshold from the model's window. */
+export function resolveContext(setting: ContextSetting | undefined, model: string): ResolvedContext {
+  if (setting === 'off') return { compactAfterTokens: undefined, keepRecentEvents: DEFAULT_KEEP_RECENT_EVENTS, summaryModel: undefined, maskOverChars: 0 };
+  const config = setting ?? {};
+  const after = config.compact_after_tokens ?? compactAfterTokens(model);
+  return {
+    compactAfterTokens: after > 0 ? after : undefined,
+    keepRecentEvents: config.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS,
+    summaryModel: config.summary_model,
+    maskOverChars: config.mask_over_chars ?? DEFAULT_MASK_OVER_CHARS,
+  };
 }
 
 /** The summary's sections, every one present even when empty. */
@@ -154,16 +181,19 @@ function promptTokens(active: readonly TurnEvent[], scope: CompactionScope): num
  * The events a compaction would summarize now (the active compaction first,
  * when there is one), or undefined when the agent should not compact.
  */
-export function eventsToCompact(config: ContextConfig, scope: CompactionScope): TurnEvent[] | undefined {
-  if (config.compact_after_tokens === undefined) return undefined;
-  const keep = config.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS;
+export function eventsToCompact(context: ResolvedContext, scope: CompactionScope, force = false): TurnEvent[] | undefined {
+  if (context.compactAfterTokens === undefined && !force) return undefined;
+  // Forced (an overflow, ADR 0154): the threshold is moot and the tail is halved, so the retry fits.
+  const keep = force ? Math.max(1, Math.ceil(context.keepRecentEvents / 2)) : context.keepRecentEvents;
   const active = activeEvents(scope.session.events, scope.isolationScope);
   const raw = active.filter((e) => !isCompacted(e));
   if (raw.length <= keep) return undefined;
   const start = retainStartIndex(raw, keep);
   if (start === 0) return undefined;
-  const tokens = promptTokens(active, scope);
-  if (tokens === undefined || tokens <= (config.compact_after_tokens as number)) return undefined;
+  if (!force) {
+    const tokens = promptTokens(active, scope);
+    if (tokens === undefined || tokens <= (context.compactAfterTokens as number)) return undefined;
+  }
   const present = active.find(isCompacted);
   const cut = raw.slice(0, start);
   return present ? [present, ...cut] : cut;
@@ -285,13 +315,13 @@ export async function summarize(
  * uncompacted. A stopped turn rethrows, as any step would.
  */
 export async function compactBeforeStep(
-  agent: { name: string; model: string; context?: ContextConfig },
-  scope: Omit<CompactionScope, 'agentName'> & { adapterFor: (model: string) => ModelAdapter; signal?: AbortSignal; log?: (message: string) => void },
+  agent: { name: string; model: string; modelId?: string; context?: ContextSetting },
+  scope: Omit<CompactionScope, 'agentName'> & { adapterFor: (model: string) => ModelAdapter; signal?: AbortSignal; log?: (message: string) => void; force?: boolean },
 ): Promise<CompactedEvent | undefined> {
-  if (!agent.context) return undefined;
-  const events = eventsToCompact(agent.context, { ...scope, agentName: agent.name });
+  const context = resolveContext(agent.context, agent.modelId ?? agent.model);
+  const events = eventsToCompact(context, { ...scope, agentName: agent.name }, scope.force === true);
   if (!events) return undefined;
-  const model = agent.context.summary_model ?? agent.model;
+  const model = context.summaryModel ?? agent.model;
   try {
     return await summarize(events, scope.adapterFor(model), model, {
       ...(scope.signal ? { signal: scope.signal } : {}),

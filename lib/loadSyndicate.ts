@@ -13,7 +13,7 @@ import type { OpenApiConfig } from './tools/openapiTools.ts';
 import type { McpAuthConfig } from './tools/oauthTools.ts';
 import type { McpTransportKind } from './tools/mcpTransports.ts';
 import type { McpServerConfig } from './tools/mcpToolFactory.ts';
-import type { ContextConfig, ExampleConfig } from './compile.ts';
+import type { ContextSetting, ExampleConfig } from './compile.ts';
 export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
@@ -206,8 +206,8 @@ export interface AgentYamlConfig {
   code_execution?: 'gemini';
   /** How this agent's `run_code` tool behaves (ADR 0137): `attach` puts each run's code and result on the reply. Needs run_code in `tools`. */
   run_code?: { attach?: boolean };
-  /** Compact a long conversation into a summary past a token threshold (ADR 0033). Delegate orchestrator only. */
-  context?: ContextConfig;
+  /** What the model is sent of a long conversation: masking and compaction, both on by default (ADR 0033, ADR 0152, ADR 0154), or `off`. */
+  context?: ContextSetting;
   /** `task`: the agent works until it calls finish_task; its arguments are the node's output. Workflow nodes only. */
   mode?: 'task';
   /** Few-shot exchanges added to every request's instruction (ADK's ExampleTool). */

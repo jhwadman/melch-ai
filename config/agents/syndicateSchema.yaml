@@ -368,13 +368,15 @@ orchestrator:
   # run_code:
   #   attach: true
 
-  # [optional] What the model is sent of a long conversation. A tool result
-  # older than the last `keep_recent_events` events and longer than
+  # [optional] What the model is sent of a long conversation; both parts are
+  # on by default, and `context: off` turns both off. A tool result older
+  # than the last `keep_recent_events` events and longer than
   # `mask_over_chars` goes as a stub the model can read back with
-  # recall_tool_result (on by default; 0 masks none). With
-  # `compact_after_tokens`, past that prompt size earlier turns become one
-  # summary (orchestrator of a delegate syndicate only, ADR 0033). The full
-  # history stays stored either way (ADR 0152).
+  # recall_tool_result (0 masks none). Past `compact_after_tokens` (default
+  # 60% of the model's context window; 0 never compacts) the earlier turns
+  # become one sectioned summary, and a prompt that overflows the window
+  # anyway is compacted and retried once. The full history stays stored
+  # either way (ADR 0152, ADR 0153, ADR 0154).
   # context:
   #   mask_over_chars: 1000
   #   keep_recent_events: 6

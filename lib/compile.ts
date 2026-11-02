@@ -128,8 +128,8 @@ function modelIdOf(yamlModel: string | undefined, resolved: unknown): string | u
 }
 
 /** An agent's `context:` block and its default, owned by the compactor (ADR 0033). */
-export type { ContextConfig } from './runtime/native/compaction.ts';
-import type { ContextConfig } from './runtime/native/compaction.ts';
+export type { ContextConfig, ContextSetting } from './runtime/native/compaction.ts';
+import type { ContextSetting } from './runtime/native/compaction.ts';
 export { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
 
 /**
@@ -396,8 +396,8 @@ export interface AgentSpec {
   disallowTransferToPeers?: boolean;
   /** `code_execution: gemini`. */
   codeExecution?: 'gemini';
-  /** `context:`: compaction (ADR 0033). */
-  context?: ContextConfig;
+  /** `context:`: masking and compaction (ADR 0033, ADR 0154), or `off`. */
+  context?: ContextSetting;
   /** `mode: task`. */
   mode?: 'task';
   /** The syndicate's `max_concurrency`, on its orchestrator (ADR 0116): delegated calls one step runs at once. */
@@ -418,7 +418,7 @@ interface AgentYaml {
   disallowTransferToParent?: boolean;
   disallowTransferToPeers?: boolean;
   code_execution?: 'gemini';
-  context?: ContextConfig;
+  context?: ContextSetting;
   mode?: 'task';
   reasoning?: ReasoningSetting;
   generateContentConfig?: object;

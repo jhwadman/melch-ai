@@ -80,8 +80,9 @@ import type { TurnContent, TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
-import type { ContextConfig } from './compaction.ts';
-import { DEFAULT_KEEP_RECENT_EVENTS, DEFAULT_MASK_OVER_CHARS, convertCodeExecutionParts, projectHistory } from './history.ts';
+import type { ContextSetting } from './compaction.ts';
+import { resolveContext } from './compaction.ts';
+import { convertCodeExecutionParts, projectHistory } from './history.ts';
 import type { HistoryScope } from './history.ts';
 import { RECALL_NOTE, recallToolResultTool } from './recall.ts';
 import { finishTaskTool } from './taskMode.ts';
@@ -100,6 +101,12 @@ export interface NativeAgent {
   description?: string;
   /** The model id, as the YAML names it. */
   model: string;
+  /**
+   * The YAML's model id when `model` is not it (a resolver handed the
+   * compiler an adapter, whose own id `model` then carries): what the
+   * context-window table reads for `context:`'s defaults (ADR 0154).
+   */
+  modelId?: string;
   /**
    * The agent's instruction. A string has `{key}` placeholders filled from
    * session state (`{key?}` is optional); a function's result is used as it is.
@@ -131,7 +138,7 @@ export interface NativeAgent {
   /** `fallback_model:`: answers a provider-side failure of the agent's model (ADR 0044). The loop calls it as its own leaf adapter. */
   fallbackModel?: string;
   /** `context:` (ADR 0033): compact the history into a summary past a token threshold. The loop runs it before each step (compaction.ts). */
-  context?: ContextConfig;
+  context?: ContextSetting;
   /** The syndicate's `max_concurrency` (ADR 0116): delegated calls one step runs at once. Default DEFAULT_MAX_CONCURRENCY (delegate.ts). */
   maxConcurrency?: number;
 }
@@ -622,13 +629,13 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   // 3. The history, and Gemini code execution's parts in it. Old tool results
   // over the agent's mask_over_chars become stubs (ADR 0152); when any did,
   // recall_tool_result is listed and the system prompt says so.
-  const overChars = agent.context?.mask_over_chars ?? DEFAULT_MASK_OVER_CHARS;
+  const context = resolveContext(agent.context, agent.modelId ?? model);
   const historyScope: HistoryScope = {
     agentName: agent.name,
     includeContents: agent.includeContents ?? 'default',
     branch: ctx.branch,
     isolationScope: ctx.isolationScope,
-    mask: overChars > 0 ? { overChars, keep: agent.context?.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS } : false,
+    mask: context.maskOverChars > 0 ? { overChars: context.maskOverChars, keep: context.keepRecentEvents } : false,
   };
   const maskedRefs = new Set<string>();
   const contents = projectHistory(ctx.session.events, { ...historyScope, onMasked: (ref) => maskedRefs.add(ref) });

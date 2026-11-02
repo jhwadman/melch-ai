@@ -148,6 +148,8 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   if (spec.outputKey !== undefined) agent.outputKey = spec.outputKey;
   if (spec.fallbackModel) agent.fallbackModel = spec.fallbackModel;
   if (spec.context) agent.context = spec.context;
+  // The YAML's id when the adapter's differs: the context-window table reads it (ADR 0154).
+  if (spec.modelId && spec.modelId !== model) agent.modelId = spec.modelId;
   if (spec.maxConcurrency !== undefined) agent.maxConcurrency = spec.maxConcurrency;
   if (spec.metadata) agent.metadata = spec.metadata;
   return agent;
@@ -286,7 +288,7 @@ export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSp
     if (s.resolvedModel !== undefined) {
       for (const id of [wireModelOf(s), s.modelId]) if (id && !known.has(id)) known.set(id, s.resolvedModel);
     }
-    for (const id of [s.fallbackModel, s.context?.summary_model]) {
+    for (const id of [s.fallbackModel, typeof s.context === 'object' ? s.context.summary_model : undefined]) {
       if (!id || known.has(id) || !opts.resolveModel) continue;
       const resolved = opts.resolveModel(id);
       refuseModelClass(resolved, id, s.name ?? 'the native runtime');
