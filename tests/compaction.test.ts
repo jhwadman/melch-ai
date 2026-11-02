@@ -408,6 +408,9 @@ function scrubbed(row: Record<string, any>): Record<string, any> {
     if ('engine.version' in copy) copy['engine.version'] = '<engine>';
     // ADK never wrote the per-model usage the ledger prices a turn from (ADR 0136); tests/postgresLedger.test.ts checks its value.
     delete copy['syndicate.usage'];
+    // What the summary's llm.request says it is for (ADR 0153), which ADK's never did.
+    delete copy['llm.purpose'];
+    delete copy['llm.compaction.events'];
     return copy;
   };
   if (out.attributes) out.attributes = scrub(out.attributes);
