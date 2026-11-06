@@ -47,8 +47,11 @@
  *      mergeParallelFunctionResponseEvents). ADK runs the calls one after
  *      another and lets a call read the state an earlier call of the same
  *      step wrote; here each call reads the state as the step left it.
- *   3. An approval request ends the run: the response is NOT stored; in its
- *      place the event ADK stores, a call to `adk_request_confirmation`
+ *   3. An approval request ends the run: the gated calls' answers are NOT
+ *      stored. The step's other calls ran, and their answers are stored
+ *      first, as their own event with no actions (answeredBesideGates): a
+ *      provider other than Gemini refuses a call with no result. Then, in
+ *      the gated calls' place, the event ADK stores, a call to `adk_request_confirmation`
  *      (args: the original call and the confirmation; an `adk-` id listed in
  *      longRunningToolIds), carrying the response's actions. The answer
  *      resumes it: before each step, lib/runtime/native/interrupts.ts runs
@@ -658,6 +661,25 @@ function confirmationEvent(scope: CallScope, modelEvent: TurnEvent, response: Tu
 }
 
 /**
+ * The answers of a step that paused on an approval, beside its gated calls:
+ * the response's parts without the gated calls' stand-ins, and without the
+ * actions, which the confirmation event carries. Undefined when every call
+ * waits on the approval. Every provider but Gemini refuses a call with no
+ * result, so a call that already ran keeps its result through the pause.
+ */
+function answeredBesideGates(scope: CallScope, response: TurnEvent): TurnEvent | undefined {
+  const gated = new Set(Object.keys(response.actions.requestedToolConfirmations ?? {}));
+  const parts = (response.content?.parts ?? []).filter((p) => !(p.functionResponse?.id && gated.has(p.functionResponse.id)));
+  if (!parts.some((p) => p.functionResponse)) return undefined;
+  return createTurnEvent({
+    invocationId: scope.ctx.invocationId,
+    author: scope.agent.name,
+    branch: scope.ctx.branch,
+    content: { parts, role: response.content?.role ?? 'user' },
+  });
+}
+
+/**
  * ADK's request-confirmation processor, before a step: the pinned calls the
  * latest user message approves or refuses run with the answer in their
  * context, and their response is returned to be stored (interrupts.ts). Undefined when
@@ -954,6 +976,8 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
         const authIds = auth ? [...(lastEvent.longRunningToolIds ?? [])] : [];
         const confirmation = confirmationEvent(scope, modelEvent, response);
         if (confirmation) {
+          const answered = answeredBesideGates(scope, response);
+          if (answered) yield await store(answered);
           lastEvent = await store(confirmation);
           yield lastEvent;
           return { reason: 'paused', steps, lastEvent, pending: [...(lastEvent.longRunningToolIds ?? []), ...delegated] };
