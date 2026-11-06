@@ -4,6 +4,21 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.15.1 — 2026-11-06
+
+**Fixed: a conversation stuck on Anthropic after an approval** (ADR 0155).
+When one model step made several tool calls and one of them required
+approval, the calls beside it ran but their results were never stored. After
+the approval the history held the step's calls with only the approved one
+answered, and Anthropic refused every later request with `tool_use ids were
+found without tool_result blocks immediately after`. The loop now stores the
+other calls' results before the approval request. The request builder also
+gives any call the history leaves unanswered an error result: an approval
+the person moved on from by typing a new message, a run that ended between a call and its
+result, and sessions stored before this release, which recover without
+editing. Gemini, which accepted the unanswered calls, sees the same history
+plus those results.
+
 ## 1.15.0 — 2026-11-02
 
 **Breaking — read before upgrading**
