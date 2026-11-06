@@ -585,6 +585,42 @@ function placementOf(native: NativeTool, model: string, configTools: number): Na
  * request: a required state key that is absent, a
  * Gemini-only tool on another model, a config field LlmAgent refuses.
  */
+/** What a call with no stored result reads as: it never answered. */
+export const UNANSWERED_CALL = 'This call has no result: it never ran, or the run ended before it answered.';
+
+/**
+ * Every assistant message's tool calls answered in the message right after
+ * it, as the contract's ToolMessage holds them (one result per call).
+ * A call the history leaves unanswered (an approval the person moved on
+ * from, a run that ended between a call and its result) gets an error
+ * result saying it never answered. Anthropic and OpenAI refuse a request
+ * that leaves a call unanswered, and every later request replays it, so
+ * without this one such call ends the conversation. Results already there
+ * stay as they are, in their order; the stand-ins follow them.
+ */
+export function answerEveryCall(messages: Message[]): Message[] {
+  const out: Message[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i]!;
+    out.push(message);
+    if (message.role !== 'assistant') continue;
+    const calls = message.parts.filter((p): p is Extract<typeof p, { type: 'toolCall' }> => p.type === 'toolCall');
+    if (calls.length === 0) continue;
+    const next = messages[i + 1];
+    const results = next?.role === 'tool' ? next.parts : [];
+    const answered = new Set(results.map((r) => r.id));
+    const missing = calls
+      .filter((c) => !answered.has(c.id))
+      .map((c) => ({ type: 'toolResult' as const, id: c.id, name: c.name, result: UNANSWERED_CALL, isError: true }));
+    if (missing.length === 0) continue;
+    if (next?.role === 'tool') {
+      out.push({ role: 'tool', parts: [...next.parts, ...missing] });
+      i += 1;
+    } else out.push({ role: 'tool', parts: missing });
+  }
+  return out;
+}
+
 export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext): Promise<BuiltRequest> {
   const model = agent.model;
   const cfg = { ...(agent.generateContentConfig ?? {}) } as Json;
@@ -742,7 +778,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   const reasoning = reasoningOf(cfg);
   const sampling = samplingOf(cfg);
   const systemPrompt = systemText(system);
-  const messages: Message[] = contentsToMessages(contents as Parameters<typeof contentsToMessages>[0]).messages;
+  const messages: Message[] = answerEveryCall(contentsToMessages(contents as Parameters<typeof contentsToMessages>[0]).messages);
 
   const request: ModelRequest = {
     model,

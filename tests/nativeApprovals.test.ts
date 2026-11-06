@@ -10,7 +10,8 @@
  * request the loop stored. The stores must hold the same events, ids and
  * times aside, and the gated tool must run the same number of times.
  * Cases: approve, refuse, an answer whose pinned arguments were changed, an
- * answer naming no open request, a parallel batch with one gated call, and a
+ * answer naming no open request, a parallel batch with one gated call (the
+ * one case the native store holds more than ADK's, ADR 0155), and a
  * confirmed call that throws (self-correction counts it as a first failure).
  * Then an approval ADK opened, from the session fixtures (WS0-6), resumed on
  * the native loop: the pinned call runs once. Offline: scripted adapters.
@@ -131,6 +132,8 @@ interface Conversation {
   answer: (pending: PendingApproval) => any[];
   /** Changes the stored events between the turns, as a forged or altered store would. */
   tamper?: (events: TurnEvent[]) => void;
+  /** The events the native loop stores and ADK did not (ADR 0155), set aside before the stores are compared. */
+  notAdks?: (event: TurnEvent) => boolean;
 }
 
 async function nativeStoreOf(events: TurnEvent[]): Promise<{ sessions: InProcessSessionService; session: Session }> {
@@ -258,7 +261,8 @@ async function assertParity(
   const sentNatively = [...sent];
   const wipesNatively = wipes;
   resetCircuits();
-  assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
+  const parity = c.notAdks ? native.events.filter((e) => !c.notAdks!(e)) : native.events;
+  assert.deepEqual(comparable(parity), comparable(adk.events), 'the stored events');
   for (const key of Object.keys(c.scripts)) assert.equal(native.models[key]?.calls, adk.calls[key], `calls to ${key}`);
   assert.deepEqual(sentNatively, sentOnAdk, 'the gated tool ran as often');
   assert.equal(wipesNatively, adk.wipes, 'the throwing gated tool ran as often');
@@ -318,8 +322,10 @@ test('pinned arguments changed in the store: refused as ADK refused it, nothing 
   assert.equal(native.events.at(-1)?.author, 'user', 'nothing stored after the answer');
 });
 
-test('a parallel batch with one gated call: the approval replaces the batch’s response, and only the pinned call runs on resume', async () => {
+test('a parallel batch with one gated call: the batch’s other answers are stored before the approval (ADR 0155), and only the pinned call runs on resume', async () => {
+  const answersTheLookup = (e: TurnEvent) => e.author === 'Boss' && !!e.content?.parts?.some((p) => p.functionResponse?.id === 'c-look');
   const { native, sentNatively } = await assertParity('parallel-batch', {
+    notAdks: answersTheLookup,
     config: syndicate({ tools: ['native_approval_send', 'native_approval_lookup'], require_approval: ['native_approval_send'] }),
     scripts: {
       boss: (req, n): ModelResponse =>
@@ -340,7 +346,11 @@ test('a parallel batch with one gated call: the approval replaces the batch’s 
   const request = native.events.find((e) => e.content?.parts?.some((p) => p.functionCall?.name === APPROVAL_REQUEST));
   assert.deepEqual((request?.content?.parts?.[0]?.functionCall?.args as any)?.originalFunctionCall?.id, 'c-send');
   const responded = native.events.flatMap((e) => (e.author === 'Boss' ? (e.content?.parts ?? []) : [])).flatMap((p) => (p.functionResponse ? [p.functionResponse.id] : []));
-  assert.deepEqual(responded, ['c-send'], 'the batch’s response was not stored; the resume answers the pinned call alone');
+  assert.deepEqual(responded, ['c-look', 'c-send'], 'the lookup’s answer is stored at the pause, the pinned call’s on resume, each once');
+  const at = native.events.findIndex(answersTheLookup);
+  assert.equal(native.events[at + 1], request, 'the answers come right before the approval request');
+  assert.deepEqual(native.events[at]?.content?.parts?.map((p) => p.functionResponse?.id), ['c-look'], 'without the gated call’s stand-in');
+  assert.deepEqual(native.events[at]?.actions?.requestedToolConfirmations ?? {}, {}, 'the actions stay on the approval request');
 });
 
 test('a confirmed call that throws: self-correction counts a first failure, the pause counted nothing', async () => {

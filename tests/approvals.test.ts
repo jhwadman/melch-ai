@@ -87,6 +87,76 @@ test('delegate: the gated call waits, then runs once approved', async () => {
   assert.match(second.text, /done \{"result":"sent to ops@acme.test"\}/);
 });
 
+registerTool(
+  'approval_test_lookup',
+  defineTool({
+    name: 'approval_test_lookup',
+    description: 'Look up an address.',
+    schema: z.object({ who: z.string() }),
+    execute: async ({ who }) => `${who}@acme.test`,
+  }),
+  { override: true },
+);
+
+/** One step's two calls: the gated send and an ungated lookup beside it. */
+function twoCalls(): any {
+  const send = call('approval_test_send', { to: 'ops@acme.test' }) as any;
+  const lookup = call('approval_test_lookup', { who: 'ops' }) as any;
+  return { content: { role: 'model', parts: [...lookup.content.parts, ...send.content.parts] } };
+}
+
+/** The calls in the model content of `req` that the content right after it does not answer. */
+function unanswered(req: any): string[] {
+  const out: string[] = [];
+  req.contents.forEach((c: any, i: number) => {
+    const ids = (c.parts ?? []).map((p: any) => p.functionCall?.id).filter(Boolean);
+    if (c.role !== 'model' || ids.length === 0) return;
+    const answered = new Set((req.contents[i + 1]?.parts ?? []).map((p: any) => p.functionResponse?.id).filter(Boolean));
+    out.push(...ids.filter((id: string) => !answered.has(id)));
+  });
+  return out;
+}
+
+test('delegate: a gated call beside an ungated one keeps the ungated result', async () => {
+  sent.length = 0;
+  let resumed: any;
+  const boss = new ScriptedLlm('scripted/boss', (req, n) => {
+    if (n === 1) return twoCalls();
+    resumed = req;
+    return text('done');
+  });
+  const turn = runner({ ...delegateConfig(), orchestrator: { ...delegateConfig().orchestrator, tools: ['approval_test_send', 'approval_test_lookup'] } } as any, { boss });
+
+  const first = await turn([{ text: 'tell ops' }]);
+  assert.equal(first.status, 'input-required');
+  assert.equal(first.approval?.tool, 'approval_test_send');
+
+  const second = await turn([approvalResponsePart(first.approval!.id, true)]);
+  assert.equal(second.status, 'completed', second.error?.message);
+  assert.deepEqual(sent, ['ops@acme.test']);
+  assert.deepEqual(unanswered(resumed), [], 'every call of the step is answered right after it');
+  const results = resumed.contents.flatMap((c: any) => (c.parts ?? []).map((p: any) => p.functionResponse?.response).filter(Boolean));
+  assert.ok(results.some((r: any) => r.result === 'ops@acme.test'), 'the lookup\'s own result, not a stand-in');
+  assert.ok(results.some((r: any) => r.result === 'sent to ops@acme.test'));
+});
+
+test('a gated call the user moved on from is answered as never run in the next request', async () => {
+  sent.length = 0;
+  let next: any;
+  const boss = new ScriptedLlm('scripted/boss', (req, n) => {
+    if (n === 1) return call('approval_test_send', { to: 'ops@acme.test' });
+    next = req;
+    return text('ok');
+  });
+  const turn = runner(delegateConfig(), { boss });
+  const first = await turn([{ text: 'tell ops' }]);
+  assert.equal(first.status, 'input-required');
+  const second = await turn([{ text: 'never mind, what time is it?' }]);
+  assert.equal(second.status, 'completed', second.error?.message);
+  assert.deepEqual(sent, [], 'the call never ran');
+  assert.deepEqual(unanswered(next), [], 'no call is left without a result');
+});
+
 test('delegate: a refusal never runs the call and the model is told', async () => {
   sent.length = 0;
   const boss = new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('approval_test_send', { to: 'x@acme.test' }) : text(`saw ${lastResponse(req)}`)));
