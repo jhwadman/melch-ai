@@ -4,6 +4,17 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**Changed: the Research example spends model steps, not searches.** Its
+routes no longer hold `check_retraction` (literature results flag retracted
+work and the `science` guard checks every identifier an answer prints) or
+`survey_field`; `cited_by` stays on `landscape` alone, and `landscape` gains
+`web_extract`, so a number an abstract lacks is read from the paper instead
+of searched for again. A shared `tool_budget` asks for independent calls in
+one step and at most three research steps, and `max_steps: 16` is the
+backstop. Both tools stay in the engine and on the MCP science server.
+
 ## 1.15.2 — 2026-11-06
 
 **Fixed: a turn's usage and cost left out `generate_image`.** The tool called
