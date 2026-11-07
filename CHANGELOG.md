@@ -4,6 +4,16 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**Changed: seven starter prompts are written in the same register as the
+rest.** `critic`, `image_production`, `syndicate`, `style_council`,
+`current_events`, `connectors` and the `account_memory` template lose
+capitalised and bold emphasis (MUST, NEVER, EXACTLY, `###` headings) for
+plain rules with their reasons; the critic's gate reads as two score bands,
+and `connectors` gains its `TASK:` line. No route, tool, schema or
+threshold changed.
+
 ## 1.15.3 — 2026-11-07
 
 **Changed: the Research example spends model steps, not searches.** Its
