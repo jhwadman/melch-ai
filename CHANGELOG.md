@@ -4,6 +4,20 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.15.2 — 2026-11-06
+
+**Fixed: a turn's usage and cost left out `generate_image`.** The tool called
+Gemini's image model outside the tracer, so its tokens never reached the
+turn's usage or the ledger's `cost_usd`. The call is now an `llm.request`
+through `traceLlmGeneration`, like every other model call: its tokens count in
+the turn's usage, it counts against `max_steps`, and a cancelled turn stops it
+before the request. Migration 0024 adds the price row for
+`gemini-3.1-flash-image-preview` ($0.50 in, $60.00 out at the image rate,
+$3.00 thinking, from Google's page for `gemini-3.1-flash-image`;
+`verified_at` NULL, since the preview id is not listed). A typical image costs
+about $0.08. Apply it with `npx melchizedek-db apply` before upgrading; without it,
+a turn that made an image prices NULL.
+
 ## 1.15.1 — 2026-11-06
 
 **Fixed: a conversation stuck on Anthropic after an approval** (ADR 0155).
