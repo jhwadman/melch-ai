@@ -365,9 +365,9 @@ test('research: triage answers in its schema with no tools; lookup and landscape
   assert.equal(triage.generationConfig?.responseMimeType, 'application/json');
   assert.deepEqual(triage.generationConfig?.responseJsonSchema?.required, ['route', 'reason', 'subject']);
   assert.equal(bodies.get('define').tools, undefined);
-  assert.deepEqual(declaredNames(bodies.get('lookup')), ['resolve_identifier', 'search_trials', 'search_literature', 'check_retraction', 'cited_by']);
+  assert.deepEqual(declaredNames(bodies.get('lookup')), ['resolve_identifier', 'search_trials', 'search_literature']);
   assert.deepEqual(declaredNames(bodies.get('landscape')), [
-    'search_trials', 'search_literature', 'search_preprints', 'resolve_identifier', 'cited_by', 'survey_field', 'check_retraction',
+    'search_trials', 'search_literature', 'search_preprints', 'resolve_identifier', 'web_extract', 'cited_by',
   ]);
   for (const body of bodies.values()) assert.deepEqual(geminiOwnTools(body), [], 'no server-side tool in research');
 });
