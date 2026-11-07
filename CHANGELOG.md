@@ -4,6 +4,26 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**Changed: seven starter prompts are written in the same register as the
+rest.** `critic`, `image_production`, `syndicate`, `style_council`,
+`current_events`, `connectors` and the `account_memory` template lose
+capitalised and bold emphasis (MUST, NEVER, EXACTLY, `###` headings) for
+plain rules with their reasons; the critic's gate reads as two score bands,
+and `connectors` gains its `TASK:` line. No route, tool, schema or
+threshold changed.
+
+**Changed: the Prompt Writer knows the whole syndicate file and writes in
+controlled language.** A `syndicate_rules` variable, read by the Architect,
+the Writer and the Auditor, lists every coordination form (delegation,
+`dispatch:`, `workflow:`, `script:`), nesting, root and agent key, registry
+tool, where an output schema belongs, and the code controls that enforce a
+prompt's limits. `prompt_checklist` gains rule 11 (STE-inspired wording) and
+rule 12 (loops: objective, state, steps, evaluation, limits, final output,
+and the code control behind each limit); a repair keeps a pasted prompt's
+capitals labels, and its regression test is written Given, When, Then.
+
 ## 1.15.3 — 2026-11-07
 
 **Changed: the Research example spends model steps, not searches.** Its
