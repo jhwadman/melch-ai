@@ -15,7 +15,7 @@
  * own Tool the registry lists, made from it by asTool.
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type GenerateContentResponse } from '@google/genai';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -23,8 +23,15 @@ import { z } from 'zod';
 import { asTool, defineTool } from './toolContract.ts';
 import { outputsDir } from '../paths.ts';
 import { credentialValue } from '../models/credentialSource.ts';
+import type { LlmResponse } from '../models/genaiMapping.ts';
+import { traceLlmGeneration } from '../observability/tracer.ts';
 
-const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+export const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+
+/** Makes the Gemini client; a test swaps it for a stub. */
+export const imageClient = {
+  create: (apiKey: string): Pick<GoogleGenAI, 'models'> => new GoogleGenAI({ apiKey }),
+};
 
 export const generateImageContract = defineTool({
   name: 'generate_image',
@@ -50,7 +57,7 @@ export const generateImageContract = defineTool({
     // Sizes and which options are set, never their values: the prompt carries the person's words.
     console.log(`[ImageTool] Parameters - prompt ${prompt.length} chars; set: ${[style && 'style', aspect_ratio && 'aspect_ratio', color_palette && 'color_palette'].filter(Boolean).join(', ') || 'none'}`);
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = imageClient.create(apiKey);
 
     // Build a rich prompt that bakes in the structured parameters.
     const parts: string[] = [prompt];
@@ -61,13 +68,26 @@ export const generateImageContract = defineTool({
 
     try {
       console.log(`[ImageTool] Sending generateContent request to Gemini API (Model: ${IMAGE_MODEL})...`);
-      const response = await ai.models.generateContent({
-        model: IMAGE_MODEL,
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        config: {
-          responseModalities: ['IMAGE', 'TEXT'] as any,
-        },
-      });
+      // Traced as one llm.request like every other model call, so the image
+      // model's tokens reach the turn's usage and the ledger prices them
+      // (model_pricing); it also counts against the turn's step budget and stops on cancel.
+      let response: GenerateContentResponse | undefined;
+      async function* call(): AsyncGenerator<LlmResponse, void> {
+        response = await ai.models.generateContent({
+          model: IMAGE_MODEL,
+          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+          config: {
+            responseModalities: ['IMAGE', 'TEXT'] as any,
+          },
+        });
+        yield { usageMetadata: response.usageMetadata } as LlmResponse;
+      }
+      const request = () => ({ model: IMAGE_MODEL, messages: [{ role: 'user' as const, parts: [{ type: 'text' as const, text: fullPrompt }] }] });
+      for await (const r of traceLlmGeneration({ provider: 'gemini', model: IMAGE_MODEL, request }, call())) {
+        // A refused call (the step budget, a cancelled turn) never reaches the API.
+        if (r.errorCode) return `[generate_image ERROR] Model: ${IMAGE_MODEL} - ${r.errorMessage || r.errorCode}`;
+      }
+      if (!response) return `No image data returned. Model used: ${IMAGE_MODEL}`;
 
       console.log("[ImageTool] Received response from Gemini API.");
 
