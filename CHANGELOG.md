@@ -4,7 +4,7 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.15.3 — 2026-11-07
 
 **Changed: the Research example spends model steps, not searches.** Its
 routes no longer hold `check_retraction` (literature results flag retracted
