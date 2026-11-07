@@ -48,7 +48,7 @@
 # ============================================================
 syndicate_name: Research
 memory_system: session-only
-max_steps: 16
+max_steps: 24
 guards:
   - science
 dispatch:

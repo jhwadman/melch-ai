@@ -4,7 +4,12 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.15.4 — 2026-11-07
+
+**Changed: the Research example's step cap is 24, up from 16.** At 16 a
+question that needs a full landscape (a phase 3 trial's results against its
+field) ran out of steps before it answered. The three-step research budget
+is unchanged; 24 is the runaway backstop only.
 
 **Changed: seven starter prompts are written in the same register as the
 rest.** `critic`, `image_production`, `syndicate`, `style_council`,

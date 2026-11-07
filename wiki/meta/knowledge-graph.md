@@ -50,7 +50,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1310 | declared in the document’s `sources:` frontmatter |
+| `derives_from` | extracted | A derives from B | 1311 | declared in the document’s `sources:` frontmatter |
 | `imports` | extracted | A imports B | 1006 | a static import edge between source files |
 | `links_to` | extracted | A links to B | 873 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 183 | this environment variable must be set for the node to work |
@@ -58,8 +58,8 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `uses_model` | extracted | A runs on B | 99 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 84 | where the thing is declared in source |
 | `runs` | extracted | A runs B | 77 | an entrypoint — a script, a process, a worker — executes this |
-| `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 61 | the document derives from, and describes, this entity |
+| `uses_tool` | extracted | A calls B | 59 | the agent declares this tool by name |
 | `reads_table` | extracted | A reads or writes B | 31 | the module names this table |
 | `routes_to` | extracted | A routes to B | 13 | the model id resolves to this provider adapter |
 | `connects_mcp` | extracted | A dials B | 6 | the agent discovers tools from this MCP server at runtime |

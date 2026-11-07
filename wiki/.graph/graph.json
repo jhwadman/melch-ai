@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 1106,
-    "edges": 4390,
+    "edges": 4387,
     "byKind": {
       "doc": 228,
       "provider": 8,
@@ -30,7 +30,7 @@
       "documents": 61,
       "contains": 99,
       "uses_model": 99,
-      "uses_tool": 62,
+      "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
       "imports": 1006,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3906,
+      "extracted": 3903,
       "inferred": 484
     },
     "isolated": 5
@@ -336,7 +336,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 379
+        "words": 450
       }
     },
     {
@@ -372,7 +372,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 294
+        "words": 372
       }
     },
     {
@@ -26334,13 +26334,6 @@
     },
     {
       "from": "agent:research/landscape",
-      "to": "tool:check_retraction",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/research.yaml"
-    },
-    {
-      "from": "agent:research/landscape",
       "to": "tool:cited_by",
       "rel": "uses_tool",
       "tier": "extracted",
@@ -26376,7 +26369,7 @@
     },
     {
       "from": "agent:research/landscape",
-      "to": "tool:survey_field",
+      "to": "tool:web_extract",
       "rel": "uses_tool",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
@@ -26385,20 +26378,6 @@
       "from": "agent:research/lookup",
       "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/research.yaml"
-    },
-    {
-      "from": "agent:research/lookup",
-      "to": "tool:check_retraction",
-      "rel": "uses_tool",
-      "tier": "extracted",
-      "evidence": "config/agents/examples/research.yaml"
-    },
-    {
-      "from": "agent:research/lookup",
-      "to": "tool:cited_by",
-      "rel": "uses_tool",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
     },
