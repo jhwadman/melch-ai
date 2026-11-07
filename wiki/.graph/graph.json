@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-02"
+    "at": "2026-11-07"
   },
   "stats": {
-    "nodes": 1102,
-    "edges": 4379,
+    "nodes": 1106,
+    "edges": 4390,
     "byKind": {
-      "doc": 227,
+      "doc": 228,
       "provider": 8,
       "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 255,
+      "file": 258,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 870,
+      "links_to": 873,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 62,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1004,
+      "imports": 1006,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1305,
+      "derives_from": 1311,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3895,
+      "extracted": 3906,
       "inferred": 484
     },
     "isolated": 5
@@ -2296,6 +2296,18 @@
       }
     },
     {
+      "id": "/decisions/0155-every-call-is-answered.md",
+      "kind": "doc",
+      "label": "ADR 0155: Every tool call is answered: an approval pause stores the batch's other answers, and a request answers what the history left open",
+      "source": "/decisions/0155-every-call-is-answered.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 327
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2316,7 +2328,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 19513
+        "words": 19751
       }
     },
     {
@@ -2544,7 +2556,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2873
+        "words": 2942
       }
     },
     {
@@ -5151,6 +5163,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0024_image_model_pricing.sql",
+      "kind": "file",
+      "label": "0024_image_model_pricing.sql",
+      "source": "db/migrations/0024_image_model_pricing.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5402,6 +5421,18 @@
       "kind": "file",
       "label": "agents.test.ts",
       "source": "tests/agents.test.ts"
+    },
+    {
+      "id": "file:tests/answerEveryCall.test.ts",
+      "kind": "file",
+      "label": "answerEveryCall.test.ts",
+      "source": "tests/answerEveryCall.test.ts"
+    },
+    {
+      "id": "file:tests/approvals.test.ts",
+      "kind": "file",
+      "label": "approvals.test.ts",
+      "source": "tests/approvals.test.ts"
     },
     {
       "id": "file:tests/auditTrail.test.ts",
@@ -7251,7 +7282,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 986
+        "lines": 1010
       }
     },
     {
@@ -7314,7 +7345,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 764
+        "lines": 800
       }
     },
     {
@@ -7665,7 +7696,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 128
+        "lines": 148
       }
     },
     {
@@ -19099,6 +19130,62 @@
       "evidence": "/decisions/0154-compaction-on-by-default-and-overflow-recovery.md:31"
     },
     {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "file:tests/answerEveryCall.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md frontmatter"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "file:tests/approvals.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md frontmatter"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "file:tests/nativeApprovals.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md frontmatter"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md frontmatter"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md frontmatter"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md:29"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md:29"
+    },
+    {
+      "from": "/decisions/0155-every-call-is-answered.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0155-every-call-is-answered.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19471,6 +19558,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0024_image_model_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19481,21 +19575,21 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:44"
+      "evidence": "/memory/schema.md:45"
     },
     {
       "from": "/memory/schema.md",
       "to": "/decisions/0150-the-registry-follows-database-url.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:46"
+      "evidence": "/memory/schema.md:47"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3389"
+      "evidence": "/memory/schema.md:3425"
     },
     {
       "from": "/memory/sessions.md",
@@ -31890,6 +31984,20 @@
     {
       "from": "module:lib/tools/generateImageTool.ts",
       "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/generateImageTool.ts"
