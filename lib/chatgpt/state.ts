@@ -68,6 +68,8 @@ export interface ChatGptSignInStatus {
   signedIn: boolean;
   /** Epoch milliseconds the access token expires, when signed in. */
   expiresAt?: number;
+  /** The credential's lifecycle epoch, when the file can be read: a different number means a different lifecycle. */
+  epoch?: number;
   /** Why a present file cannot be used (permissions, shape). */
   problem?: string;
 }
@@ -139,7 +141,7 @@ export function chatGptSignInStatus(env: NodeJS.ProcessEnv = process.env): ChatG
   try {
     const s = readStoredSignIn(file);
     const signedIn = isSignedIn(s);
-    return { enabled, file, present, signedIn, ...(signedIn && s?.expiresAt ? { expiresAt: s.expiresAt } : {}) };
+    return { enabled, file, present, signedIn, epoch: credentialEpoch(s), ...(signedIn && s?.expiresAt ? { expiresAt: s.expiresAt } : {}) };
   } catch (err) {
     return { enabled, file, present, signedIn: false, problem: err instanceof Error ? err.message : String(err) };
   }

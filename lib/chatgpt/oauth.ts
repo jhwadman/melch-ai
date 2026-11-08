@@ -353,6 +353,7 @@ export interface SignInOptions extends OAuthOptions {
   /** Called with the authorization URL before the browser opens, so the person can open it themselves. */
   onUrl?: (url: string) => void;
   timeoutMs?: number;
+  /** Cancels the attempt wherever it stands; a cancelled sign-in commits nothing and fails `cancelled`. */
   signal?: AbortSignal;
 }
 
@@ -362,6 +363,8 @@ export interface SignInResult {
   scopes: string[];
   expiresAt: number;
   planUsage: boolean;
+  /** The credential's lifecycle epoch after this sign-in. */
+  epoch: number;
 }
 
 /**
@@ -472,7 +475,7 @@ async function attemptSignIn(opts: SignInOptions, issuer: string): Promise<SignI
     const committed = await commit((current) => ({ ...withoutTokens(current), issuer, clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString(), epoch: epoch + 1 }));
     if (!committed) throw superseded();
     discardMinted = undefined;
-    return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage };
+    return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage, epoch: epoch + 1 };
   } catch (err) {
     if (opts.signal?.aborted || (err instanceof SignInError && err.code === 'superseded')) await discardMinted?.();
     throw err;
@@ -566,7 +569,9 @@ export interface AccessTokenOptions extends OAuthOptions {
  * two minutes of expiry (and past `earliest_refresh_at`). Refreshes take the
  * refresh lease and re-read the file first, so a refresh another process just
  * made is used rather than repeated. A refresh that lost to a sign-out or a
- * newer sign-in stores nothing and the file is read again.
+ * newer sign-in stores nothing and the file is read again. A refresh takes no
+ * cancel signal: once the issuer has rotated the token, dropping the answer
+ * would end the session, so only a change of epoch stops one from landing.
  */
 export async function freshAccessToken(file: string, opts: AccessTokenOptions = {}): Promise<string> {
   const now = opts.now ?? Date.now;
@@ -586,6 +591,14 @@ export async function freshAccessToken(file: string, opts: AccessTokenOptions = 
   return token ?? freshAccessToken(file, opts);
 }
 
+/** What a sign-out reports: never a token. */
+export interface SignOutResult {
+  hadTokens: boolean;
+  revoked: boolean;
+  /** The credential's lifecycle epoch after this sign-out; 0 when nothing was stored. */
+  epoch: number;
+}
+
 /**
  * Sign out: under the commit lock the epoch advances, so no sign-in or
  * refresh still in flight can commit, and the tokens leave the file (the host
@@ -594,20 +607,22 @@ export async function freshAccessToken(file: string, opts: AccessTokenOptions = 
  * tokens are gone but the remote revocation was not confirmed: disconnect the
  * app in ChatGPT's settings.
  */
-export async function signOut(file: string, opts: OAuthOptions = {}): Promise<{ hadTokens: boolean; revoked: boolean }> {
-  if (!existsSync(file)) return { hadTokens: false, revoked: false };
-  const s = await withSignInLock(file, async () => {
-    const held = readStoredSignIn(file);
-    if (held) writeStoredSignIn(file, { ...withoutTokens(held), epoch: credentialEpoch(held) + 1 });
-    return held;
+export async function signOut(file: string, opts: OAuthOptions = {}): Promise<SignOutResult> {
+  if (!existsSync(file)) return { hadTokens: false, revoked: false, epoch: 0 };
+  const { held, epoch } = await withSignInLock(file, async () => {
+    const stored = readStoredSignIn(file);
+    if (!stored) return { held: undefined, epoch: 0 };
+    const advanced = credentialEpoch(stored) + 1;
+    writeStoredSignIn(file, { ...withoutTokens(stored), epoch: advanced });
+    return { held: stored, epoch: advanced };
   });
-  if (!s?.refreshToken) return { hadTokens: false, revoked: false };
+  if (!held?.refreshToken) return { hadTokens: false, revoked: false, epoch };
+  let revoked = false;
   try {
     const d = await discover(opts);
-    if (!d.revocation_endpoint || !s.clientId) return { hadTokens: true, revoked: false };
-    return { hadTokens: true, revoked: await revokeAtIssuer(d.revocation_endpoint, s.refreshToken, s.clientId, 2) };
+    if (d.revocation_endpoint && held.clientId) revoked = await revokeAtIssuer(d.revocation_endpoint, held.refreshToken, held.clientId, 2);
   } catch {
     // The local tokens are gone either way.
   }
-  return { hadTokens: true, revoked: false };
+  return { hadTokens: true, revoked, epoch };
 }

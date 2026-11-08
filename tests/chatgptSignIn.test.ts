@@ -23,6 +23,12 @@
  *   - refresh: near expiry, rotated, serialized across concurrent callers;
  *     an unusable refresh token clears the tokens and keeps the registration;
  *   - sign-out clears the tokens and revokes the refresh token;
+ *   - sign-out wins: a refresh, exchange or verification still in flight, or a
+ *     browser wait, leaves no tokens and nothing alive at the issuer; two
+ *     sign-ins leave one set of tokens and one epoch advance (ADR 0158);
+ *   - cancel reaches the requests and is checked before every commit;
+ *   - the lock is never held across the browser or the network, a release
+ *     removes only its own lock, and a dead holder's lock is taken over;
  *   - routing: OpenAI ids resolve to the sign-in adapter only with no key,
  *     and its requests stream, store nothing and carry only the bearer;
  *   - served surfaces refuse: the A2A server bin and the worker exit 1, the
@@ -50,7 +56,9 @@ import { DYNAMIC_CLIENT_ID, OPENAI_API_RESOURCE, SignInError, freshAccessToken, 
 import {
   PLAN_SCOPE,
   chatGptSignInRoutesOpenAi,
+  chatGptSignInStatus,
   credentialEpoch,
+  isStoredSignIn,
   markServedSurface,
   readStoredSignIn,
   refuseChatGptSignInOnServedSurface,
@@ -549,7 +557,7 @@ test('sign-out: the tokens leave the file and the refresh token is revoked', asy
     const file = await signedIn(fake);
     const refresh = readStoredSignIn(file)!.refreshToken!;
     const r = await signOut(file, { issuer: fake.issuer });
-    assert.deepEqual(r, { hadTokens: true, revoked: true });
+    assert.deepEqual(r, { hadTokens: true, revoked: true, epoch: 2 });
     assert.deepEqual(fake.revoked, [refresh]);
     const after = readStoredSignIn(file)!;
     assert.equal(after.refreshToken, undefined);
@@ -677,7 +685,7 @@ test('sign-out wins: during ID-token verification no tokens are stored', async (
 
 test('sign-out with nothing stored writes nothing', async () => {
   const file = credentialFile();
-  assert.deepEqual(await signOut(file, { issuer: 'http://127.0.0.1:1' }), { hadTokens: false, revoked: false });
+  assert.deepEqual(await signOut(file, { issuer: 'http://127.0.0.1:1' }), { hadTokens: false, revoked: false, epoch: 0 });
   assert.equal(existsSync(join(file, '..')), false, 'no directory, no lock, no file');
 });
 
@@ -1008,6 +1016,45 @@ test('a sign-in at another issuer keeps the host id and carries the epoch forwar
   } finally {
     await fake.close();
   }
+});
+
+// ── The epoch on the surface ─────────────────────────────────────────────────
+
+test('the epoch reaches the callers: sign-in, sign-out and status report it, and never a token', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const status = () => withEnvSync({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: file }, () => chatGptSignInStatus());
+    assert.equal(status().epoch, undefined, 'no file, no epoch');
+
+    const first = await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    assert.equal(first.epoch, 1);
+    assert.equal(status().epoch, 1);
+    assert.ok(!JSON.stringify([first, status()]).includes('fake-'));
+
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.epoch, 2);
+    assert.equal(status().epoch, 2);
+    assert.equal(status().signedIn, false);
+
+    const again = await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    assert.equal(again.epoch, 3);
+    assert.equal(readStoredSignIn(file)!.epoch, 3);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the file stays version 1: an older engine reads an epoch-carrying file, and its own tokens-cleared rewrite keeps the field', async () => {
+  const file = credentialFile();
+  fakeStored(file, { epoch: 7 });
+  const raw = JSON.parse(readFileSync(file, 'utf-8'));
+  assert.equal(raw.version, 1);
+  assert.ok(isStoredSignIn(raw), 'the shape an older engine checks');
+  // An older engine's sign-out spreads what it read, so the field survives it.
+  const { accessToken: _a, refreshToken: _r, ...kept } = raw;
+  writeStoredSignIn(file, kept);
+  assert.equal(credentialEpoch(readStoredSignIn(file)), 7);
 });
 
 // ── The lock's ownership ─────────────────────────────────────────────────────
