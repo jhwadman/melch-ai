@@ -37,7 +37,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 
 import { trimTrailingSlashes } from '../models/urls.ts';
 import { PLAN_SCOPE, credentialEpoch, isSignedIn, readStoredSignIn } from './state.ts';
@@ -69,6 +69,8 @@ const UNUSABLE_REFRESH = new Set([
  * apps offers no way on, so leaving it is the usual way these arrive.
  */
 const REFUSED_AT_CONSENT = new Set(['access_denied', 'unauthorized_client', 'consent_required', 'interaction_required']);
+
+const cancelled = () => new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.');
 
 /** One line for a sign-in OpenAI refused at the consent page or the code exchange. */
 const signInRefused = (code: string) =>
@@ -110,12 +112,15 @@ function issuerOf(opts: OAuthOptions): string {
   return issuer;
 }
 
+/** A request's deadline, and the caller's cancel when there is one. */
+const deadline = (ms: number, signal?: AbortSignal) => (signal ? AbortSignal.any([AbortSignal.timeout(ms), signal]) : AbortSignal.timeout(ms));
+
 /** The issuer's OpenID configuration; every endpoint must be on the issuer's own origin. */
-export async function discover(opts: OAuthOptions = {}): Promise<Discovery> {
+export async function discover(opts: OAuthOptions = {}, signal?: AbortSignal): Promise<Discovery> {
   const issuer = issuerOf(opts);
   let data: any;
   try {
-    const res = await fetch(`${issuer}/.well-known/openid-configuration`, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
+    const res = await fetch(`${issuer}/.well-known/openid-configuration`, { redirect: 'error', signal: deadline(15_000, signal) });
     data = res.ok ? await res.json() : undefined;
   } catch {
     data = undefined;
@@ -136,7 +141,7 @@ const randomValue = () => randomBytes(32).toString('base64url');
 export const pkceChallenge = (verifier: string) => createHash('sha256').update(verifier).digest('base64url');
 
 /** A token-endpoint call: form-encoded, JSON back, the error code (never a token) on failure. */
-async function tokenRequest(endpoint: string, form: Record<string, string>): Promise<Record<string, unknown>> {
+async function tokenRequest(endpoint: string, form: Record<string, string>, signal?: AbortSignal): Promise<Record<string, unknown>> {
   let res: Response;
   try {
     res = await fetch(endpoint, {
@@ -144,7 +149,7 @@ async function tokenRequest(endpoint: string, form: Record<string, string>): Pro
       headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
       body: new URLSearchParams(form),
       redirect: 'error',
-      signal: AbortSignal.timeout(30_000),
+      signal: deadline(30_000, signal),
     });
   } catch {
     throw new SignInError('network_error', 'Could not reach the ChatGPT sign-in service.');
@@ -198,10 +203,12 @@ function tokenFields(data: Record<string, unknown>, previousScopes?: string[]): 
 }
 
 /** Verify an ID token against the issuer's keys; the verified subject. */
-async function verifyIdToken(idToken: unknown, d: Discovery, clientId: string, nonce?: string): Promise<string> {
+async function verifyIdToken(idToken: unknown, d: Discovery, clientId: string, nonce?: string, signal?: AbortSignal): Promise<string> {
   if (typeof idToken !== 'string' || !idToken) throw new SignInError('invalid_id_token', 'The ChatGPT sign-in returned no verifiable identity.');
   try {
-    const { payload } = await jwtVerify(idToken, createRemoteJWKSet(new URL(d.jwks_uri)), {
+    // Cancelling reaches the key fetch; the signature check itself is local and short.
+    const keys = createRemoteJWKSet(new URL(d.jwks_uri), signal ? { [customFetch]: (url, init) => fetch(url, { ...init, signal: AbortSignal.any([init.signal, signal]) }) } : {});
+    const { payload } = await jwtVerify(idToken, keys, {
       issuer: d.issuer,
       audience: clientId,
       algorithms: ['RS256'],
@@ -312,7 +319,7 @@ async function listen(port: number, state: string, savedClientId: string | undef
     });
   });
   const timer = setTimeout(() => settle(new SignInError('timeout', 'The ChatGPT sign-in was not completed in time.')), timeoutMs);
-  const abort = () => settle(new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.'));
+  const abort = () => settle(cancelled());
   signal?.addEventListener('abort', abort, { once: true });
   const close = () => {
     clearTimeout(timer);
@@ -367,6 +374,17 @@ export interface SignInResult {
  */
 export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const issuer = issuerOf(opts);
+  if (opts.signal?.aborted) throw cancelled();
+  try {
+    return await attemptSignIn(opts, issuer);
+  } catch (err) {
+    // However far it got: a sign-in that was cancelled says so, whichever request the abort broke.
+    if (opts.signal?.aborted) throw cancelled();
+    throw err;
+  }
+}
+
+async function attemptSignIn(opts: SignInOptions, issuer: string): Promise<SignInResult> {
   // The epoch this attempt answers to, read before anything slow. OpenAI asks
   // for the host id to be chosen and persisted before the first sign-in, so a
   // timed-out or cancelled attempt does not send a new one next time; it also
@@ -379,10 +397,19 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     return created;
   });
   const epoch = credentialEpoch(start);
-  const d = await discover({ issuer });
+  const d = await discover({ issuer }, opts.signal);
   const sameIssuer = start.issuer === issuer;
   const hostId = start.hostId;
   const savedClientId = sameIssuer ? start.clientId : undefined;
+
+  // Every write this attempt makes goes through here: merged into what the
+  // file holds now, and only while the attempt is neither stale nor cancelled.
+  const commit = (build: (current: StoredSignIn) => StoredSignIn) =>
+    commitAtEpoch(opts.file, epoch, (current) => {
+      if (opts.signal?.aborted) throw cancelled();
+      return build(current);
+    });
+  let discardMinted: (() => Promise<void>) | undefined;
 
   const state = randomValue();
   const nonce = randomValue();
@@ -411,10 +438,12 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     const cb = await listener.result;
 
     // Keep the issued registration even if the one-time code fails below.
-    const registration: StoredSignIn = sameIssuer
-      ? { ...start, clientId: cb.clientId, hostId }
-      : { version: 1, issuer, hostId, clientId: cb.clientId };
-    writeStoredSignIn(opts.file, registration);
+    const registered = await commit((current) =>
+      current.issuer === issuer
+        ? { ...current, clientId: cb.clientId }
+        : { version: 1, issuer, hostId, clientId: cb.clientId, ...(current.epoch !== undefined ? { epoch: current.epoch } : {}) },
+    );
+    if (!registered) throw superseded();
 
     let data: Record<string, unknown>;
     try {
@@ -425,25 +454,28 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
         code_verifier: verifier,
         redirect_uri: listener.redirectUri,
         resource: OPENAI_API_RESOURCE,
-      });
+      }, opts.signal);
     } catch (err) {
       // OpenAI's consent page refuses a plan or workspace without plan usage
       // for apps, and the exchange then answers invalid_grant.
       if (err instanceof SignInError && err.code === 'invalid_grant') throw new SignInError('invalid_grant', signInRefused('invalid_grant'));
       throw err;
     }
-    const subject = await verifyIdToken(data.id_token, d, cb.clientId, nonce);
+    const minted = typeof data.refresh_token === 'string' ? data.refresh_token : undefined;
+    discardMinted = () => revokeDiscarded(opts.file, d, cb.clientId, minted);
+    const subject = await verifyIdToken(data.id_token, d, cb.clientId, nonce, opts.signal);
     const fields = tokenFields(data);
     const planUsage = fields.scopes!.includes(PLAN_SCOPE);
     if (!planUsage) {
       throw new SignInError('plan_not_granted', 'The sign-in did not grant use of your ChatGPT plan; sign in again and allow it.');
     }
-    const committed = await commitAtEpoch(opts.file, epoch, (current) => ({ ...withoutTokens(current), clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString(), epoch: epoch + 1 }));
-    if (!committed) {
-      await revokeDiscarded(opts.file, d, cb.clientId, fields.refreshToken);
-      throw superseded();
-    }
+    const committed = await commit((current) => ({ ...withoutTokens(current), issuer, clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString(), epoch: epoch + 1 }));
+    if (!committed) throw superseded();
+    discardMinted = undefined;
     return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage };
+  } catch (err) {
+    if (opts.signal?.aborted || (err instanceof SignInError && err.code === 'superseded')) await discardMinted?.();
+    throw err;
   } finally {
     listener.close();
   }

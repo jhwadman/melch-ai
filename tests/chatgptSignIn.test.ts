@@ -32,11 +32,12 @@
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import fs, { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -830,6 +831,180 @@ test('a sign-in refused inside a git work tree leaves no directory or lock behin
     const file = join(repo, 'nested', 'chatgpt-signin.json');
     await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), /inside the git work tree/);
     assert.equal(existsSync(join(repo, 'nested')), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: on the very first sign-in, even before discovery answers', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const gate = checkpoint();
+    fake.discoveryGate = () => gate.wait();
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    fake.discoveryGate = undefined;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+    const s = readStoredSignIn(file)!;
+    assert.equal(s.refreshToken, undefined);
+    assert.equal(s.accessToken, undefined);
+    assert.equal(s.epoch, 1);
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── Cancel, and the registration ─────────────────────────────────────────────
+
+/** A browser that lands on the callback only when told to: the person still on the consent page. */
+function slowBrowser(fake: FakeAuth) {
+  const reached = checkpoint();
+  const browser = fake.browser();
+  return {
+    reached: reached.arrived,
+    finish: reached.release,
+    open: async (url: string) => {
+      void reached.wait().then(() => browser(url));
+    },
+  };
+}
+
+test('sign-out wins: during the browser wait the old tokens do not come back and nothing is exchanged', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
+    const exchanges = fake.tokenForms.length;
+    const person = slowBrowser(fake);
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: person.open, timeoutMs: 10_000 }), failsWith('superseded'));
+    await person.reached;
+    await signOut(file, { issuer: fake.issuer });
+    person.finish();
+    await signing;
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'an old snapshot does not wind the epoch back');
+    assert.equal(fake.tokenForms.length, exchanges, 'a stale code is not spent');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('cancel: an aborted signal stops the exchange, the verification and discovery where they stand, and commits nothing', async () => {
+  for (const stage of ['discovery', 'exchange', 'verification'] as const) {
+    const fake = await fakeAuthServer();
+    const gate = checkpoint();
+    try {
+      const file = credentialFile();
+      const ctl = new AbortController();
+      if (stage === 'discovery') fake.discoveryGate = () => gate.wait();
+      if (stage === 'exchange') fake.tokenGate = () => gate.wait();
+      if (stage === 'verification') fake.jwksGate = () => gate.wait();
+      const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: ctl.signal }), failsWith('cancelled'), stage);
+      await gate.arrived;
+      ctl.abort();
+      // The issuer is still holding its answer: this settles only because the abort reached the request.
+      await signing;
+      gate.release();
+      const s = readStoredSignIn(file)!;
+      assert.equal(s.accessToken, undefined, stage);
+      assert.equal(s.refreshToken, undefined, stage);
+    } finally {
+      gate.release();
+      await fake.close();
+    }
+  }
+});
+
+test('cancel: a signal that fires just before the commit stores nothing, and the minted token is revoked', async () => {
+  const fake = await fakeAuthServer();
+  const realOpen = fs.openSync;
+  try {
+    const file = credentialFile();
+    const ctl = new AbortController();
+    const gate = checkpoint();
+    fake.jwksGate = () => gate.wait();
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: ctl.signal }), failsWith('cancelled'));
+    await gate.arrived;
+    // The next time the commit lock is taken is the token commit: the signal fires right there.
+    mock.method(fs, 'openSync', (path: fs.PathLike, ...rest: unknown[]) => {
+      if (String(path).endsWith('.lock')) ctl.abort();
+      return (realOpen as (...a: unknown[]) => number)(path, ...rest);
+    });
+    syncBuiltinESMExports();
+    gate.release();
+    await signing;
+
+    assert.ok(ctl.signal.aborted);
+    const s = readStoredSignIn(file)!;
+    assert.equal(s.accessToken, undefined);
+    assert.equal(s.refreshToken, undefined);
+    assert.equal(s.epoch, undefined, 'a cancelled sign-in advances nothing');
+    assert.equal(existsSync(`${file}.lock`), false);
+    assert.equal(fake.revoked.length, 1, 'the token the exchange minted does not stay alive');
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
+    await fake.close();
+  }
+});
+
+test('cancel: an already-aborted signal starts nothing', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: AbortSignal.abort() }), failsWith('cancelled'));
+    assert.deepEqual(fake.calls, []);
+    assert.equal(existsSync(file), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the registration write keeps what the file holds now: a rotation during the browser wait is not undone', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const person = checkpoint();
+    // The callback carries a code the issuer refuses, so only the registration write touches the file.
+    const refusedBrowser = async (href: string) => {
+      void person.wait().then(() => {
+        const q = new URL(href).searchParams;
+        const back = new URL(q.get('redirect_uri')!);
+        back.search = new URLSearchParams({ code: 'fake-code-refused', state: q.get('state')!, client_id: fake.issuedClientId }).toString();
+        void fetch(back).then((r) => r.text()).catch(() => undefined);
+      });
+    };
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: refusedBrowser, timeoutMs: 10_000 }), failsWith('invalid_grant'));
+    await person.arrived;
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    fake.refreshAnswer = 'ok';
+    const rotated = await freshAccessToken(file, { issuer: fake.issuer });
+    const after = readStoredSignIn(file)!;
+    assert.equal(after.accessToken, rotated);
+    person.release();
+    await signing;
+    assert.deepEqual(readStoredSignIn(file), after, 'the rotated tokens stand');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a sign-in at another issuer keeps the host id and carries the epoch forward', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    fakeStored(file, { epoch: 3 });
+    const before = readStoredSignIn(file)!;
+    await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    const after = readStoredSignIn(file)!;
+    assert.equal(after.hostId, before.hostId);
+    assert.equal(after.issuer, fake.issuer);
+    assert.equal(after.clientId, fake.issuedClientId);
+    assert.equal(after.epoch, 4);
+    assert.notEqual(after.refreshToken, before.refreshToken);
   } finally {
     await fake.close();
   }
