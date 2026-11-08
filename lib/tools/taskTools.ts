@@ -133,8 +133,8 @@ export interface TaskBackend {
   /**
    * Keeps a claimed job leased while it runs. Resolves false when the claim
    * is gone (the job left `running`, for instance cancelled with
-   * task_update, or another worker holds it): the worker must stop the run.
-   * A backend that resolves void makes no such claim.
+   * task_update, another claim holds it, or the lease ran out): the worker
+   * must stop the run. A backend that resolves void makes no such claim.
    */
   renew(worker: WorkerLease, job: OwnedTask): Promise<void | boolean>;
   /**
@@ -147,8 +147,9 @@ export interface TaskBackend {
   recover(): Promise<{ requeued: string[]; failed: string[] }>;
   /**
    * Durable runs (ADR 0113): stores the run's latest step checkpoint beside
-   * the job. Resolves false when the job is no longer this worker's running
-   * job (cancelled, finished, or re-leased): the run must stop.
+   * the job. Resolves false when the job is no longer this claim's running
+   * job (cancelled, finished, re-leased, or its lease ran out): the run must
+   * stop.
    *
    * A checkpoint lives only while its job is `running` or `queued` (a job
    * re-queued after an interruption keeps it, so the next claim resumes);
@@ -180,6 +181,18 @@ export interface FencedTaskBackend extends TaskBackend {
   loadCheckpoint(job: OwnedTask): Promise<object | null>;
   /** A graceful stop: the interrupted-job rule, under the claim; 'lost' when it no longer holds and nothing was written. */
   requeueInterrupted(job: OwnedTask): Promise<'requeued' | 'failed' | 'lost'>;
+}
+
+/**
+ * The backend, when it fences every worker mutation; throws otherwise. A
+ * worker that runs leased jobs goes through this, because a backend that
+ * cannot say a claim was lost would let a stale run report success.
+ */
+export function requireFencedBackend(backend: TaskBackend): FencedTaskBackend {
+  if ((backend as Partial<FencedTaskBackend>).fencedClaims !== true) {
+    throw new Error('this task backend is not fenced (fencedClaims): the worker needs every job mutation bound to its claim. Implement FencedTaskBackend (ADR 0157).');
+  }
+  return backend as FencedTaskBackend;
 }
 
 /**

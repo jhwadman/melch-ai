@@ -33,8 +33,8 @@ import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { postgresTaskBackend } from '../lib/storage/postgres/taskQueue.ts';
 import { defineTool, executeContract } from '../lib/tools/toolContract.ts';
-import { fileTaskBackendWith, setTaskBackend, fileTaskBackend, taskGetContract, taskQueueContract } from '../lib/tools/taskTools.ts';
-import type { OwnedTask, WorkerLease } from '../lib/tools/taskTools.ts';
+import { fileTaskBackendWith, requireFencedBackend, setTaskBackend, fileTaskBackend, taskGetContract, taskQueueContract } from '../lib/tools/taskTools.ts';
+import type { OwnedTask, TaskBackend, WorkerLease } from '../lib/tools/taskTools.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 
 const INSTALL = [...readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort().map((f) => `db/migrations/${f}`), 'db/hardening.sql'];
@@ -69,8 +69,9 @@ after(async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   process.env.MELCHIZEDEK_TASKS_FILE = join(dir, `tasks-${n++}.json`);
+  await db.query('DELETE FROM melchizedek_tasks'); // claimNext takes the oldest job of any owner
 });
 
 const A: WorkerLease = { workerId: 'worker-a', leaseMs: 60_000 };
@@ -499,4 +500,37 @@ test('a restart resumes from a checkpoint no claim wrote: the format is unchange
   assert.equal(resumed.resumedFromStep, 2);
   assert.equal(resumedModel.calls, 2, 'the third lookup and the answer');
   assert.equal(await q.finish(second, { result: resumed.text }), 'accepted');
+});
+
+// ── 6. The public surface and the upgrade ────────────────────────────────────
+
+test('a backend written against the earlier TaskBackend still type-checks, and the built-in worker refuses it', () => {
+  // The whole 1.15 shape: no claim, finish resolving void, no fenced members.
+  const earlier: TaskBackend = {
+    read: async () => ({ version: 1, next_id: 1, tasks: [] }),
+    mutate: async (_owner, change) => change({ version: 1, next_id: 1, tasks: [] }),
+    claimNext: async () => null,
+    renew: async (): Promise<void> => {},
+    finish: async (): Promise<void> => {},
+    recover: async () => ({ requeued: [], failed: [] }),
+  };
+  assert.throws(() => requireFencedBackend(earlier), /fenced/);
+  assert.equal(requireFencedBackend(fileTaskBackend), fileTaskBackend);
+  assert.equal(requireFencedBackend(storage.taskQueue), storage.taskQueue);
+});
+
+test('a job an earlier worker holds during an upgrade has no token: left alone while its lease lives, recovered after', async () => {
+  const q = storage.taskQueue;
+  const owner = await queued();
+  await db.query(`UPDATE melchizedek_tasks SET status = 'running', lease_owner = 'old-worker', lease_until = now() + interval '1 minute', claim_token = NULL, record = record || '{"status":"running","attempts":1}' WHERE owner = $1`, [owner]);
+  const job = { id: 't1', owner } as OwnedTask;
+  assert.deepEqual((await q.recover()).requeued, [], 'a live lease is left alone');
+  assert.equal(await q.claimNext(A), null, 'a running job is never claimed');
+
+  await expire(job);
+  assert.deepEqual((await q.recover()).requeued, [`${owner}:t1`]);
+  const next = (await q.claimNext(A))!;
+  assert.equal(next.id, 't1');
+  assert.ok(next.claim!.token, 'from here it is fenced');
+  assert.equal(await q.finish(next, { result: 'done' }), 'accepted');
 });

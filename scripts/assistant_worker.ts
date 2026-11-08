@@ -68,6 +68,7 @@ import {
   CHECKPOINT_MAX_BYTES_ENV,
   checkpointMaxBytesSetting,
   fileTaskBackendWith,
+  requireFencedBackend,
   setTaskBackend,
   taskStorePath,
 } from '../lib/tools/taskTools.ts';
@@ -136,7 +137,7 @@ if (rawCap?.trim() && Number(rawCap.trim()) !== checkpointMaxBytes) {
 const taskQueue = { checkpointMaxBytes, log };
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl, schema: dbSchema(), taskQueue }) : undefined;
-const backend = pg ? pg.taskQueue : fileTaskBackendWith(taskQueue);
+const backend = requireFencedBackend(pg ? pg.taskQueue : fileTaskBackendWith(taskQueue));
 setTaskBackend(backend);
 /** A claimed job stays this worker's while it renews; the job timeout bounds a turn. */
 const lease: WorkerLease = { workerId: `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`, leaseMs: 60_000 };
