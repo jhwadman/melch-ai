@@ -5,25 +5,25 @@
     "at": "2026-11-08"
   },
   "stats": {
-    "nodes": 1108,
-    "edges": 4396,
+    "nodes": 1111,
+    "edges": 4408,
     "byKind": {
-      "doc": 229,
+      "doc": 230,
       "provider": 8,
       "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 259,
+      "file": 260,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 218,
+      "module": 219,
       "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 878,
+      "links_to": 880,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1006,
+      "imports": 1010,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1315,
+      "derives_from": 1321,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3912,
+      "extracted": 3924,
       "inferred": 484
     },
     "isolated": 5
@@ -2320,6 +2320,18 @@
       }
     },
     {
+      "id": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "kind": "doc",
+      "label": "ADR 0157: Job mutations are fenced by a per-claim token, and an expired lease is not owned",
+      "source": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 239
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2340,7 +2352,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 19751
+        "words": 19985
       }
     },
     {
@@ -2760,7 +2772,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 803
+        "words": 1279
       }
     },
     {
@@ -5182,6 +5194,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0025_task_claim_token.sql",
+      "kind": "file",
+      "label": "0025_task_claim_token.sql",
+      "source": "db/migrations/0025_task_claim_token.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -7259,6 +7278,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/claimedJob.ts",
+      "kind": "module",
+      "label": "lib/runtime/claimedJob.ts",
+      "source": "lib/runtime/claimedJob.ts",
+      "attrs": {
+        "lines": 220
+      }
+    },
+    {
       "id": "module:lib/runtime/credentials.ts",
       "kind": "module",
       "label": "lib/runtime/credentials.ts",
@@ -7309,7 +7337,7 @@
       "label": "lib/runtime/native/checkpoint.ts",
       "source": "lib/runtime/native/checkpoint.ts",
       "attrs": {
-        "lines": 465
+        "lines": 483
       }
     },
     {
@@ -7588,7 +7616,7 @@
       "label": "lib/storage/postgres/taskQueue.ts",
       "source": "lib/storage/postgres/taskQueue.ts",
       "attrs": {
-        "lines": 196
+        "lines": 235
       }
     },
     {
@@ -7966,7 +7994,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 660
+        "lines": 773
       }
     },
     {
@@ -8245,7 +8273,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 284
+        "lines": 250
       }
     },
     {
@@ -9531,7 +9559,7 @@
       "id": "table:melchizedek_tasks",
       "kind": "table",
       "label": "melchizedek_tasks",
-      "source": "db/migrations/0014_durable_runs.sql",
+      "source": "db/migrations/0025_task_claim_token.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -19253,6 +19281,48 @@
       "evidence": "/decisions/0156-standing-preload-queries.md:27"
     },
     {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "file:db/migrations/0025_task_claim_token.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md frontmatter"
+    },
+    {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "module:lib/runtime/claimedJob.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md frontmatter"
+    },
+    {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md frontmatter"
+    },
+    {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md frontmatter"
+    },
+    {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md frontmatter"
+    },
+    {
+      "from": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "to": "/tools/task-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19646,6 +19716,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0025_task_claim_token.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19656,21 +19733,21 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:45"
+      "evidence": "/memory/schema.md:46"
     },
     {
       "from": "/memory/schema.md",
       "to": "/decisions/0150-the-registry-follows-database-url.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:47"
+      "evidence": "/memory/schema.md:48"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3425"
+      "evidence": "/memory/schema.md:3460"
     },
     {
       "from": "/memory/sessions.md",
@@ -25043,6 +25120,13 @@
     },
     {
       "from": "/tools/task-tools.md",
+      "to": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/task-tools.md:34"
+    },
+    {
+      "from": "/tools/task-tools.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -30229,6 +30313,20 @@
       "evidence": "lib/runtime/approvals.ts"
     },
     {
+      "from": "module:lib/runtime/claimedJob.ts",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/claimedJob.ts"
+    },
+    {
+      "from": "module:lib/runtime/claimedJob.ts",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/claimedJob.ts"
+    },
+    {
       "from": "module:lib/runtime/credentials.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
@@ -30441,6 +30539,13 @@
     {
       "from": "module:lib/runtime/native/checkpoint.ts",
       "to": "module:lib/script/journal.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/checkpoint.ts"
@@ -33920,6 +34025,13 @@
     {
       "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/claimedJob.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/assistant_worker.ts"

@@ -39,7 +39,7 @@ import type { PayloadPolicy } from '../../observability/supabaseSpanExporter.ts'
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
 import { applyRetry } from '../../tools/taskTools.ts';
-import type { TaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
+import type { FencedTaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
@@ -148,7 +148,7 @@ export interface PostgresStorage {
    */
   turnLock: TurnLock;
   /** The task tools' lists and job queue (lib/tools/taskTools.ts setTaskBackend). */
-  taskQueue: TaskBackend;
+  taskQueue: FencedTaskBackend;
   /**
    * Puts a failed or cancelled background job back on the queue, attempts
    * reset (the Retry of an operator's queue view, melchizedek_task_queue,
