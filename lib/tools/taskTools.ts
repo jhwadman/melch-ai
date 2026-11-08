@@ -54,6 +54,7 @@
  *   transition, or an unreadable store comes back as an `Error:` string.
  */
 
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
@@ -92,8 +93,18 @@ export interface TaskStore {
   tasks: TaskRecord[];
 }
 
-/** A background job with the owner whose list it belongs to. */
-export type OwnedTask = TaskRecord & { owner: string };
+/**
+ * One claim on one job (ADR 0157). A worker id names a process and can claim
+ * the same job twice; the token is new with every claim, so it tells them
+ * apart. It lives beside the job's record, never in it, so no tool shows it.
+ */
+export interface JobClaim {
+  workerId: string;
+  token: string;
+}
+
+/** A background job with the owner whose list it belongs to; `claim` is present on a job a backend has just claimed. */
+export type OwnedTask = TaskRecord & { owner: string; claim?: JobClaim };
 
 /** A worker's claim on the jobs it runs. */
 export interface WorkerLease {
@@ -203,6 +214,15 @@ export function taskStorePath(): string {
 
 function emptyStore(): TaskStore {
   return { version: 1, next_id: 1, tasks: [] };
+}
+
+/** The file store keeps the current claim's token on the running record; read() strips it. */
+type FileRecord = TaskRecord & { claim_token?: string };
+
+/** The record as a reader gets it. */
+function withoutClaimToken(t: FileRecord): TaskRecord {
+  const { claim_token: _token, ...record } = t;
+  return record;
 }
 
 function readStore(path = taskStorePath()): TaskStore {
@@ -360,13 +380,19 @@ export function recoverInterruptedJobs(): { requeued: string[]; failed: string[]
 
 /** Claims the oldest queued job (queued → running) and returns it, or null. */
 export function claimNextJob(): TaskRecord | null {
+  return claimOnFile();
+}
+
+/** The file store's claim: `token`, when given, is written with the claim in one read-modify-write. */
+function claimOnFile(token?: string): TaskRecord | null {
   return mutate((store) => {
-    const job = store.tasks.find((t) => t.kind === 'background' && t.status === 'queued');
+    const job: FileRecord | undefined = store.tasks.find((t) => t.kind === 'background' && t.status === 'queued');
     if (!job) return null;
     job.status = 'running';
     job.attempts = (job.attempts ?? 0) + 1;
     job.started_at = job.updated_at = now();
-    return { ...job };
+    if (token) job.claim_token = token;
+    return withoutClaimToken(job);
   });
 }
 
@@ -443,11 +469,15 @@ function writeCheckpointEntry(storePath: string, id: string, json: string): void
 /** The single-user JSON file, its checkpoints capped by `options` (the default backend is fileTaskBackend). */
 export function fileTaskBackendWith(options: TaskBackendOptions = {}): TaskBackend {
   return {
-    read: async () => readStore(),
+    read: async () => {
+      const store = readStore();
+      return { ...store, tasks: store.tasks.map(withoutClaimToken) };
+    },
     mutate: async (_owner, change) => mutate(change),
-    claimNext: async () => {
-      const job = claimNextJob();
-      return job ? { ...job, owner: '' } : null;
+    claimNext: async (worker) => {
+      const token = randomUUID();
+      const job = claimOnFile(token);
+      return job ? { ...job, owner: '', claim: { workerId: worker.workerId, token } } : null;
     },
     // No leases on the single-user file: the claim holds while the record is running.
     renew: async (_worker, job) => readStore().tasks.find((t) => t.id === job.id)?.status === 'running',

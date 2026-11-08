@@ -32,6 +32,8 @@
  * the column keeps the previous one, the save still reports the claim, and
  * one line names the job id and the sizes.
  */
+import { randomUUID } from 'node:crypto';
+
 import type { Pool, PoolClient } from 'pg';
 
 import { applyFinish, applyInterrupted, checkpointJson } from '../../tools/taskTools.ts';
@@ -101,6 +103,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
 
     async claimNext(worker: WorkerLease): Promise<OwnedTask | null> {
       const stamp = new Date().toISOString();
+      const token = randomUUID();
       const r = await pool.query(
         `WITH next AS (
            SELECT owner, id FROM melchizedek_tasks
@@ -111,6 +114,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
             SET status = 'running',
                 lease_owner = $1,
                 lease_until = NOW() + ($2::int * interval '1 millisecond'),
+                claim_token = $4,
                 updated_at = NOW(),
                 record = t.record || jsonb_build_object(
                   'status', 'running',
@@ -120,10 +124,10 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
            FROM next
           WHERE t.owner = next.owner AND t.id = next.id
           RETURNING t.owner, t.record`,
-        [worker.workerId, worker.leaseMs, stamp],
+        [worker.workerId, worker.leaseMs, stamp, token],
       );
       const row = r.rows[0];
-      return row ? { ...(row.record as TaskRecord), owner: row.owner as string } : null;
+      return row ? { ...(row.record as TaskRecord), owner: row.owner as string, claim: { workerId: worker.workerId, token } } : null;
     },
 
     async renew(worker, job) {
