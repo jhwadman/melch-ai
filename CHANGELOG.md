@@ -4,6 +4,40 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+**Added: `memory_preload_queries`, standing recall for a syndicate's core
+memory.** Up to 8 queries a long-term syndicate declares; before each
+request, `preload_memory` also recalls up to 2 records for each, after the
+records the message itself recalls and without repeats (ADR 0156). They run
+once per silo per turn; `load_memory` is unchanged. The search request gains
+an optional `purpose: 'preload'`, and `ToolContext.searchMemory` an optional
+second argument carrying it.
+
+**Changed: the Patient Advocate keeps a whole-person profile.** Its
+`memory_extraction_rules` file every record under one of fourteen profile
+domains (identity, conditions, medications, allergies, results, care-plan,
+care-team, symptoms, nutrition, lifestyle, psychology, values, support,
+communication). The domain word opens the record's text and is never an index
+key, keys stay specific, and each record holds one fact, so a correction
+retires only the record it is about. Records name whose they are when the
+user is a caregiver. Psychology records hold the person's own words or an
+observed pattern with its evidence, never a label or diagnosis. A
+`profile_domains` variable resolves into both the extractor's rules and
+Asclepius's new `<patient_profile>` section, which uses the domains when it
+answers, notes personal facts as they arrive, and asks for a missing domain
+one at a time; `never_store` drops identifiers, contact and payment details.
+Its `memory_preload_queries` bring allergies, current medications,
+communication, values, support and psychology into every request.
+
+**Fixed: memory extraction is no longer cut off by its own thinking.** The
+extractor's default output cap rises from 4096 to 16384 tokens and it thinks
+at `low` effort (`reasoning` on `modelExtractor`). On a thinking model the cap
+covers thinking: the default extraction model spent 3-4k tokens thinking on a
+short transcript, so records were truncated and the rest never stored. A call
+that still reaches the cap drops its unfinished last line, which could parse
+as a whole record, and logs a warning (`onTruncated`).
+
 ## 1.15.4 — 2026-11-07
 
 **Changed: the Research example's step cap is 24, up from 16.** At 16 a

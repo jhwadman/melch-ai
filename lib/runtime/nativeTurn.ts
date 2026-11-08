@@ -33,7 +33,7 @@ import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import { createTurnEvent } from './events.ts';
 import type { TurnContent, TurnEvent } from './events.ts';
-import type { MemorySearchRequest, MemoryService } from './memoryService.ts';
+import type { MemoryEntry, MemorySearchRequest, MemorySearchResult, MemoryService } from './memoryService.ts';
 import { runAgentLoop } from './native/agentLoop.ts';
 import type { AgentLoopEnd } from './native/agentLoop.ts';
 import type { NativeAgent } from './native/request.ts';
@@ -72,9 +72,64 @@ export function refuseOnNative(
  * The search the loop's memory tools call: the engine's MemoryService. The
  * caller has already pinned the namespace.
  */
-export function nativeMemory(service: MemoryService | undefined): Pick<MemoryService, 'search'> | undefined {
+export function nativeMemory(
+  service: MemoryService | undefined,
+  preloadQueries: readonly string[] = [],
+): Pick<MemoryService, 'search'> | undefined {
   if (!service || typeof service.search !== 'function') return undefined;
-  return { search: (request: MemorySearchRequest) => service.search(request) };
+  const standing = preloadQueries.map((q) => q.trim()).filter((q) => q.length > 0);
+  if (standing.length === 0) {
+    return { search: ({ purpose: _purpose, ...request }: MemorySearchRequest) => service.search(request) };
+  }
+  // The standing queries' records, once per silo per turn: preload runs
+  // before every model request, and the profile does not change mid-turn
+  // (ingestion runs after the answer).
+  const standingFor = new Map<string, Promise<MemoryEntry[][]>>();
+  return {
+    async search({ purpose, ...request }: MemorySearchRequest): Promise<MemorySearchResult> {
+      if (purpose !== 'preload') return service.search(request);
+      const silo = `${request.appName}/${request.userId}`;
+      let standingRecall = standingFor.get(silo);
+      if (!standingRecall) {
+        standingRecall = Promise.all(
+          standing.map((query) =>
+            // A standing query that fails costs its own records only.
+            service.search({ ...request, query }).then((r) => r.memories ?? [], () => [] as MemoryEntry[]),
+          ),
+        );
+        standingFor.set(silo, standingRecall);
+      }
+      const [own, extra] = await Promise.all([service.search(request), standingRecall]);
+      return { memories: mergePreload(own.memories ?? [], extra) };
+    },
+  };
+}
+
+/** Records each standing query adds to a preload, after the message's own. */
+export const PRELOAD_PER_STANDING_QUERY = 2;
+
+/**
+ * The message's own records first, in their order, then up to
+ * PRELOAD_PER_STANDING_QUERY records from each standing query that the
+ * message did not already recall (ADR 0156). A record is the same record
+ * when its id, or failing that its text, matches.
+ */
+export function mergePreload(own: MemoryEntry[], standing: MemoryEntry[][]): MemoryEntry[] {
+  const identity = (m: MemoryEntry) => m.id ?? (m.content.parts ?? []).map((p) => p.text ?? '').join(' ');
+  const seen = new Set(own.map(identity));
+  const out = [...own];
+  for (const records of standing) {
+    let added = 0;
+    for (const record of records) {
+      if (added >= PRELOAD_PER_STANDING_QUERY) break;
+      const key = identity(record);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(record);
+      added++;
+    }
+  }
+  return out;
 }
 
 // ── One agent's run ──────────────────────────────────────────────────────────

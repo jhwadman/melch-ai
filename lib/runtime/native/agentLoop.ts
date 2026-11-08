@@ -426,7 +426,10 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     abortSignal: scope.signal,
     ...(ctx.userContent ? { userContent: ctx.userContent } : {}),
     ...(memory
-      ? { searchMemory: (query: string) => memory.search({ appName: session.appName, userId: session.userId, query }) }
+      ? {
+          searchMemory: (query: string, options?: { purpose?: 'preload' }) =>
+            memory.search({ appName: session.appName, userId: session.userId, query, ...(options?.purpose ? { purpose: options.purpose } : {}) }),
+        }
       : {}),
     ...(accessToken ? { accessToken } : {}),
     ...(requestCredential ? { requestCredential } : {}),

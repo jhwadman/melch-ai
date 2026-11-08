@@ -118,7 +118,7 @@ export const preloadMemoryTool: InstructionTool = {
     if (!query || !ctx.searchMemory) return undefined;
     let memories: MemoryEntry[];
     try {
-      ({ memories } = await ctx.searchMemory(query));
+      ({ memories } = await ctx.searchMemory(query, { purpose: 'preload' }));
     } catch (err: unknown) {
       // ADK logged the query here; it is the user's words, so this does not.
       console.warn('[preload_memory] Memory search failed; the request goes without recalled facts:', err instanceof Error ? err.message : String(err));

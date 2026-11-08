@@ -99,6 +99,14 @@ memory_extraction_rules: |
   NEVER store: <values that go stale on their own>
   ALWAYS store: <what the user asserted, decided, or committed to>
 
+# [optional] Standing memory queries. Before each request, preload_memory
+# also recalls up to 2 records for each query, after the records the
+# message itself recalls. Use it for what every answer should know however
+# the question is worded: a patient's allergies, a client's preferences.
+# At most 8, long-term memory only.
+# memory_preload_queries:
+#   - "allergies: the patient's allergies and reactions"
+
 # [optional] The model that distils this syndicate's turns into memory
 # records. Default: the deployment's MEMORY_EXTRACTION_MODEL. A cheaper model
 # for a chatty desk, a stronger one where a missed fact costs more.

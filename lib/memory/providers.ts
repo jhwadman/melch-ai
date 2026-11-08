@@ -43,7 +43,7 @@ import { endpointFromEnv } from '../models/endpoints.ts';
 import type { ProviderEndpoint } from '../models/endpoints.ts';
 import { GoogleGenAI } from '@google/genai';
 import { SpanStatusCode } from '@opentelemetry/api';
-import type { ModelAdapter, ModelResponse } from '../models/contract.ts';
+import type { ModelAdapter, ModelResponse, ReasoningSetting } from '../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../models/genaiMapping.ts';
 import type { LlmRequest, LlmResponse } from '../models/genaiMapping.ts';
 
@@ -81,6 +81,10 @@ export interface ModelExtractorOptions {
   apiKey?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  /** How hard the extraction model thinks. Default `low`: extraction is filing, not reasoning. */
+  reasoning?: ReasoningSetting;
+  /** Where a truncated extraction is reported. Default console.warn. */
+  onTruncated?: (message: string) => void;
   /** Test seam: produce the adapter. Default lib/models/registry.ts resolveModel. */
   resolve?: (model: string, apiKey?: string) => ModelAdapter;
 }
@@ -104,10 +108,13 @@ export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtracto
       const llmRequest: LlmRequest = {
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { temperature: opts.temperature ?? 0.1, maxOutputTokens: opts.maxOutputTokens ?? 4096 },
+        // On a thinking model the cap covers thinking too: the default
+        // extraction model thinks 3-4k tokens on a short transcript, so
+        // 4096 cut the records off mid-line and the rest were never stored.
+        config: { temperature: opts.temperature ?? 0.1, maxOutputTokens: opts.maxOutputTokens ?? 16384 },
         toolsDict: {},
       };
-      const request = llmRequestToModelRequest(llmRequest, { model, stream: false });
+      const request = { ...llmRequestToModelRequest(llmRequest, { model, stream: false }), reasoning: opts.reasoning ?? 'low' };
       const sources = new WeakMap<LlmResponse, ModelResponse>();
       async function* inner(): AsyncGenerator<LlmResponse, void> {
         for await (const response of adapter.generate(request)) {
@@ -117,14 +124,26 @@ export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtracto
         }
       }
       let text = '';
+      let truncated = false;
       for await (const response of traceLlmGeneration({ provider: adapter.provider, model, request, source: (r) => sources.get(r) }, inner())) {
         if (response.errorCode) {
           throw new Error(`${model}: ${response.errorCode}${response.errorMessage ? ` — ${response.errorMessage}` : ''}`);
         }
         if (response.partial) continue;
+        const source = sources.get(response);
+        if (source && !source.partial && source.finishReason === 'max_tokens') truncated = true;
         for (const part of response.content?.parts ?? []) {
           if (part.text && !(part as { thought?: boolean }).thought) text += part.text;
         }
+      }
+      if (truncated) {
+        // The last line stopped mid-record and can still parse as a whole
+        // one ("…atorvastatin 40 mg" without "at night"), so it is dropped.
+        const cut = text.lastIndexOf('\n');
+        text = cut === -1 ? '' : text.slice(0, cut);
+        (opts.onTruncated ?? console.warn)(
+          `[MemoryService] ${model} hit its ${llmRequest.config?.maxOutputTokens}-token cap; the last record was dropped and any after it were never written`,
+        );
       }
       return text;
     },

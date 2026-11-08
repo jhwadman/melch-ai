@@ -218,7 +218,7 @@ test('load_memory is declared to Gemini as written, and the system instruction c
   const memory = memoryOf([FACT]);
   const agent: NativeAgent = { name: 'advocate', model: MODEL, instruction: 'Answer from the record.', tools: resolveTools(['preload_memory', 'load_memory']).map(own) };
   const { request } = await buildModelRequest(agent, { session, invocationId: 'e-1', userContent: userContent('What was my creatinine in March?'), memory });
-  assert.deepEqual(memory.searches, [{ appName: APP, userId: USER, query: 'What was my creatinine in March?' }], 'preload_memory recalls for the run’s message');
+  assert.deepEqual(memory.searches, [{ appName: APP, userId: USER, query: 'What was my creatinine in March?', purpose: 'preload' }], 'preload_memory recalls for the run’s message, as a preload (ADR 0156)');
 
   const { body } = await send(request);
   assert.deepEqual(body.tools, [

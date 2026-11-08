@@ -116,7 +116,7 @@ export interface ToolContext {
    * `<appName>/<userId>` silo: a tool cannot name another user's. Present
    * only when the run has a memory service (ADR 0020, ADR 0059).
    */
-  readonly searchMemory?: (query: string) => Promise<MemorySearchResult>;
+  readonly searchMemory?: (query: string, options?: MemorySearchOptions) => Promise<MemorySearchResult>;
   /**
    * A valid access token for a third-party provider, from this context's
    * own app and user: a tool names the provider, never whose token. It is
@@ -465,11 +465,16 @@ function memorySearch(
   memory: Pick<MemoryService, 'search'>,
   appName: string | undefined,
   userId: string | undefined,
-): (query: string) => Promise<MemorySearchResult> {
-  return async (query: string) => {
+): (query: string, options?: MemorySearchOptions) => Promise<MemorySearchResult> {
+  return async (query: string, options?: MemorySearchOptions) => {
     if (!appName || !userId) throw new Error('Memory search needs the app name and user id of the run.');
-    return memory.search({ appName, userId, query });
+    return memory.search({ appName, userId, query, ...(options?.purpose ? { purpose: options.purpose } : {}) });
   };
+}
+
+/** What a memory search is for; `preload` adds the syndicate's standing queries (ADR 0156). */
+export interface MemorySearchOptions {
+  purpose?: 'preload';
 }
 
 /** True for a complete ToolContext. Checks presence only, so no getter runs. */

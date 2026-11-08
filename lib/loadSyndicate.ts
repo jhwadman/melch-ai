@@ -314,6 +314,8 @@ export interface SyndicateYamlConfig {
   memory_extraction_rules?: string;
   /** Extraction model for this syndicate's memory; default MEMORY_EXTRACTION_MODEL. */
   memory_extraction_model?: string;
+  /** Standing queries preload_memory recalls beside the message's own, up to 2 records each (ADR 0156). */
+  memory_preload_queries?: string[];
   /** Days facts in this syndicate's namespace are kept (needs memory_namespace). */
   memory_retention_days?: number;
   /** Optional hard limit on the turn's model calls, subagents included (LLM -> Tool cycles). */
