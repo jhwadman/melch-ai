@@ -151,6 +151,27 @@ export interface TaskBackend {
   loadCheckpoint?(job: OwnedTask): Promise<object | null>;
 }
 
+/** A job a fenced backend has just claimed: it always carries the claim. */
+export type ClaimedTask = OwnedTask & { claim: JobClaim };
+
+/**
+ * A TaskBackend whose every worker mutation is bound to one claim (ADR 0157):
+ * renew, saveCheckpoint, finish and requeueInterrupted change a job only
+ * while `job.claim` is the claim the backend holds for it and, where the
+ * backend has leases, the lease has not run out. A job that carries no claim
+ * changes nothing. Both built-in backends are this; a backend that is not
+ * cannot run under the built-in worker (requireFencedBackend).
+ */
+export interface FencedTaskBackend extends TaskBackend {
+  readonly fencedClaims: true;
+  claimNext(worker: WorkerLease): Promise<ClaimedTask | null>;
+  renew(worker: WorkerLease, job: OwnedTask): Promise<boolean>;
+  saveCheckpoint(worker: WorkerLease, job: OwnedTask, checkpoint: object): Promise<boolean>;
+  loadCheckpoint(job: OwnedTask): Promise<object | null>;
+  /** A graceful stop: the interrupted-job rule, under the claim; 'lost' when it no longer holds and nothing was written. */
+  requeueInterrupted(job: OwnedTask): Promise<'requeued' | 'failed' | 'lost'>;
+}
+
 /**
  * The largest checkpoint a backend stores by default: 5 MiB of serialized
  * JSON (ADR 0113). A save above the cap is skipped and the job's previous

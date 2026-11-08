@@ -14,16 +14,22 @@
  *   claim   takes the oldest queued background job of ANY owner with
  *           FOR UPDATE SKIP LOCKED, so two workers never take one job, and
  *           leases it to the worker until the lease runs out.
- *   renew   extends the lease while the job is still this worker's and
- *           running; resolves false otherwise, so the worker stops the run
- *           (a task_update cancel of a running job lands here).
+ *   renew   extends the lease while this claim still holds (HELD below);
+ *           resolves false otherwise, so the worker stops the run (a
+ *           task_update cancel of a running job lands here).
  *   recover finds running jobs whose lease ran out (the worker died) and
  *           applies the same interrupted-job rule the file store uses. It
  *           never touches a queued job or a running one whose lease is live.
  *
+ * Fencing (ADR 0157): a worker id names a process and can claim one job
+ * twice, so claimNext also writes a token, new with every claim. Every worker
+ * write matches owner, id, worker id, token, `running` and a lease still in
+ * the future, so an old claim changes nothing, even before recover has run.
+ * A job leaving `running` loses its claim in the same write.
+ *
  * Checkpoints (ADR 0113): a running job's latest step checkpoint is the
  * `checkpoint` column beside `record`, never inside it, so the tools never
- * read it. Only the worker holding the lease writes it (saveCheckpoint). It
+ * read it. Only the claim holding the lease writes it (saveCheckpoint). It
  * survives while the job is running or queued: recover's requeue keeps it,
  * so the next claim resumes from it, and claimNext leaves it; a mutate that
  * moves the job to any other status, or recover failing it, clears it; a
@@ -37,7 +43,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 
 import { applyFinish, applyInterrupted, checkpointJson } from '../../tools/taskTools.ts';
-import type { JobOutcome, OwnedTask, TaskBackend, TaskBackendOptions, TaskRecord, TaskStore, WorkerLease } from '../../tools/taskTools.ts';
+import type { FencedTaskBackend, JobOutcome, OwnedTask, TaskBackendOptions, TaskRecord, TaskStore, WorkerLease } from '../../tools/taskTools.ts';
 
 const seqOf = (id: string) => Number(id.slice(1)) || 0;
 
@@ -65,9 +71,44 @@ async function inTransaction<T>(pool: Pool, run: (client: PoolClient) => Promise
   }
 }
 
+/**
+ * What makes a job this claim's: $1 owner, $2 id, $3 worker id, $4 token. An
+ * expired lease is not owned, whether or not recover has run yet.
+ */
+const HELD = `owner = $1 AND id = $2 AND lease_owner = $3 AND claim_token = $4 AND status = 'running' AND lease_until > NOW()`;
+
+/** A job leaving `running` on $1 owner, $2 id, to status $3 and record $4: the claim ends in the same write. A checkpoint survives only a requeue. */
+const LEAVE_RUNNING = `UPDATE melchizedek_tasks
+    SET status = $3, record = $4::jsonb, updated_at = NOW(), lease_owner = NULL, lease_until = NULL, claim_token = NULL,
+        checkpoint = CASE WHEN $3::text = 'queued' THEN checkpoint END,
+        checkpoint_at = CASE WHEN $3::text = 'queued' THEN checkpoint_at END
+  WHERE owner = $1 AND id = $2`;
+
+/**
+ * Ends `job`'s claim: while its row is locked and the claim still holds,
+ * `decide` applies the rule to the record and the result is written.
+ * Resolves null, having written nothing, when the claim does not hold. The
+ * lock is the job's row alone, so this cannot deadlock against a mutate, and
+ * a recover that holds the row makes this re-read it and find the claim gone.
+ */
+async function endClaim<T>(pool: Pool, job: OwnedTask, decide: (record: TaskRecord) => T): Promise<T | null> {
+  const claim = job.claim;
+  if (!claim) return null;
+  return inTransaction(pool, async (client) => {
+    const held = await client.query(`SELECT record FROM melchizedek_tasks WHERE ${HELD} FOR UPDATE`, [job.owner, job.id, claim.workerId, claim.token]);
+    const record = held.rows[0]?.record as TaskRecord | undefined;
+    if (!record) return null;
+    const out = decide(record);
+    await client.query(LEAVE_RUNNING, [job.owner, job.id, record.status, JSON.stringify(record)]);
+    return out;
+  });
+}
+
 /** The task backend on `pool`; `options` caps the checkpoint a save stores (TaskBackendOptions). */
-export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}): TaskBackend {
+export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}): FencedTaskBackend {
   return {
+    fencedClaims: true,
+
     read: (owner) => loadOwner(pool, owner, false),
 
     async mutate(owner, change) {
@@ -91,6 +132,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
                SET kind = EXCLUDED.kind, status = EXCLUDED.status, record = EXCLUDED.record, updated_at = NOW(),
                    lease_owner = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.lease_owner END,
                    lease_until = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.lease_until END,
+                   claim_token = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.claim_token END,
                    checkpoint = CASE WHEN EXCLUDED.status IN ('running', 'queued') THEN melchizedek_tasks.checkpoint END,
                    checkpoint_at = CASE WHEN EXCLUDED.status IN ('running', 'queued') THEN melchizedek_tasks.checkpoint_at END`,
             [owner, t.id, seqOf(t.id), t.kind, t.status, JSON.stringify(t)],
@@ -101,7 +143,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
       });
     },
 
-    async claimNext(worker: WorkerLease): Promise<OwnedTask | null> {
+    async claimNext(worker: WorkerLease) {
       const stamp = new Date().toISOString();
       const token = randomUUID();
       const r = await pool.query(
@@ -131,29 +173,24 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
     },
 
     async renew(worker, job) {
+      if (!job.claim) return false;
       const r = await pool.query(
-        `UPDATE melchizedek_tasks SET lease_until = NOW() + ($4::int * interval '1 millisecond')
-          WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
-        [job.owner, job.id, worker.workerId, worker.leaseMs],
+        `UPDATE melchizedek_tasks SET lease_until = NOW() + ($5::int * interval '1 millisecond') WHERE ${HELD}`,
+        [job.owner, job.id, worker.workerId, job.claim.token, worker.leaseMs],
       );
       return (r.rowCount ?? 0) > 0;
     },
 
     async saveCheckpoint(worker, job, checkpoint) {
+      if (!job.claim) return false;
+      const claimed = [job.owner, job.id, worker.workerId, job.claim.token];
       const json = checkpointJson(job, checkpoint, options);
       if (json === null) {
         // Over the cap: the previous checkpoint is kept; the answer is still whether the claim holds.
-        const held = await pool.query(
-          `SELECT 1 FROM melchizedek_tasks WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
-          [job.owner, job.id, worker.workerId],
-        );
+        const held = await pool.query(`SELECT 1 FROM melchizedek_tasks WHERE ${HELD}`, claimed);
         return (held.rowCount ?? 0) > 0;
       }
-      const r = await pool.query(
-        `UPDATE melchizedek_tasks SET checkpoint = $4::jsonb, checkpoint_at = NOW()
-          WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
-        [job.owner, job.id, worker.workerId, json],
-      );
+      const r = await pool.query(`UPDATE melchizedek_tasks SET checkpoint = $5::jsonb, checkpoint_at = NOW() WHERE ${HELD}`, [...claimed, json]);
       return (r.rowCount ?? 0) > 0;
     },
 
@@ -167,7 +204,11 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
     },
 
     async finish(job: OwnedTask, outcome: JobOutcome) {
-      await this.mutate(job.owner, (store) => applyFinish(store, job.id, outcome));
+      await endClaim(pool, job, (record) => applyFinish({ version: 1, next_id: 0, tasks: [record] }, job.id, outcome));
+    },
+
+    async requeueInterrupted(job) {
+      return (await endClaim(pool, job, applyInterrupted)) ?? 'lost';
     },
 
     async recover() {
@@ -184,13 +225,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
           const outcome = applyInterrupted(t);
           (outcome === 'failed' ? failed : requeued).push(`${row.owner || '(shared)'}:${t.id}`);
           // Requeued keeps the checkpoint (the next claim resumes); failed clears it.
-          await client.query(
-            `UPDATE melchizedek_tasks SET status = $3, record = $4::jsonb, updated_at = NOW(), lease_owner = NULL, lease_until = NULL,
-                    checkpoint = CASE WHEN $3::text = 'queued' THEN checkpoint END,
-                    checkpoint_at = CASE WHEN $3::text = 'queued' THEN checkpoint_at END
-              WHERE owner = $1 AND id = $2`,
-            [row.owner, row.id, t.status, JSON.stringify(t)],
-          );
+          await client.query(LEAVE_RUNNING, [row.owner, row.id, t.status, JSON.stringify(t)]);
         }
         return { requeued, failed };
       });
