@@ -204,7 +204,7 @@ export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}
     },
 
     async finish(job: OwnedTask, outcome: JobOutcome) {
-      await endClaim(pool, job, (record) => applyFinish({ version: 1, next_id: 0, tasks: [record] }, job.id, outcome));
+      return (await endClaim(pool, job, (record) => applyFinish({ version: 1, next_id: 0, tasks: [record] }, job.id, outcome))) ?? 'lost';
     },
 
     async requeueInterrupted(job) {

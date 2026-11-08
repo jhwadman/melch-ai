@@ -162,8 +162,8 @@ async function everyMutationRefused(worker: WorkerLease, job: OwnedTask) {
   assert.equal(await q.renew(worker, job), false, 'renew');
   assert.equal(await q.saveCheckpoint(worker, job, { step: 'stale' }), false, 'saveCheckpoint');
   assert.equal(await capped.saveCheckpoint(worker, job, { step: 'stale, and over the cap' }), false, 'saveCheckpoint over the cap');
-  await q.finish(job, { result: 'stale result' });
-  await q.finish(job, { error: 'stale error' });
+  assert.equal(await q.finish(job, { result: 'stale result' }), 'lost', 'finish with a result');
+  assert.equal(await q.finish(job, { error: 'stale error' }), 'lost', 'finish with an error');
   assert.equal(await q.requeueInterrupted(job), 'lost', 'interrupted requeue');
 }
 
@@ -278,7 +278,7 @@ test('the finish / recover race: whichever order they land in, a job ends one wa
   const reaped = (await q.claimNext(A))!;
   await expire(reaped);
   await q.recover();
-  await q.finish(reaped, { result: 'too late' });
+  assert.equal(await q.finish(reaped, { result: 'too late' }), 'lost');
   let r = await state(reaped);
   assert.equal(r.status, 'queued');
   assert.equal(r.record.result, undefined);
@@ -287,7 +287,8 @@ test('the finish / recover race: whichever order they land in, a job ends one wa
   // A live lease: the reaper leaves it, the finish lands.
   await queued();
   const live = (await q.claimNext(A))!;
-  const [, recovered] = await Promise.all([q.finish(live, { result: 'in time' }), q.recover()]);
+  const [finished, recovered] = await Promise.all([q.finish(live, { result: 'in time' }), q.recover()]);
+  assert.equal(finished, 'accepted');
   assert.deepEqual(recovered.requeued, []);
   r = await state(live);
   assert.deepEqual([r.status, r.record.result, r.claim_token], ['done', 'in time', null]);
@@ -296,9 +297,80 @@ test('the finish / recover race: whichever order they land in, a job ends one wa
   await queued();
   const expired = (await q.claimNext(A))!;
   await expire(expired);
-  await Promise.all([q.finish(expired, { result: 'stale' }), q.recover()]);
+  const [lateFinish] = await Promise.all([q.finish(expired, { result: 'stale' }), q.recover()]);
+  assert.equal(lateFinish, 'lost');
   r = await state(expired);
   assert.equal(r.status, 'queued');
   assert.equal(r.record.result, undefined, 'the stale result is not stored');
   await q.mutate(expired.owner, (s) => { s.tasks = []; });
+});
+
+// ── 3. The completion result ─────────────────────────────────────────────────
+
+test('Postgres: the holder\'s finish is accepted, and clears the claim and the checkpoint; a second finish is lost', async () => {
+  const q = storage.taskQueue;
+  await queued();
+  const job = (await q.claimNext(A))!;
+  await q.saveCheckpoint(A, job, { step: 1 });
+  assert.equal(await q.finish(job, { result: 'the answer' }), 'accepted');
+  const r = await state(job);
+  assert.deepEqual([r.status, r.record.result, r.lease_owner, r.claim_token, r.checkpoint], ['done', 'the answer', null, null, null]);
+  assert.equal(await q.finish(job, { error: 'again' }), 'lost');
+  assert.equal((await state(job)).record.result, 'the answer');
+});
+
+test('Postgres: a lost finish keeps the new claim\'s checkpoint', async () => {
+  const q = storage.taskQueue;
+  await queued();
+  const stale = (await q.claimNext(A))!;
+  const current = await reclaim(stale, B);
+  assert.equal(await q.saveCheckpoint(B, current, { step: 7 }), true);
+  assert.equal(await q.finish(stale, { result: 'stale' }), 'lost');
+  assert.deepEqual((await state(current)).checkpoint, { step: 7 }, 'B\'s checkpoint survives');
+  assert.equal((await state(current)).record.result, undefined);
+});
+
+function fileWithTwoClaims() {
+  const q = fileTaskBackendWith();
+  return { q, queue: () => executeContract(taskQueueContract, { title: 'One', instruction: 'Do the first thing.' }) };
+}
+
+test('file store: a stale claim is lost on every mutation and changes nothing', async () => {
+  const { q, queue } = fileWithTwoClaims();
+  await queue();
+  const stale = (await q.claimNext(A))!;
+  assert.equal(await q.saveCheckpoint(A, stale, { step: 1 }), true);
+  assert.equal(await q.requeueInterrupted(stale), 'requeued');
+  const current = (await q.claimNext(A))!;
+  assert.equal(current.id, stale.id);
+  assert.equal(await q.saveCheckpoint(A, current, { step: 2 }), true);
+  const before = readFileSync(process.env.MELCHIZEDEK_TASKS_FILE!, 'utf8');
+
+  assert.equal(await q.renew(A, stale), false);
+  assert.equal(await q.saveCheckpoint(A, stale, { step: 'stale' }), false);
+  assert.equal(await q.finish(stale, { result: 'stale' }), 'lost');
+  assert.equal(await q.requeueInterrupted(stale), 'lost');
+
+  assert.equal(readFileSync(process.env.MELCHIZEDEK_TASKS_FILE!, 'utf8'), before, 'nothing written');
+  assert.deepEqual(await q.loadCheckpoint(current), { step: 2 }, 'the current claim keeps its checkpoint');
+  assert.equal(await q.renew(B, current), false, 'another worker id does not hold it either');
+  assert.equal(await q.renew(A, current), true);
+  assert.equal(await q.finish(current, { result: 'the answer' }), 'accepted');
+  assert.equal(await q.loadCheckpoint(current), null);
+  assert.equal(await q.finish(current, { result: 'again' }), 'lost');
+});
+
+test('file store: a job carrying no claim, or one whose record left running, is lost', async () => {
+  const { q, queue } = fileWithTwoClaims();
+  await queue();
+  const job = (await q.claimNext(A))!;
+  const { claim: _claim, ...bare } = job;
+  assert.equal(await q.finish(bare, { result: 'no claim' }), 'lost');
+  assert.equal(await q.renew(A, bare), false);
+  assert.equal(await q.saveCheckpoint(A, bare, { step: 1 }), false);
+  await q.mutate('', (s) => {
+    s.tasks.find((t) => t.id === job.id)!.status = 'cancelled';
+  });
+  assert.equal(await q.finish(job, { result: 'late' }), 'lost');
+  assert.doesNotMatch(String(await executeContract(taskGetContract, { id: job.id })), /late/);
 });

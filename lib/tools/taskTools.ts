@@ -30,7 +30,9 @@
  *     gitignored). Every operation re-reads the file, so the chat process
  *     and the worker see each other's writes. It is SINGLE-USER: every
  *     caller shares one list. Run ONE worker: the claim is a
- *     read-modify-write, not a lock. A running job's step checkpoints
+ *     read-modify-write, not a lock, and a claim's token fences a stale
+ *     write without making the file transactional (fileTaskBackendWith). A
+ *     running job's step checkpoints
  *     (ADR 0113) sit in a sidecar, <store>.checkpoints.json, keyed by id;
  *     every write of the store drops those of jobs no longer running or
  *     queued. A checkpoint above the cap (TaskBackendOptions.
@@ -115,6 +117,9 @@ export interface WorkerLease {
 
 export type JobOutcome = { result: string } | { error: string };
 
+/** What a fenced finish did: 'accepted' recorded the outcome; 'lost' means the claim no longer holds and nothing was written. */
+export type FinishResult = 'accepted' | 'lost';
+
 /**
  * Where tasks live. Every rule (transitions, limits, pruning, formatting)
  * stays in this file and runs on a TaskStore snapshot; a backend only
@@ -132,8 +137,12 @@ export interface TaskBackend {
    * A backend that resolves void makes no such claim.
    */
   renew(worker: WorkerLease, job: OwnedTask): Promise<void | boolean>;
-  /** Records a job's outcome; a record no longer running is left alone. */
-  finish(job: OwnedTask, outcome: JobOutcome): Promise<void>;
+  /**
+   * Records a job's outcome; a record no longer running is left alone. A
+   * fenced backend answers 'accepted' or 'lost'; a backend that resolves void
+   * makes no such claim, and the built-in worker will not run on it.
+   */
+  finish(job: OwnedTask, outcome: JobOutcome): Promise<void | FinishResult>;
   /** Jobs whose worker died: queued again, or failed after MAX_ATTEMPTS. */
   recover(): Promise<{ requeued: string[]; failed: string[] }>;
   /**
@@ -165,6 +174,7 @@ export type ClaimedTask = OwnedTask & { claim: JobClaim };
 export interface FencedTaskBackend extends TaskBackend {
   readonly fencedClaims: true;
   claimNext(worker: WorkerLease): Promise<ClaimedTask | null>;
+  finish(job: OwnedTask, outcome: JobOutcome): Promise<FinishResult>;
   renew(worker: WorkerLease, job: OwnedTask): Promise<boolean>;
   saveCheckpoint(worker: WorkerLease, job: OwnedTask, checkpoint: object): Promise<boolean>;
   loadCheckpoint(job: OwnedTask): Promise<object | null>;
@@ -316,13 +326,35 @@ function pruneCheckpoints(store: TaskStore, storePath: string): void {
   if (changed) writeJson(entries, taskCheckpointPath(storePath));
 }
 
+/** Writes a changed store: a record that left `running` loses its claim in the same write. */
+function commit(store: TaskStore, path: string): void {
+  for (const t of store.tasks as FileRecord[]) if (t.status !== 'running') delete t.claim_token;
+  writeStore(store, path);
+  pruneCheckpoints(store, path);
+}
+
 /** Read, change, write — one synchronous step, so no await splits it. */
 function mutate<T>(change: (store: TaskStore) => T): T {
   const path = taskStorePath();
   const store = readStore(path);
   const out = change(store);
-  writeStore(store, path);
-  pruneCheckpoints(store, path);
+  commit(store, path);
+  return out;
+}
+
+/** `job`'s claim is the one this running record holds. */
+function holdsClaim(record: FileRecord | undefined, job: OwnedTask): record is FileRecord {
+  return !!job.claim && !!record && record.kind === 'background' && record.status === 'running' && record.claim_token === job.claim.token;
+}
+
+/** Ends `job`'s claim on the file with `decide`; null, with nothing written, when the claim does not hold. */
+function endFileClaim<T>(job: OwnedTask, decide: (store: TaskStore, record: TaskRecord) => T): T | null {
+  const path = taskStorePath();
+  const store = readStore(path);
+  const record = store.tasks.find((t) => t.id === job.id);
+  if (!holdsClaim(record, job)) return null;
+  const out = decide(store, record);
+  commit(store, path);
   return out;
 }
 
@@ -417,15 +449,19 @@ function claimOnFile(token?: string): TaskRecord | null {
   });
 }
 
-/** Records a job's outcome. A record no longer `running` (edited by hand) is left alone. */
+/**
+ * Records a job's outcome. A record no longer `running` (edited by hand) is
+ * left alone. Unfenced: it takes no claim, so a worker goes through the
+ * backend's finish.
+ */
 export function finishJob(id: string, outcome: JobOutcome): void {
   mutate((store) => applyFinish(store, id, outcome));
 }
 
-/** The outcome rule, on a snapshot (every backend). */
-export function applyFinish(store: TaskStore, id: string, outcome: JobOutcome): void {
+/** The outcome rule, on a snapshot (every backend): 'lost' when the record is no longer running. Whether the caller's claim holds is the backend's check, made first. */
+export function applyFinish(store: TaskStore, id: string, outcome: JobOutcome): FinishResult {
   const job = store.tasks.find((t) => t.id === id);
-  if (!job || job.status !== 'running') return;
+  if (!job || job.status !== 'running') return 'lost';
   job.finished_at = job.updated_at = now();
   if ('result' in outcome) {
     job.status = 'done';
@@ -438,6 +474,7 @@ export function applyFinish(store: TaskStore, id: string, outcome: JobOutcome): 
     job.status = 'failed';
     job.error = outcome.error.slice(0, 1_000);
   }
+  return 'accepted';
 }
 
 /** A failed or cancelled job made new again: no attempts, no error, no finish time. */
@@ -487,9 +524,21 @@ function writeCheckpointEntry(storePath: string, id: string, json: string): void
   writeText(`${others === '{}' ? `{${entry}}` : `${others.slice(0, -1)},${entry}}`}\n`, taskCheckpointPath(storePath));
 }
 
-/** The single-user JSON file, its checkpoints capped by `options` (the default backend is fileTaskBackend). */
-export function fileTaskBackendWith(options: TaskBackendOptions = {}): TaskBackend {
+/**
+ * The single-user JSON file, its checkpoints capped by `options` (the default
+ * backend is fileTaskBackend).
+ *
+ * Fencing here is the same rule as Postgres (ADR 0157), without its
+ * guarantees. The token is checked and the store written in one synchronous
+ * step of one process, but nothing locks the file between processes, so two
+ * writers at the same moment can still overwrite each other: the file store
+ * stops a claim that is already stale from writing over a newer one, and is
+ * no transaction. It has no leases, so a claim holds until its record leaves
+ * `running` or is claimed again, never because time passed. Run ONE worker.
+ */
+export function fileTaskBackendWith(options: TaskBackendOptions = {}): FencedTaskBackend {
   return {
+    fencedClaims: true,
     read: async () => {
       const store = readStore();
       return { ...store, tasks: store.tasks.map(withoutClaimToken) };
@@ -500,14 +549,14 @@ export function fileTaskBackendWith(options: TaskBackendOptions = {}): TaskBacke
       const job = claimOnFile(token);
       return job ? { ...job, owner: '', claim: { workerId: worker.workerId, token } } : null;
     },
-    // No leases on the single-user file: the claim holds while the record is running.
-    renew: async (_worker, job) => readStore().tasks.find((t) => t.id === job.id)?.status === 'running',
-    finish: async (job, outcome) => finishJob(job.id, outcome),
+    // No leases on the single-user file: the claim holds while the record is running under its token.
+    renew: async (worker, job) => worker.workerId === job.claim?.workerId && holdsClaim(readStore().tasks.find((t) => t.id === job.id), job),
+    finish: async (job, outcome) => endFileClaim(job, (store) => applyFinish(store, job.id, outcome)) ?? 'lost',
+    requeueInterrupted: async (job) => endFileClaim(job, (_store, record) => applyInterrupted(record)) ?? 'lost',
     recover: async () => recoverInterruptedJobs(),
-    saveCheckpoint: async (_worker, job, checkpoint) => {
+    saveCheckpoint: async (worker, job, checkpoint) => {
       const path = taskStorePath();
-      const record = readStore(path).tasks.find((t) => t.id === job.id);
-      if (!record || record.kind !== 'background' || record.status !== 'running') return false;
+      if (worker.workerId !== job.claim?.workerId || !holdsClaim(readStore(path).tasks.find((t) => t.id === job.id), job)) return false;
       // Over the cap: nothing written, the previous checkpoint kept, the claim still held.
       const json = checkpointJson(job, checkpoint, options);
       if (json !== null) writeCheckpointEntry(path, job.id, json);
@@ -522,7 +571,7 @@ export function fileTaskBackendWith(options: TaskBackendOptions = {}): TaskBacke
 }
 
 /** The single-user JSON file (the default backend), checkpoints capped at DEFAULT_CHECKPOINT_MAX_BYTES. */
-export const fileTaskBackend: TaskBackend = fileTaskBackendWith();
+export const fileTaskBackend: FencedTaskBackend = fileTaskBackendWith();
 
 let activeBackend: TaskBackend = fileTaskBackend;
 
