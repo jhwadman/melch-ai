@@ -53,6 +53,8 @@ export interface StoredSignIn {
   /** Epoch milliseconds before which a refresh is not attempted while the token is valid. */
   earliestRefreshAt?: number;
   savedAt?: string;
+  /** The credential lifecycle epoch; absent reads as 0 (`credentialEpoch`). */
+  epoch?: number;
 }
 
 /** The sign-in as the doctor and the bins see it: presence and times, never a token. */
@@ -66,6 +68,8 @@ export interface ChatGptSignInStatus {
   signedIn: boolean;
   /** Epoch milliseconds the access token expires, when signed in. */
   expiresAt?: number;
+  /** The credential's lifecycle epoch, when the file can be read: a different number means a different lifecycle. */
+  epoch?: number;
   /** Why a present file cannot be used (permissions, shape). */
   problem?: string;
 }
@@ -91,6 +95,17 @@ export function isStoredSignIn(v: unknown): v is StoredSignIn {
   if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return o.version === 1 && typeof o.issuer === 'string' && typeof o.hostId === 'string';
+}
+
+/**
+ * A credential's lifecycle epoch. A sign-out advances it, so work that started
+ * under an earlier epoch can no longer commit (`commitAtEpoch`,
+ * lib/chatgpt/store.ts). A file from before the field, or one holding anything
+ * but a non-negative integer, is at zero.
+ */
+export function credentialEpoch(s: StoredSignIn | undefined): number {
+  const e = s?.epoch;
+  return typeof e === 'number' && Number.isSafeInteger(e) && e >= 0 ? e : 0;
 }
 
 /**
@@ -126,7 +141,7 @@ export function chatGptSignInStatus(env: NodeJS.ProcessEnv = process.env): ChatG
   try {
     const s = readStoredSignIn(file);
     const signedIn = isSignedIn(s);
-    return { enabled, file, present, signedIn, ...(signedIn && s?.expiresAt ? { expiresAt: s.expiresAt } : {}) };
+    return { enabled, file, present, signedIn, epoch: credentialEpoch(s), ...(signedIn && s?.expiresAt ? { expiresAt: s.expiresAt } : {}) };
   } catch (err) {
     return { enabled, file, present, signedIn: false, problem: err instanceof Error ? err.message : String(err) };
   }

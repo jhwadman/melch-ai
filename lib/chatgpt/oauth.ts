@@ -22,21 +22,27 @@
  * anything is saved, and the plan scope must be granted.
  *
  * TOKENS: an access token lasts an hour and the refresh token rotates on every
- * refresh. Refreshes are serialized through a lock file (lib/chatgpt/store.ts)
+ * refresh. Refreshes are serialized through a lease file (lib/chatgpt/store.ts)
  * and an unusable refresh token clears the tokens and asks for a new sign-in.
  * No token is ever logged or put in an error message.
+ *
+ * WHO WINS: the file carries a lifecycle epoch. Every result is committed
+ * through `commitAtEpoch`, which re-reads the file under a short lock and
+ * writes only if the epoch the work started under still stands, so a sign-out
+ * beats any sign-in or refresh still in flight.
  */
 
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 
 import { trimTrailingSlashes } from '../models/urls.ts';
-import { PLAN_SCOPE, isSignedIn, readStoredSignIn } from './state.ts';
+import { PLAN_SCOPE, credentialEpoch, isSignedIn, readStoredSignIn } from './state.ts';
 import type { StoredSignIn } from './state.ts';
-import { clearTokens, withSignInLock, writeStoredSignIn } from './store.ts';
+import { commitAtEpoch, withRefreshLease, withSignInLock, withoutTokens, writeStoredSignIn } from './store.ts';
 
 export const OPENAI_AUTH_ISSUER = 'https://auth.openai.com';
 /** The resource the tokens are for: the public API, where the Responses endpoint lives. */
@@ -78,6 +84,8 @@ export class SignInError extends Error {
   }
 }
 
+const cancelled = () => new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.');
+
 export interface OAuthOptions {
   /** The authorization server. Default https://auth.openai.com; an http issuer is accepted on loopback only (tests). */
   issuer?: string;
@@ -104,12 +112,15 @@ function issuerOf(opts: OAuthOptions): string {
   return issuer;
 }
 
+/** A request's deadline, and the caller's cancel when there is one. */
+const deadline = (ms: number, signal?: AbortSignal) => (signal ? AbortSignal.any([AbortSignal.timeout(ms), signal]) : AbortSignal.timeout(ms));
+
 /** The issuer's OpenID configuration; every endpoint must be on the issuer's own origin. */
-export async function discover(opts: OAuthOptions = {}): Promise<Discovery> {
+export async function discover(opts: OAuthOptions = {}, signal?: AbortSignal): Promise<Discovery> {
   const issuer = issuerOf(opts);
   let data: any;
   try {
-    const res = await fetch(`${issuer}/.well-known/openid-configuration`, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
+    const res = await fetch(`${issuer}/.well-known/openid-configuration`, { redirect: 'error', signal: deadline(15_000, signal) });
     data = res.ok ? await res.json() : undefined;
   } catch {
     data = undefined;
@@ -130,7 +141,7 @@ const randomValue = () => randomBytes(32).toString('base64url');
 export const pkceChallenge = (verifier: string) => createHash('sha256').update(verifier).digest('base64url');
 
 /** A token-endpoint call: form-encoded, JSON back, the error code (never a token) on failure. */
-async function tokenRequest(endpoint: string, form: Record<string, string>): Promise<Record<string, unknown>> {
+async function tokenRequest(endpoint: string, form: Record<string, string>, signal?: AbortSignal): Promise<Record<string, unknown>> {
   let res: Response;
   try {
     res = await fetch(endpoint, {
@@ -138,7 +149,7 @@ async function tokenRequest(endpoint: string, form: Record<string, string>): Pro
       headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
       body: new URLSearchParams(form),
       redirect: 'error',
-      signal: AbortSignal.timeout(30_000),
+      signal: deadline(30_000, signal),
     });
   } catch {
     throw new SignInError('network_error', 'Could not reach the ChatGPT sign-in service.');
@@ -192,10 +203,12 @@ function tokenFields(data: Record<string, unknown>, previousScopes?: string[]): 
 }
 
 /** Verify an ID token against the issuer's keys; the verified subject. */
-async function verifyIdToken(idToken: unknown, d: Discovery, clientId: string, nonce?: string): Promise<string> {
+async function verifyIdToken(idToken: unknown, d: Discovery, clientId: string, nonce?: string, signal?: AbortSignal): Promise<string> {
   if (typeof idToken !== 'string' || !idToken) throw new SignInError('invalid_id_token', 'The ChatGPT sign-in returned no verifiable identity.');
   try {
-    const { payload } = await jwtVerify(idToken, createRemoteJWKSet(new URL(d.jwks_uri)), {
+    // Cancelling reaches the key fetch; the signature check itself is local and short.
+    const keys = createRemoteJWKSet(new URL(d.jwks_uri), signal ? { [customFetch]: (url, init) => fetch(url, { ...init, signal: AbortSignal.any([init.signal, signal]) }) } : {});
+    const { payload } = await jwtVerify(idToken, keys, {
       issuer: d.issuer,
       audience: clientId,
       algorithms: ['RS256'],
@@ -306,7 +319,7 @@ async function listen(port: number, state: string, savedClientId: string | undef
     });
   });
   const timer = setTimeout(() => settle(new SignInError('timeout', 'The ChatGPT sign-in was not completed in time.')), timeoutMs);
-  const abort = () => settle(new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.'));
+  const abort = () => settle(cancelled());
   signal?.addEventListener('abort', abort, { once: true });
   const close = () => {
     clearTimeout(timer);
@@ -340,6 +353,7 @@ export interface SignInOptions extends OAuthOptions {
   /** Called with the authorization URL before the browser opens, so the person can open it themselves. */
   onUrl?: (url: string) => void;
   timeoutMs?: number;
+  /** Cancels the attempt wherever it stands; a cancelled sign-in commits nothing and fails `cancelled`. */
   signal?: AbortSignal;
 }
 
@@ -349,25 +363,56 @@ export interface SignInResult {
   scopes: string[];
   expiresAt: number;
   planUsage: boolean;
+  /** The credential's lifecycle epoch after this sign-in. */
+  epoch: number;
 }
 
 /**
- * The browser sign-in. Stores the host id before the browser opens when no
- * file exists yet, the registration (host id, issued client id) before the
- * code exchange, and the tokens after the ID token verifies and the plan
- * scope is confirmed.
+ * The browser sign-in. Stores the host id first when no file exists yet, the
+ * registration (host id, issued client id) before the code exchange, and the
+ * tokens after the ID token verifies and the plan scope is confirmed, which
+ * advances the epoch. Nothing is held while the person is in the browser or
+ * the network is answering; a result that was overtaken is discarded and the
+ * sign-in fails `superseded`.
  */
 export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const issuer = issuerOf(opts);
-  const d = await discover({ issuer });
-  const previous = readStoredSignIn(opts.file);
-  const sameIssuer = previous?.issuer === issuer;
-  const hostId = previous?.hostId ?? `urn:uuid:${randomUUID()}`;
-  const savedClientId = sameIssuer ? previous?.clientId : undefined;
-  // OpenAI asks for the host id to be chosen and persisted before the first
-  // sign-in, so a timed-out or cancelled attempt does not send a new one next
-  // time. Only written when nothing is stored: a stored registration is kept.
-  if (!previous) writeStoredSignIn(opts.file, { version: 1, issuer, hostId });
+  if (opts.signal?.aborted) throw cancelled();
+  try {
+    return await attemptSignIn(opts, issuer);
+  } catch (err) {
+    // However far it got: a sign-in that was cancelled says so, whichever request the abort broke.
+    if (opts.signal?.aborted) throw cancelled();
+    throw err;
+  }
+}
+
+async function attemptSignIn(opts: SignInOptions, issuer: string): Promise<SignInResult> {
+  // The epoch this attempt answers to, read before anything slow. OpenAI asks
+  // for the host id to be chosen and persisted before the first sign-in, so a
+  // timed-out or cancelled attempt does not send a new one next time; it also
+  // means a sign-out always has a file to advance. A stored registration is kept.
+  const start = await withSignInLock(opts.file, async () => {
+    const held = readStoredSignIn(opts.file);
+    if (held) return held;
+    const created: StoredSignIn = { version: 1, issuer, hostId: `urn:uuid:${randomUUID()}` };
+    writeStoredSignIn(opts.file, created);
+    return created;
+  });
+  const epoch = credentialEpoch(start);
+  const d = await discover({ issuer }, opts.signal);
+  const sameIssuer = start.issuer === issuer;
+  const hostId = start.hostId;
+  const savedClientId = sameIssuer ? start.clientId : undefined;
+
+  // Every write this attempt makes goes through here: merged into what the
+  // file holds now, and only while the attempt is neither stale nor cancelled.
+  const commit = (build: (current: StoredSignIn) => StoredSignIn) =>
+    commitAtEpoch(opts.file, epoch, (current) => {
+      if (opts.signal?.aborted) throw cancelled();
+      return build(current);
+    });
+  let discardMinted: (() => Promise<void>) | undefined;
 
   const state = randomValue();
   const nonce = randomValue();
@@ -396,10 +441,12 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     const cb = await listener.result;
 
     // Keep the issued registration even if the one-time code fails below.
-    const registration: StoredSignIn = sameIssuer && previous
-      ? { ...previous, clientId: cb.clientId, hostId }
-      : { version: 1, issuer, hostId, clientId: cb.clientId };
-    writeStoredSignIn(opts.file, registration);
+    const registered = await commit((current) =>
+      current.issuer === issuer
+        ? { ...current, clientId: cb.clientId }
+        : { version: 1, issuer, hostId, clientId: cb.clientId, ...(current.epoch !== undefined ? { epoch: current.epoch } : {}) },
+    );
+    if (!registered) throw superseded();
 
     let data: Record<string, unknown>;
     try {
@@ -410,29 +457,77 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
         code_verifier: verifier,
         redirect_uri: listener.redirectUri,
         resource: OPENAI_API_RESOURCE,
-      });
+      }, opts.signal);
     } catch (err) {
       // OpenAI's consent page refuses a plan or workspace without plan usage
       // for apps, and the exchange then answers invalid_grant.
       if (err instanceof SignInError && err.code === 'invalid_grant') throw new SignInError('invalid_grant', signInRefused('invalid_grant'));
       throw err;
     }
-    const subject = await verifyIdToken(data.id_token, d, cb.clientId, nonce);
+    const minted = typeof data.refresh_token === 'string' ? data.refresh_token : undefined;
+    discardMinted = () => revokeDiscarded(opts.file, d, cb.clientId, minted);
+    const subject = await verifyIdToken(data.id_token, d, cb.clientId, nonce, opts.signal);
     const fields = tokenFields(data);
     const planUsage = fields.scopes!.includes(PLAN_SCOPE);
     if (!planUsage) {
       throw new SignInError('plan_not_granted', 'The sign-in did not grant use of your ChatGPT plan; sign in again and allow it.');
     }
-    writeStoredSignIn(opts.file, { ...registration, subject, ...fields, savedAt: new Date().toISOString() });
-    return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage };
+    const committed = await commit((current) => ({ ...withoutTokens(current), issuer, clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString(), epoch: epoch + 1 }));
+    if (!committed) throw superseded();
+    discardMinted = undefined;
+    return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage, epoch: epoch + 1 };
+  } catch (err) {
+    if (opts.signal?.aborted || (err instanceof SignInError && err.code === 'superseded')) await discardMinted?.();
+    throw err;
   } finally {
     listener.close();
   }
 }
 
-/** One refresh of the stored session; the caller holds the lock. */
-async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): Promise<StoredSignIn> {
+/** Post a refresh token to the issuer's revocation endpoint; true once it confirms. */
+async function revokeAtIssuer(endpoint: string, refreshToken: string, clientId: string, attempts: number): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: refreshToken, token_type_hint: 'refresh_token', client_id: clientId }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => undefined);
+    await res?.body?.cancel().catch(() => undefined);
+    if (res?.status === 200) return true;
+    if (res && res.status < 500) break;
+  }
+  return false;
+}
+
+/**
+ * A freshly issued refresh token nobody will keep. With no tokens left in the
+ * file a sign-out won, and the issuer should not go on honoring this one; with
+ * tokens there it belongs to a newer session's account, and an issuer may
+ * revoke per client and account, so it is simply dropped.
+ */
+async function revokeDiscarded(file: string, d: Discovery, clientId: string, refreshToken: string | undefined): Promise<void> {
+  try {
+    if (!refreshToken || !d.revocation_endpoint || readStoredSignIn(file)?.refreshToken) return;
+    await revokeAtIssuer(d.revocation_endpoint, refreshToken, clientId, 1);
+  } catch {
+    // Best effort: the result is already discarded locally.
+  }
+}
+
+/** A result that lost to a sign-out or a newer sign-in. */
+const superseded = () => new SignInError('superseded', 'A sign-out or a newer sign-in replaced this ChatGPT sign-in before it finished.');
+
+/**
+ * One refresh of the stored session; the caller holds the refresh lease.
+ * Undefined when the result lost to a sign-out, a newer sign-in or another
+ * rotation of the same session, and the file was left alone.
+ */
+async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): Promise<StoredSignIn | undefined> {
   const issuer = issuerOf(opts);
+  const epoch = credentialEpoch(s);
+  const sameSession = (current: StoredSignIn) => current.refreshToken === s.refreshToken;
   if (s.issuer !== issuer || !s.clientId || !s.refreshToken) {
     throw new SignInError('not_signed_in', 'The stored ChatGPT sign-in cannot be refreshed here; sign in again.');
   }
@@ -447,7 +542,8 @@ async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): P
     });
   } catch (err) {
     if (err instanceof SignInError && UNUSABLE_REFRESH.has(err.code)) {
-      clearTokens(file);
+      const cleared = await commitAtEpoch(file, epoch, (current) => (sameSession(current) ? withoutTokens(current) : undefined));
+      if (!cleared) return undefined;
       throw new SignInError('signin_expired', 'Your ChatGPT sign-in has expired or was revoked; run `melchizedek-setup --chatgpt-signin` again.');
     }
     throw err;
@@ -457,8 +553,8 @@ async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): P
     const subject = await verifyIdToken(data.id_token, d, s.clientId);
     if (s.subject && subject !== s.subject) throw new SignInError('account_mismatch', 'The refreshed ChatGPT identity is a different account; sign in again.');
   }
-  const next: StoredSignIn = { ...s, ...fields, savedAt: new Date().toISOString() };
-  writeStoredSignIn(file, next);
+  const next = await commitAtEpoch(file, epoch, (current) => (sameSession(current) ? { ...withoutTokens(current), ...fields, savedAt: new Date().toISOString() } : undefined));
+  if (!next) await revokeDiscarded(file, d, s.clientId, fields.refreshToken);
   return next;
 }
 
@@ -471,8 +567,11 @@ export interface AccessTokenOptions extends OAuthOptions {
 /**
  * A usable access token from the credential file, refreshed when it is within
  * two minutes of expiry (and past `earliest_refresh_at`). Refreshes take the
- * file's lock and re-read it first, so a refresh another process just made is
- * used rather than repeated.
+ * refresh lease and re-read the file first, so a refresh another process just
+ * made is used rather than repeated. A refresh that lost to a sign-out or a
+ * newer sign-in stores nothing and the file is read again. A refresh takes no
+ * cancel signal: once the issuer has rotated the token, dropping the answer
+ * would end the session, so only a change of epoch stops one from landing.
  */
 export async function freshAccessToken(file: string, opts: AccessTokenOptions = {}): Promise<string> {
   const now = opts.now ?? Date.now;
@@ -481,46 +580,49 @@ export async function freshAccessToken(file: string, opts: AccessTokenOptions = 
   const first = readStoredSignIn(file);
   if (!isSignedIn(first)) throw notSignedIn();
   if (fresh(first)) return first!.accessToken!;
-  return withSignInLock(file, async () => {
+  const token = await withRefreshLease(file, async () => {
     const s = readStoredSignIn(file);
     if (!isSignedIn(s)) throw notSignedIn();
     if (fresh(s)) return s!.accessToken!;
     const valid = (s!.expiresAt ?? 0) > now();
     if (valid && s!.earliestRefreshAt !== undefined && now() < s!.earliestRefreshAt) return s!.accessToken!;
-    return (await refreshOnce(file, s!, opts)).accessToken!;
+    return (await refreshOnce(file, s!, opts))?.accessToken;
   });
+  return token ?? freshAccessToken(file, opts);
+}
+
+/** What a sign-out reports: never a token. */
+export interface SignOutResult {
+  hadTokens: boolean;
+  revoked: boolean;
+  /** The credential's lifecycle epoch after this sign-out; 0 when nothing was stored. */
+  epoch: number;
 }
 
 /**
- * Sign out: the tokens leave the file (the host id and issued client id
- * stay, for the next sign-in), and the refresh token is revoked at the
- * issuer. `revoked: false` means the local tokens are gone but the remote
- * revocation was not confirmed: disconnect the app in ChatGPT's settings.
+ * Sign out: under the commit lock the epoch advances, so no sign-in or
+ * refresh still in flight can commit, and the tokens leave the file (the host
+ * id and issued client id stay, for the next sign-in). Only then is the
+ * refresh token revoked at the issuer. `revoked: false` means the local
+ * tokens are gone but the remote revocation was not confirmed: disconnect the
+ * app in ChatGPT's settings.
  */
-export async function signOut(file: string, opts: OAuthOptions = {}): Promise<{ hadTokens: boolean; revoked: boolean }> {
-  const s = readStoredSignIn(file);
-  if (!s?.refreshToken) {
-    if (s) clearTokens(file);
-    return { hadTokens: false, revoked: false };
-  }
-  clearTokens(file);
+export async function signOut(file: string, opts: OAuthOptions = {}): Promise<SignOutResult> {
+  if (!existsSync(file)) return { hadTokens: false, revoked: false, epoch: 0 };
+  const { held, epoch } = await withSignInLock(file, async () => {
+    const stored = readStoredSignIn(file);
+    if (!stored) return { held: undefined, epoch: 0 };
+    const advanced = credentialEpoch(stored) + 1;
+    writeStoredSignIn(file, { ...withoutTokens(stored), epoch: advanced });
+    return { held: stored, epoch: advanced };
+  });
+  if (!held?.refreshToken) return { hadTokens: false, revoked: false, epoch };
+  let revoked = false;
   try {
     const d = await discover(opts);
-    if (!d.revocation_endpoint || !s.clientId) return { hadTokens: true, revoked: false };
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await fetch(d.revocation_endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token: s.refreshToken, token_type_hint: 'refresh_token', client_id: s.clientId }),
-        redirect: 'error',
-        signal: AbortSignal.timeout(10_000),
-      }).catch(() => undefined);
-      await res?.body?.cancel().catch(() => undefined);
-      if (res?.status === 200) return { hadTokens: true, revoked: true };
-      if (res && res.status < 500) break;
-    }
+    if (d.revocation_endpoint && held.clientId) revoked = await revokeAtIssuer(d.revocation_endpoint, held.refreshToken, held.clientId, 2);
   } catch {
     // The local tokens are gone either way.
   }
-  return { hadTokens: true, revoked: false };
+  return { hadTokens: true, revoked, epoch };
 }

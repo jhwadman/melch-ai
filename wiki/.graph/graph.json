@@ -5,10 +5,10 @@
     "at": "2026-11-08"
   },
   "stats": {
-    "nodes": 1111,
-    "edges": 4408,
+    "nodes": 1112,
+    "edges": 4414,
     "byKind": {
-      "doc": 230,
+      "doc": 231,
       "provider": 8,
       "env": 119,
       "model": 13,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 880,
+      "links_to": 882,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -36,7 +36,7 @@
       "imports": 1010,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1321,
+      "derives_from": 1325,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3924,
+      "extracted": 3930,
       "inferred": 484
     },
     "isolated": 5
@@ -2332,6 +2332,18 @@
       }
     },
     {
+      "id": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "kind": "doc",
+      "label": "ADR 0158: A credential lifecycle epoch and owned locks make sign-out win",
+      "source": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 242
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2436,7 +2448,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1658
+        "words": 2290
       }
     },
     {
@@ -6635,7 +6647,7 @@
       "label": "lib/chatgpt/oauth.ts",
       "source": "lib/chatgpt/oauth.ts",
       "attrs": {
-        "lines": 527
+        "lines": 629
       }
     },
     {
@@ -6644,7 +6656,7 @@
       "label": "lib/chatgpt/state.ts",
       "source": "lib/chatgpt/state.ts",
       "attrs": {
-        "lines": 189
+        "lines": 204
       }
     },
     {
@@ -6653,7 +6665,7 @@
       "label": "lib/chatgpt/store.ts",
       "source": "lib/chatgpt/store.ts",
       "attrs": {
-        "lines": 92
+        "lines": 198
       }
     },
     {
@@ -19323,6 +19335,41 @@
       "evidence": "/decisions/0157-job-mutations-are-fenced-by-a-per-claim-token.md:29"
     },
     {
+      "from": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "to": "file:tests/chatgptSignIn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md frontmatter"
+    },
+    {
+      "from": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md frontmatter"
+    },
+    {
+      "from": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md frontmatter"
+    },
+    {
+      "from": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "to": "module:lib/chatgpt/store.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md frontmatter"
+    },
+    {
+      "from": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -20367,17 +20414,24 @@
     },
     {
       "from": "/models/chatgpt-signin.md",
-      "to": "/models/provider-routing.md",
+      "to": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/chatgpt-signin.md:51"
     },
     {
       "from": "/models/chatgpt-signin.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md:72"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chatgpt-signin.md:55"
+      "evidence": "/models/chatgpt-signin.md:76"
     },
     {
       "from": "/models/chatgpt-signin.md",

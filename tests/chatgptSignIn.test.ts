@@ -23,6 +23,12 @@
  *   - refresh: near expiry, rotated, serialized across concurrent callers;
  *     an unusable refresh token clears the tokens and keeps the registration;
  *   - sign-out clears the tokens and revokes the refresh token;
+ *   - sign-out wins: a refresh, exchange or verification still in flight, or a
+ *     browser wait, leaves no tokens and nothing alive at the issuer; two
+ *     sign-ins leave one set of tokens and one epoch advance (ADR 0158);
+ *   - cancel reaches the requests and is checked before every commit;
+ *   - the lock is never held across the browser or the network, a release
+ *     removes only its own lock, and a dead holder's lock is taken over;
  *   - routing: OpenAI ids resolve to the sign-in adapter only with no key,
  *     and its requests stream, store nothing and carry only the bearer;
  *   - served surfaces refuse: the A2A server bin and the worker exit 1, the
@@ -32,15 +38,16 @@
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import fs, { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { hostname, tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 
 import { ChatGptSignInAdapter } from '../lib/chatgpt/adapter.ts';
@@ -49,13 +56,16 @@ import { DYNAMIC_CLIENT_ID, OPENAI_API_RESOURCE, SignInError, freshAccessToken, 
 import {
   PLAN_SCOPE,
   chatGptSignInRoutesOpenAi,
+  chatGptSignInStatus,
+  credentialEpoch,
+  isStoredSignIn,
   markServedSurface,
   readStoredSignIn,
   refuseChatGptSignInOnServedSurface,
   resetServedSurfaceForTests,
 } from '../lib/chatgpt/state.ts';
 import type { StoredSignIn } from '../lib/chatgpt/state.ts';
-import { writeStoredSignIn } from '../lib/chatgpt/store.ts';
+import { commitAtEpoch, withRefreshLease, withSignInLock, writeStoredSignIn } from '../lib/chatgpt/store.ts';
 import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import type { FinalModelResponse, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
@@ -85,6 +95,12 @@ interface FakeAuth {
   refreshAnswer: string;
   /** Set to delay each refresh, to widen a race. */
   refreshDelayMs: number;
+  /** Awaited after the issuer has minted the tokens and before it answers: a delayed exchange or refresh, without a sleep. */
+  tokenGate?: (form: Record<string, string>) => Promise<void>;
+  /** Awaited before the JWKS answers: a delayed ID-token verification. */
+  jwksGate?: () => Promise<void>;
+  /** Awaited before the discovery document answers. */
+  discoveryGate?: () => Promise<void>;
   issuedClientId: string;
   /** The browser: follow the URL like the consent page would. `state` overrides the state sent back. */
   browser: (opts?: { state?: string; scope?: string }) => (url: string) => Promise<void>;
@@ -138,6 +154,7 @@ async function fakeAuthServer(): Promise<FakeAuth> {
     const form = Object.fromEntries(new URLSearchParams(raw));
 
     if (url.pathname === '/.well-known/openid-configuration') {
+      await fake.discoveryGate?.();
       return json(200, {
         issuer: fake.issuer,
         authorization_endpoint: `${fake.issuer}/api/accounts/authorize`,
@@ -146,7 +163,10 @@ async function fakeAuthServer(): Promise<FakeAuth> {
         revocation_endpoint: `${fake.issuer}/revoke`,
       });
     }
-    if (url.pathname === '/jwks') return json(200, { keys: [jwk] });
+    if (url.pathname === '/jwks') {
+      await fake.jwksGate?.();
+      return json(200, { keys: [jwk] });
+    }
     if (url.pathname === '/revoke') {
       fake.revoked.push(form.token);
       refreshTokens.delete(form.token);
@@ -161,15 +181,21 @@ async function fakeAuthServer(): Promise<FakeAuth> {
         if (!p) return json(400, { error: 'invalid_grant' });
         const challenge = createHash('sha256').update(form.code_verifier ?? '').digest('base64url');
         if (challenge !== p.challenge || form.redirect_uri !== p.redirectUri || form.client_id !== p.clientId) return json(400, { error: 'invalid_grant' });
-        return json(200, await tokens(p.clientId, p.nonce, `openid profile email offline_access resource.invoke ${PLAN_SCOPE}`));
+        const minted = await tokens(p.clientId, p.nonce, `openid profile email offline_access resource.invoke ${PLAN_SCOPE}`);
+        await fake.tokenGate?.(form);
+        return json(200, minted);
       }
       if (form.grant_type === 'refresh_token') {
         if (fake.refreshDelayMs) await new Promise((r) => setTimeout(r, fake.refreshDelayMs));
-        if (fake.refreshAnswer !== 'ok' && fake.refreshAnswer !== 'ok-with-id') return json(400, { error: fake.refreshAnswer });
+        if (fake.refreshAnswer !== 'ok' && fake.refreshAnswer !== 'ok-with-id') {
+          await fake.tokenGate?.(form);
+          return json(400, { error: fake.refreshAnswer });
+        }
         if (!refreshTokens.has(form.refresh_token)) return json(400, { error: 'refresh_token_reused' });
         refreshTokens.delete(form.refresh_token);
         const t = await tokens(form.client_id, undefined, '');
         const { scope: _scope, id_token, ...rest } = t;
+        await fake.tokenGate?.(form);
         return json(200, fake.refreshAnswer === 'ok-with-id' ? { ...rest, id_token } : rest);
       }
       return json(400, { error: 'unsupported_grant_type' });
@@ -531,7 +557,7 @@ test('sign-out: the tokens leave the file and the refresh token is revoked', asy
     const file = await signedIn(fake);
     const refresh = readStoredSignIn(file)!.refreshToken!;
     const r = await signOut(file, { issuer: fake.issuer });
-    assert.deepEqual(r, { hadTokens: true, revoked: true });
+    assert.deepEqual(r, { hadTokens: true, revoked: true, epoch: 2 });
     assert.deepEqual(fake.revoked, [refresh]);
     const after = readStoredSignIn(file)!;
     assert.equal(after.refreshToken, undefined);
@@ -539,6 +565,642 @@ test('sign-out: the tokens leave the file and the refresh token is revoked', asy
   } finally {
     await fake.close();
   }
+});
+
+// ── Sign-out wins over work still in flight ──────────────────────────────────
+
+/** A point the fake issuer stops at: `arrived` when it gets there, on again after `release`. */
+function checkpoint() {
+  let arrive!: () => void;
+  let release!: () => void;
+  const arrived = new Promise<void>((r) => (arrive = r));
+  const released = new Promise<void>((r) => (release = r));
+  return {
+    arrived,
+    release,
+    wait: () => {
+      arrive();
+      return released;
+    },
+  };
+}
+
+const failsWith = (code: string) => (e: unknown) => e instanceof SignInError && e.code === code;
+
+function assertNoTokens(file: string, fake: FakeAuth): void {
+  const s = readStoredSignIn(file)!;
+  assert.equal(s.accessToken, undefined, 'no access token');
+  assert.equal(s.refreshToken, undefined, 'no refresh token');
+  assert.equal(s.expiresAt, undefined);
+  assert.equal(s.scopes, undefined);
+  assert.equal(s.clientId, fake.issuedClientId, 'the registration stays');
+  assert.match(s.hostId, /^urn:uuid:/);
+}
+
+test('the epoch: a file from before the field reads as zero, and a sign-out advances it even with nothing to clear', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    fakeStored(file, { issuer: fake.issuer });
+    assert.equal('epoch' in JSON.parse(readFileSync(file, 'utf-8')), false, 'written as an older engine writes it');
+    assert.equal(credentialEpoch(readStoredSignIn(file)), 0);
+    assert.equal(credentialEpoch(undefined), 0);
+    assert.equal(credentialEpoch({ ...readStoredSignIn(file)!, epoch: -3 }), 0, 'a nonsense epoch reads as zero');
+    await signOut(file, { issuer: fake.issuer });
+    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    await signOut(file, { issuer: fake.issuer });
+    assert.equal(readStoredSignIn(file)!.epoch, 2, 'with nothing to clear, older work is still invalidated');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: a delayed refresh that comes back afterwards leaves no tokens', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const before = readStoredSignIn(file)!;
+    writeStoredSignIn(file, { ...before, expiresAt: Date.now() + 30_000 });
+    const gate = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'refresh_token' ? gate.wait() : Promise.resolve());
+
+    const refreshing = assert.rejects(freshAccessToken(file, { issuer: fake.issuer }), failsWith('not_signed_in'));
+    await gate.arrived;
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(readStoredSignIn(file)!.refreshToken, undefined, 'the tokens left before the refresh came back');
+    gate.release();
+    await refreshing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, before.epoch! + 1, 'the sign-out alone moved it');
+    assert.equal(existsSync(`${file}.lock`), false, 'the commit lock is released');
+    assert.equal(existsSync(`${file}.refresh.lock`), false, 'the refresh lease is released');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: during the browser exchange no tokens are stored', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
+    const gate = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? gate.wait() : Promise.resolve());
+
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'the sign-out alone moved it');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: during ID-token verification no tokens are stored', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
+    const gate = checkpoint();
+    fake.jwksGate = () => gate.wait();
+
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'the sign-out alone moved it');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out with nothing stored writes nothing', async () => {
+  const file = credentialFile();
+  assert.deepEqual(await signOut(file, { issuer: 'http://127.0.0.1:1' }), { hadTokens: false, revoked: false, epoch: 0 });
+  assert.equal(existsSync(join(file, '..')), false, 'no directory, no lock, no file');
+});
+
+test('a result a sign-out beat is revoked at the issuer, so nothing stays alive remotely', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const before = readStoredSignIn(file)!;
+    writeStoredSignIn(file, { ...before, expiresAt: Date.now() + 30_000 });
+    let minted: string | undefined;
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init: any) => {
+      const res = await original(input, init);
+      if (!String(input).endsWith('/oauth/token')) return res;
+      const body = (await res.clone().json()) as Record<string, string>;
+      minted = body.refresh_token;
+      return res;
+    }) as typeof fetch;
+    try {
+      const gate = checkpoint();
+      fake.tokenGate = () => gate.wait();
+      const refreshing = assert.rejects(freshAccessToken(file, { issuer: fake.issuer }), failsWith('not_signed_in'));
+      await gate.arrived;
+      await signOut(file, { issuer: fake.issuer });
+      gate.release();
+      await refreshing;
+    } finally {
+      globalThis.fetch = original;
+    }
+    assert.ok(minted && minted !== before.refreshToken);
+    assert.deepEqual(fake.revoked, [before.refreshToken, minted], 'the stored token, then the one the late refresh brought back');
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── The lock's scope, and newer sign-ins ─────────────────────────────────────
+
+test('two concurrent sign-ins leave one set of tokens and one epoch advance', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const gates = [checkpoint(), checkpoint()];
+    let exchange = 0;
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? gates[exchange++].wait() : Promise.resolve());
+    const start = () => signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    const attempts = [start(), start()];
+    await Promise.all(gates.map((g) => g.arrived));
+
+    gates[0].release();
+    const first = await Promise.allSettled([attempts.shift()!]);
+    gates[1].release();
+    const second = await Promise.allSettled([attempts.shift()!]);
+    const settled = [...first, ...second];
+
+    assert.equal(settled.filter((r) => r.status === 'fulfilled').length, 1, 'one sign-in commits');
+    const lost = settled.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    assert.ok(failsWith('superseded')(lost.reason), 'the other reports it was replaced');
+
+    assert.equal(readStoredSignIn(file)!.epoch, 1, 'one advance, not two');
+    assert.equal(fake.authorizations[0].searchParams.get('ext_agent_host_id'), fake.authorizations[1].searchParams.get('ext_agent_host_id'), 'one host id for the installation');
+    assert.equal(readStoredSignIn(file)!.hostId, fake.authorizations[0].searchParams.get('ext_agent_host_id'));
+    assert.ok(readStoredSignIn(file)!.refreshToken);
+    assert.deepEqual(fake.revoked, [], 'the winner is not put at risk by revoking the loser');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the commit lock is never held across the browser wait or a network call', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const lock = `${file}.lock`;
+    const lease = `${file}.refresh.lock`;
+    const held: Record<string, boolean> = {};
+
+    const discovery = checkpoint();
+    fake.discoveryGate = () => discovery.wait();
+    const browser = fake.browser();
+    const exchange = checkpoint();
+    const jwks = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? exchange.wait() : Promise.resolve());
+    fake.jwksGate = () => jwks.wait();
+    const signing = signIn({
+      file,
+      issuer: fake.issuer,
+      timeoutMs: 10_000,
+      openBrowser: async (url) => {
+        held.browser = existsSync(lock);
+        await browser(url);
+      },
+    });
+    await discovery.arrived;
+    held.discovery = existsSync(lock);
+    discovery.release();
+    await exchange.arrived;
+    held.exchange = existsSync(lock);
+    exchange.release();
+    await jwks.arrived;
+    held.verification = existsSync(lock);
+    jwks.release();
+    await signing;
+
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    fake.discoveryGate = undefined;
+    fake.jwksGate = undefined;
+    const refresh = checkpoint();
+    fake.tokenGate = () => refresh.wait();
+    const refreshing = freshAccessToken(file, { issuer: fake.issuer });
+    await refresh.arrived;
+    held.refresh = existsSync(lock);
+    assert.equal(existsSync(lease), true, 'the refresh lease is what spans the network');
+    refresh.release();
+    await refreshing;
+
+    assert.deepEqual(held, { discovery: false, browser: false, exchange: false, verification: false, refresh: false });
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a newer sign-in: a late refresh or a late refusal leaves it alone, and the caller gets its token', async () => {
+  for (const answer of ['ok', 'invalid_grant']) {
+    const fake = await fakeAuthServer();
+    try {
+      const file = await signedIn(fake);
+      writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+      fake.refreshAnswer = answer;
+      const gate = checkpoint();
+      fake.tokenGate = (form) => (form.grant_type === 'refresh_token' ? gate.wait() : Promise.resolve());
+      const refreshing = freshAccessToken(file, { issuer: fake.issuer });
+      await gate.arrived;
+      await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+      const newer = readStoredSignIn(file)!;
+      assert.equal(newer.epoch, 2, 'each committed sign-in advances once');
+      gate.release();
+      assert.equal(await refreshing, newer.accessToken, `the caller gets the newer session's token (${answer})`);
+      assert.deepEqual(readStoredSignIn(file), newer, `the file is untouched (${answer})`);
+    } finally {
+      await fake.close();
+    }
+  }
+});
+
+test('a sign-in refused inside a git work tree leaves no directory or lock behind', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const repo = tempDir('melch-chatgpt-repo-');
+    mkdirSync(join(repo, '.git'));
+    const file = join(repo, 'nested', 'chatgpt-signin.json');
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), /inside the git work tree/);
+    assert.equal(existsSync(join(repo, 'nested')), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: on the very first sign-in, even before discovery answers', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const gate = checkpoint();
+    fake.discoveryGate = () => gate.wait();
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    fake.discoveryGate = undefined;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+    const s = readStoredSignIn(file)!;
+    assert.equal(s.refreshToken, undefined);
+    assert.equal(s.accessToken, undefined);
+    assert.equal(s.epoch, 1);
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── Cancel, and the registration ─────────────────────────────────────────────
+
+/** A browser that lands on the callback only when told to: the person still on the consent page. */
+function slowBrowser(fake: FakeAuth) {
+  const reached = checkpoint();
+  const browser = fake.browser();
+  return {
+    reached: reached.arrived,
+    finish: reached.release,
+    open: async (url: string) => {
+      void reached.wait().then(() => browser(url));
+    },
+  };
+}
+
+test('sign-out wins: during the browser wait the old tokens do not come back and nothing is exchanged', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
+    const exchanges = fake.tokenForms.length;
+    const person = slowBrowser(fake);
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: person.open, timeoutMs: 10_000 }), failsWith('superseded'));
+    await person.reached;
+    await signOut(file, { issuer: fake.issuer });
+    person.finish();
+    await signing;
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'an old snapshot does not wind the epoch back');
+    assert.equal(fake.tokenForms.length, exchanges, 'a stale code is not spent');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('cancel: an aborted signal stops the exchange, the verification and discovery where they stand, and commits nothing', async () => {
+  for (const stage of ['discovery', 'exchange', 'verification'] as const) {
+    const fake = await fakeAuthServer();
+    const gate = checkpoint();
+    try {
+      const file = credentialFile();
+      const ctl = new AbortController();
+      if (stage === 'discovery') fake.discoveryGate = () => gate.wait();
+      if (stage === 'exchange') fake.tokenGate = () => gate.wait();
+      if (stage === 'verification') fake.jwksGate = () => gate.wait();
+      const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: ctl.signal }), failsWith('cancelled'), stage);
+      await gate.arrived;
+      ctl.abort();
+      // The issuer is still holding its answer: this settles only because the abort reached the request.
+      await signing;
+      gate.release();
+      const s = readStoredSignIn(file)!;
+      assert.equal(s.accessToken, undefined, stage);
+      assert.equal(s.refreshToken, undefined, stage);
+    } finally {
+      gate.release();
+      await fake.close();
+    }
+  }
+});
+
+test('cancel: a signal that fires just before the commit stores nothing, and the minted token is revoked', async () => {
+  const fake = await fakeAuthServer();
+  const realOpen = fs.openSync;
+  try {
+    const file = credentialFile();
+    const ctl = new AbortController();
+    const gate = checkpoint();
+    fake.jwksGate = () => gate.wait();
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: ctl.signal }), failsWith('cancelled'));
+    await gate.arrived;
+    // The next time the commit lock is taken is the token commit: the signal fires right there.
+    mock.method(fs, 'openSync', (path: fs.PathLike, ...rest: unknown[]) => {
+      if (String(path).endsWith('.lock')) ctl.abort();
+      return (realOpen as (...a: unknown[]) => number)(path, ...rest);
+    });
+    syncBuiltinESMExports();
+    gate.release();
+    await signing;
+
+    assert.ok(ctl.signal.aborted);
+    const s = readStoredSignIn(file)!;
+    assert.equal(s.accessToken, undefined);
+    assert.equal(s.refreshToken, undefined);
+    assert.equal(s.epoch, undefined, 'a cancelled sign-in advances nothing');
+    assert.equal(existsSync(`${file}.lock`), false);
+    assert.equal(fake.revoked.length, 1, 'the token the exchange minted does not stay alive');
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
+    await fake.close();
+  }
+});
+
+test('cancel: an already-aborted signal starts nothing', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000, signal: AbortSignal.abort() }), failsWith('cancelled'));
+    assert.deepEqual(fake.calls, []);
+    assert.equal(existsSync(file), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the registration write keeps what the file holds now: a rotation during the browser wait is not undone', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const person = checkpoint();
+    // The callback carries a code the issuer refuses, so only the registration write touches the file.
+    const refusedBrowser = async (href: string) => {
+      void person.wait().then(() => {
+        const q = new URL(href).searchParams;
+        const back = new URL(q.get('redirect_uri')!);
+        back.search = new URLSearchParams({ code: 'fake-code-refused', state: q.get('state')!, client_id: fake.issuedClientId }).toString();
+        void fetch(back).then((r) => r.text()).catch(() => undefined);
+      });
+    };
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: refusedBrowser, timeoutMs: 10_000 }), failsWith('invalid_grant'));
+    await person.arrived;
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    fake.refreshAnswer = 'ok';
+    const rotated = await freshAccessToken(file, { issuer: fake.issuer });
+    const after = readStoredSignIn(file)!;
+    assert.equal(after.accessToken, rotated);
+    person.release();
+    await signing;
+    assert.deepEqual(readStoredSignIn(file), after, 'the rotated tokens stand');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a sign-in at another issuer keeps the host id and carries the epoch forward', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    fakeStored(file, { epoch: 3 });
+    const before = readStoredSignIn(file)!;
+    await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    const after = readStoredSignIn(file)!;
+    assert.equal(after.hostId, before.hostId);
+    assert.equal(after.issuer, fake.issuer);
+    assert.equal(after.clientId, fake.issuedClientId);
+    assert.equal(after.epoch, 4);
+    assert.notEqual(after.refreshToken, before.refreshToken);
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── The epoch on the surface ─────────────────────────────────────────────────
+
+test('the epoch reaches the callers: sign-in, sign-out and status report it, and never a token', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const status = () => withEnvSync({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: file }, () => chatGptSignInStatus());
+    assert.equal(status().epoch, undefined, 'no file, no epoch');
+
+    const first = await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    assert.equal(first.epoch, 1);
+    assert.equal(status().epoch, 1);
+    assert.ok(!JSON.stringify([first, status()]).includes('fake-'));
+
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.epoch, 2);
+    assert.equal(status().epoch, 2);
+    assert.equal(status().signedIn, false);
+
+    const again = await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    assert.equal(again.epoch, 3);
+    assert.equal(readStoredSignIn(file)!.epoch, 3);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the file stays version 1: an older engine reads an epoch-carrying file, and its own tokens-cleared rewrite keeps the field', async () => {
+  const file = credentialFile();
+  fakeStored(file, { epoch: 7 });
+  const raw = JSON.parse(readFileSync(file, 'utf-8'));
+  assert.equal(raw.version, 1);
+  assert.ok(isStoredSignIn(raw), 'the shape an older engine checks');
+  // An older engine's sign-out spreads what it read, so the field survives it.
+  const { accessToken: _a, refreshToken: _r, ...kept } = raw;
+  writeStoredSignIn(file, kept);
+  assert.equal(credentialEpoch(readStoredSignIn(file)), 7);
+});
+
+// ── The lock's ownership ─────────────────────────────────────────────────────
+
+const LONG_AGO = new Date(Date.now() - 10 * 60_000);
+const holds = /another process holds/;
+/** A pid that belonged to a process and no longer does. */
+const deadPid = () => spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' }).pid;
+
+/** A credential file's directory exists; the lock file can be planted beside it. */
+function storedFile(extra: Partial<StoredSignIn> = {}): string {
+  const file = credentialFile();
+  fakeStored(file, extra);
+  return file;
+}
+
+test('a stale takeover: the old holder finishing later does not delete the newer owner\'s lock', async () => {
+  const file = storedFile();
+  const lock = `${file}.lock`;
+  const oldHolder = checkpoint();
+  const newHolder = checkpoint();
+  const a = withSignInLock(file, () => oldHolder.wait());
+  await oldHolder.arrived;
+  const first = readFileSync(lock, 'utf-8');
+  utimesSync(lock, LONG_AGO, LONG_AGO);
+
+  const b = withSignInLock(file, () => newHolder.wait());
+  await newHolder.arrived;
+  const second = readFileSync(lock, 'utf-8');
+  assert.notEqual(second, first, 'the new owner has its own identity');
+
+  oldHolder.release();
+  await a;
+  assert.equal(readFileSync(lock, 'utf-8'), second, 'the old holder left the newer lock in place');
+  let ran = false;
+  await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds);
+  assert.equal(ran, false, 'and it still excludes others');
+
+  newHolder.release();
+  await b;
+  assert.equal(existsSync(lock), false, 'the owner removes its own lock');
+  assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json'], 'nothing left beside the credential');
+});
+
+test('the lock names its owner and no credential, mode 600', async () => {
+  const file = storedFile();
+  const lock = `${file}.lock`;
+  const holder = checkpoint();
+  const a = withSignInLock(file, () => holder.wait());
+  await holder.arrived;
+  const text = readFileSync(lock, 'utf-8');
+  const body = JSON.parse(text);
+  assert.deepEqual(Object.keys(body).sort(), ['host', 'owner', 'pid']);
+  assert.match(body.owner, /^[0-9a-f-]{36}$/);
+  assert.equal(body.pid, process.pid);
+  assert.ok(!text.includes('fake-'));
+  assert.equal(statSync(lock).mode & 0o777, 0o600);
+  holder.release();
+  await a;
+});
+
+test('app restart: a lock left by a process that is gone is taken over at once, on both lock files', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const left = JSON.stringify({ owner: 'from-before-the-restart', pid: deadPid(), host: hostname() });
+    writeFileSync(`${file}.lock`, left, { mode: 0o600 });
+    writeFileSync(`${file}.refresh.lock`, left, { mode: 0o600 });
+
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    assert.ok(await freshAccessToken(file, { issuer: fake.issuer }), 'a refresh goes through');
+    assert.equal(existsSync(`${file}.refresh.lock`), false);
+
+    writeFileSync(`${file}.lock`, left, { mode: 0o600 });
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(readStoredSignIn(file)!.refreshToken, undefined);
+    assert.equal(existsSync(`${file}.lock`), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a live holder is waited for, within the bound: another process, another machine, or a lock an older engine wrote', async () => {
+  const cases: [string, string][] = [
+    ['a live process here', JSON.stringify({ owner: 'someone', pid: process.pid, host: hostname() })],
+    ['a pid that means nothing on another machine', JSON.stringify({ owner: 'someone', pid: deadPid(), host: 'another-machine.test' })],
+    ['an empty lock from an older engine', ''],
+  ];
+  for (const [name, body] of cases) {
+    const file = storedFile();
+    writeFileSync(`${file}.lock`, body, { mode: 0o600 });
+    let ran = false;
+    await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds, name);
+    assert.equal(ran, false, name);
+    assert.equal(readFileSync(`${file}.lock`, 'utf-8'), body, `${name}: left alone`);
+  }
+});
+
+test('an old lock of any kind is taken over, and two waiters do not both get it', async () => {
+  for (const body of ['', JSON.stringify({ owner: 'someone', pid: process.pid, host: hostname() })]) {
+    const file = storedFile();
+    const lock = `${file}.lock`;
+    writeFileSync(lock, body, { mode: 0o600 });
+    utimesSync(lock, LONG_AGO, LONG_AGO);
+    const holder = checkpoint();
+    const first = withSignInLock(file, () => holder.wait());
+    await holder.arrived;
+    let ran = false;
+    await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds);
+    assert.equal(ran, false);
+    holder.release();
+    await first;
+    assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json']);
+  }
+});
+
+test('the refresh lease is its own lock: held across the network, it does not stop a sign-out', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const holder = checkpoint();
+    const lease = withRefreshLease(file, () => holder.wait());
+    await holder.arrived;
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(existsSync(`${file}.refresh.lock`), true);
+    holder.release();
+    await lease;
+    assert.equal(existsSync(`${file}.refresh.lock`), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a result still commits atomically: an interrupted commit leaves the credential whole and the lock released', async () => {
+  const file = storedFile();
+  const before = readFileSync(file, 'utf-8');
+  await assert.rejects(
+    commitAtEpoch(file, 0, () => {
+      throw new Error('the commit stopped here');
+    }),
+    /the commit stopped here/,
+  );
+  assert.equal(readFileSync(file, 'utf-8'), before);
+  assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json']);
 });
 
 // ── Routing and the adapter ──────────────────────────────────────────────────
