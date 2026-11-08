@@ -36,12 +36,12 @@ import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import fs, { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import fs, { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { hostname, tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 
 import { ChatGptSignInAdapter } from '../lib/chatgpt/adapter.ts';
@@ -57,7 +57,7 @@ import {
   resetServedSurfaceForTests,
 } from '../lib/chatgpt/state.ts';
 import type { StoredSignIn } from '../lib/chatgpt/state.ts';
-import { writeStoredSignIn } from '../lib/chatgpt/store.ts';
+import { commitAtEpoch, withRefreshLease, withSignInLock, writeStoredSignIn } from '../lib/chatgpt/store.ts';
 import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import type { FinalModelResponse, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
@@ -1008,6 +1008,151 @@ test('a sign-in at another issuer keeps the host id and carries the epoch forwar
   } finally {
     await fake.close();
   }
+});
+
+// ── The lock's ownership ─────────────────────────────────────────────────────
+
+const LONG_AGO = new Date(Date.now() - 10 * 60_000);
+const holds = /another process holds/;
+/** A pid that belonged to a process and no longer does. */
+const deadPid = () => spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' }).pid;
+
+/** A credential file's directory exists; the lock file can be planted beside it. */
+function storedFile(extra: Partial<StoredSignIn> = {}): string {
+  const file = credentialFile();
+  fakeStored(file, extra);
+  return file;
+}
+
+test('a stale takeover: the old holder finishing later does not delete the newer owner\'s lock', async () => {
+  const file = storedFile();
+  const lock = `${file}.lock`;
+  const oldHolder = checkpoint();
+  const newHolder = checkpoint();
+  const a = withSignInLock(file, () => oldHolder.wait());
+  await oldHolder.arrived;
+  const first = readFileSync(lock, 'utf-8');
+  utimesSync(lock, LONG_AGO, LONG_AGO);
+
+  const b = withSignInLock(file, () => newHolder.wait());
+  await newHolder.arrived;
+  const second = readFileSync(lock, 'utf-8');
+  assert.notEqual(second, first, 'the new owner has its own identity');
+
+  oldHolder.release();
+  await a;
+  assert.equal(readFileSync(lock, 'utf-8'), second, 'the old holder left the newer lock in place');
+  let ran = false;
+  await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds);
+  assert.equal(ran, false, 'and it still excludes others');
+
+  newHolder.release();
+  await b;
+  assert.equal(existsSync(lock), false, 'the owner removes its own lock');
+  assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json'], 'nothing left beside the credential');
+});
+
+test('the lock names its owner and no credential, mode 600', async () => {
+  const file = storedFile();
+  const lock = `${file}.lock`;
+  const holder = checkpoint();
+  const a = withSignInLock(file, () => holder.wait());
+  await holder.arrived;
+  const body = JSON.parse(readFileSync(lock, 'utf-8'));
+  assert.deepEqual(Object.keys(body).sort(), ['host', 'owner', 'pid']);
+  assert.match(body.owner, /^[0-9a-f-]{36}$/);
+  assert.equal(body.pid, process.pid);
+  assert.equal(statSync(lock).mode & 0o777, 0o600);
+  assert.ok(!readFileSync(lock, 'utf-8').includes('fake-'));
+  holder.release();
+  await a;
+});
+
+test('app restart: a lock left by a process that is gone is taken over at once, on both lock files', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const left = JSON.stringify({ owner: 'from-before-the-restart', pid: deadPid(), host: hostname() });
+    writeFileSync(`${file}.lock`, left, { mode: 0o600 });
+    writeFileSync(`${file}.refresh.lock`, left, { mode: 0o600 });
+
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    assert.ok(await freshAccessToken(file, { issuer: fake.issuer }), 'a refresh goes through');
+    assert.equal(existsSync(`${file}.refresh.lock`), false);
+
+    writeFileSync(`${file}.lock`, left, { mode: 0o600 });
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(readStoredSignIn(file)!.refreshToken, undefined);
+    assert.equal(existsSync(`${file}.lock`), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a live holder is waited for, within the bound: another process, another machine, or a lock an older engine wrote', async () => {
+  const cases: [string, string][] = [
+    ['a live process here', JSON.stringify({ owner: 'someone', pid: process.pid, host: hostname() })],
+    ['a pid that means nothing on another machine', JSON.stringify({ owner: 'someone', pid: deadPid(), host: 'another-machine.test' })],
+    ['an empty lock from an older engine', ''],
+  ];
+  for (const [name, body] of cases) {
+    const file = storedFile();
+    writeFileSync(`${file}.lock`, body, { mode: 0o600 });
+    let ran = false;
+    await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds, name);
+    assert.equal(ran, false, name);
+    assert.equal(readFileSync(`${file}.lock`, 'utf-8'), body, `${name}: left alone`);
+  }
+});
+
+test('an old lock of any kind is taken over, and two waiters do not both get it', async () => {
+  for (const body of ['', JSON.stringify({ owner: 'someone', pid: process.pid, host: hostname() })]) {
+    const file = storedFile();
+    const lock = `${file}.lock`;
+    writeFileSync(lock, body, { mode: 0o600 });
+    utimesSync(lock, LONG_AGO, LONG_AGO);
+    const holder = checkpoint();
+    const first = withSignInLock(file, () => holder.wait());
+    await holder.arrived;
+    let ran = false;
+    await assert.rejects(withSignInLock(file, async () => { ran = true; }, { waitMs: 150 }), holds);
+    assert.equal(ran, false);
+    holder.release();
+    await first;
+    assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json']);
+  }
+});
+
+test('the refresh lease is its own lock: held across the network, it does not stop a sign-out', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const holder = checkpoint();
+    const lease = withRefreshLease(file, () => holder.wait());
+    await holder.arrived;
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(existsSync(`${file}.refresh.lock`), true);
+    holder.release();
+    await lease;
+    assert.equal(existsSync(`${file}.refresh.lock`), false);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a result still commits atomically: an interrupted commit leaves the credential whole and the lock released', async () => {
+  const file = storedFile();
+  const before = readFileSync(file, 'utf-8');
+  await assert.rejects(
+    commitAtEpoch(file, 0, () => {
+      throw new Error('the commit stopped here');
+    }),
+    /the commit stopped here/,
+  );
+  assert.equal(readFileSync(file, 'utf-8'), before);
+  assert.deepEqual(readdirSync(dirname(file)), ['chatgpt-signin.json']);
 });
 
 // ── Routing and the adapter ──────────────────────────────────────────────────

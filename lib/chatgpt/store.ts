@@ -1,16 +1,18 @@
 /**
  * lib/chatgpt/store.ts — writing the Sign in with ChatGPT credential file and
- * serializing its refreshes (ADR 0126).
+ * deciding which writes may land (ADR 0126).
  *
  * The file is the person's own: mode 600 in a mode-700 directory, outside any
  * git work tree, replaced atomically (a new mode-600 file renamed over the
  * old one). OpenAI's refresh tokens rotate, so two processes must not refresh
  * the same session at once (developers.openai.com/siwc/token-sharing-open-source/
- * profiles-and-sessions): a lock file beside the credential serializes them.
+ * profiles-and-sessions): a lease file beside the credential serializes them.
+ * A separate short lock guards each read-compare-write of the file.
  */
 
 import { randomUUID } from 'node:crypto';
-import { chmodSync, closeSync, existsSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
+import { chmodSync, closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { dirname } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -53,35 +55,108 @@ export function withoutTokens(s: StoredSignIn): StoredSignIn {
 
 const LOCK_STALE_MS = 60_000;
 const LOCK_WAIT_MS = 20_000;
+const LOCK_POLL_MS = 100;
 
-/** Run `fn` holding a lock file created exclusively. A lock older than a minute is a crashed holder's and is taken over. */
+/** Create the lock with this owner's identity in it; false when it already exists. */
+function createLock(lock: string, identity: string): boolean {
+  let fd: number;
+  try {
+    fd = openSync(lock, 'wx', 0o600);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+    throw err;
+  }
+  try {
+    writeSync(fd, identity);
+  } finally {
+    closeSync(fd);
+  }
+  return true;
+}
+
+function readLock(lock: string): string | undefined {
+  try {
+    return readFileSync(lock, 'utf-8');
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether the process named in a lock is known to be gone. A lock with no readable owner (an older engine's is empty) names nobody. */
+function ownerIsGone(raw: string): boolean {
+  let o: { pid?: unknown; host?: unknown };
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (o?.host !== hostname() || typeof o.pid !== 'number') return false;
+  try {
+    process.kill(o.pid, 0);
+    return false;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'ESRCH';
+  }
+}
+
+/** A crashed holder's lock: its process is gone, or it is more than a minute old. */
+function isAbandoned(lock: string, raw: string): boolean {
+  if (ownerIsGone(raw)) return true;
+  try {
+    return Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Remove the lock only if it reads as expected. It is moved aside before the
+ * final check, so the check and the removal are one step to everyone else, and
+ * a lock that changed hands in between goes straight back.
+ */
+function removeLockIfStill(lock: string, expected: string): boolean {
+  if (readLock(lock) !== expected) return false;
+  const aside = `${lock}.${randomUUID()}.aside`;
+  try {
+    renameSync(lock, aside);
+  } catch {
+    return false;
+  }
+  try {
+    if (readFileSync(aside, 'utf-8') === expected) return true;
+    try {
+      linkSync(aside, lock);
+    } catch {
+      // A new owner already holds the name.
+    }
+    return false;
+  } finally {
+    rmSync(aside, { force: true });
+  }
+}
+
+/**
+ * Run `fn` holding a lock file created exclusively and carrying this holder's
+ * identity. An abandoned lock is taken over; release removes the lock only if
+ * it is still this holder's, so a holder that was taken over cannot delete
+ * the new owner's. Waiting is bounded.
+ */
 async function withLockFile<T>(lock: string, fn: () => Promise<T>, opts: { waitMs?: number }): Promise<T> {
   refuseInsideGitWorkTree(lock);
   const dir = dirname(lock);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const identity = JSON.stringify({ owner: randomUUID(), pid: process.pid, host: hostname() });
   const deadline = Date.now() + (opts.waitMs ?? LOCK_WAIT_MS);
-  for (;;) {
-    try {
-      closeSync(openSync(lock, 'wx', 0o600));
-      break;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) {
-          rmSync(lock, { force: true });
-          continue;
-        }
-      } catch {
-        continue;
-      }
-      if (Date.now() > deadline) throw new Error(`another process holds ${lock}; try again, or delete it if no melchizedek process is running.`);
-      await delay(100);
-    }
+  while (!createLock(lock, identity)) {
+    const raw = readLock(lock);
+    if (raw !== undefined && isAbandoned(lock, raw) && removeLockIfStill(lock, raw)) continue;
+    if (Date.now() > deadline) throw new Error(`another process holds ${lock}; try again, or delete it if no melchizedek process is running.`);
+    if (raw !== undefined) await delay(LOCK_POLL_MS);
   }
   try {
     return await fn();
   } finally {
-    rmSync(lock, { force: true });
+    removeLockIfStill(lock, identity);
   }
 }
 

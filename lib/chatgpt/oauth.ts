@@ -70,8 +70,6 @@ const UNUSABLE_REFRESH = new Set([
  */
 const REFUSED_AT_CONSENT = new Set(['access_denied', 'unauthorized_client', 'consent_required', 'interaction_required']);
 
-const cancelled = () => new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.');
-
 /** One line for a sign-in OpenAI refused at the consent page or the code exchange. */
 const signInRefused = (code: string) =>
   `ChatGPT refused the sign-in (${code}); the most common cause is a ChatGPT plan or workspace that does not include plan usage for apps. Retry with \`npm run setup -- --chatgpt-signin\` (\`npx melchizedek-setup --chatgpt-signin\` from an installed package).`;
@@ -85,6 +83,8 @@ export class SignInError extends Error {
     this.code = code;
   }
 }
+
+const cancelled = () => new SignInError('cancelled', 'The ChatGPT sign-in was cancelled.');
 
 export interface OAuthOptions {
   /** The authorization server. Default https://auth.openai.com; an http issuer is accepted on loopback only (tests). */
