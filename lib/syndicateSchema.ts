@@ -689,6 +689,11 @@ export const syndicateSchema = z
       .string()
       .optional()
       .describe('Domain rules appended to the fact-extraction prompt (long-term memory only).'),
+    memory_preload_queries: z
+      .array(z.string().min(1).max(200))
+      .max(8)
+      .optional()
+      .describe("Standing memory queries: before each request, preload_memory also recalls up to 2 records for each, after the message's own (ADR 0156). Long-term memory only."),
     memory_extraction_model: z
       .string()
       .min(1)
@@ -968,6 +973,13 @@ function crossFieldProblems(raw: unknown): Problem[] {
     out.push({
       path: ['memory_retention_days'],
       message: 'needs memory_namespace — retention applies to one namespace, never to the shared default (npm run doctor -- --fix-namespaces <file>)',
+    });
+  }
+  // Standing preload queries search a memory only long-term syndicates have.
+  if (raw.memory_preload_queries !== undefined && raw.memory_system !== 'long-term') {
+    out.push({
+      path: ['memory_preload_queries'],
+      message: 'needs memory_system: long-term — preload queries search long-term memory',
     });
   }
   const subs = Array.isArray(raw.subagents) ? raw.subagents : [];

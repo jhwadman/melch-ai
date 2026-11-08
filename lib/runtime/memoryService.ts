@@ -30,6 +30,12 @@ export interface MemorySearchRequest {
   userId: string;
   /** What the person asked, as written. A service strips harness blocks before embedding it. */
   query: string;
+  /**
+   * Who asks: `preload` for preload_memory's recall before a request, which
+   * also brings the syndicate's `memory_preload_queries` (ADR 0156). A
+   * search without it is the query's alone.
+   */
+  purpose?: 'preload';
 }
 
 /** One recalled memory: the same JSON as ADK's `MemoryEntry`, so a recall reads as it did under ADK. */

@@ -65,7 +65,10 @@ the A2A server) after every completed task:
 2. **Record extraction** — the transcript goes to the extraction model
    with `FACT_EXTRACTION_PROMPT`, which distills structured records in the
    format above (discarding filler, converting dates, preserving units,
-   attributing sources). Malformed lines are dropped, never stored.
+   attributing sources). Malformed lines are dropped, never stored. The
+   call thinks at `low` effort under a 16384-token cap that covers
+   thinking; a call that reaches the cap drops its unfinished last line
+   and logs a warning.
 3. **Embedding** — each record line is embedded individually by the
    configured embedder (default `gemini-embedding-001` at **768
    dimensions**; see `lib/memory/providers.ts`) (embedding whole
@@ -105,7 +108,11 @@ memory tools (`lib/tools/memoryTools.ts`, ADR 0059): `preload_memory`
 writes them into the instruction before each request (automatic), and
 `load_memory` returns them for a query the model chooses (explicit tool
 call). Both read the run's own silo only, and say to the model exactly
-what ADK's tools of the same names said.
+what ADK's tools of the same names said. A syndicate's
+`memory_preload_queries` add standing recall to the preload only: each
+query's top 2 records not already recalled follow the message's own, so
+what every answer needs (a patient's allergies, a client's preferences)
+reaches the agent however the question is worded (ADR 0156).
 
 ## 4. Multi-user siloing (read this before deploying to real users)
 

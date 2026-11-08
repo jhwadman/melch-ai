@@ -1017,7 +1017,7 @@ async function runTurnInner(
         userParts: params.userParts,
         signal: control.signal,
         stream: opts.streaming === true,
-        memory: nativeMemory(opts.memoryService),
+        memory: nativeMemory(opts.memoryService, config.memory_preload_queries),
         ...(selfCorrection ? { selfCorrection } : {}),
         ...(credentialStore ? { credentials: credentialStore } : {}),
         // The consent step, its flows bound to the app the grants are read under, wherever the walk's session is filed (ADR 0128).
@@ -1036,7 +1036,7 @@ async function runTurnInner(
         userParts: params.userParts,
         signal: control.signal,
         stream: opts.streaming === true,
-        memory: nativeMemory(opts.memoryService),
+        memory: nativeMemory(opts.memoryService, config.memory_preload_queries),
         ...(selfCorrection ? { selfCorrection } : {}),
         // Tool credentials and the consent step (ADR 0072, ADR 0085); the classifier's lane lists no tools.
         ...(credentialStore ? { credentials: credentialStore } : {}),

@@ -202,7 +202,9 @@ test("preload_memory writes ADK's PreloadMemoryTool's block, word for word, in e
       const block = await preloadMemoryTool.instruction(toolContext({ ...(c.memory === false ? {} : { memory: ours.service }), userContent: c.userContent }));
       assert.equal(withInstruction(c.system, block), recorded[i]!.seen.config.systemInstruction, c.name);
       assert.deepEqual(recorded[i]!.seen.callable, [], `${c.name}: nothing callable`);
-      assert.deepEqual(asJson(ours.searches), recorded[i]!.searches, `${c.name}: the same search`);
+      // `purpose` is the engine's routing for standing preload queries (ADR 0156), not part of ADK's search.
+      assert.ok(ours.searches.every((s) => s.purpose === 'preload'), `${c.name}: searched as a preload`);
+      assert.deepEqual(asJson(ours.searches.map(({ purpose: _p, ...s }) => s)), recorded[i]!.searches, `${c.name}: the same search`);
     }
   } finally {
     console.warn = quiet;

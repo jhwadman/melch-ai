@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-07"
+    "at": "2026-11-08"
   },
   "stats": {
-    "nodes": 1106,
-    "edges": 4387,
+    "nodes": 1108,
+    "edges": 4396,
     "byKind": {
-      "doc": 228,
+      "doc": 229,
       "provider": 8,
       "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 258,
+      "file": 259,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 873,
+      "links_to": 878,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -36,7 +36,7 @@
       "imports": 1006,
       "reads_table": 31,
       "runs": 77,
-      "derives_from": 1311,
+      "derives_from": 1315,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3903,
+      "extracted": 3912,
       "inferred": 484
     },
     "isolated": 5
@@ -312,7 +312,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 163
+        "words": 412
       }
     },
     {
@@ -2308,6 +2308,18 @@
       }
     },
     {
+      "id": "/decisions/0156-standing-preload-queries.md",
+      "kind": "doc",
+      "label": "ADR 0156: Standing preload queries put a syndicate's core memory into every request",
+      "source": "/decisions/0156-standing-preload-queries.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 180
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2316,7 +2328,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1963
+        "words": 2128
       }
     },
     {
@@ -6013,6 +6025,12 @@
       "source": "tests/paths.test.ts"
     },
     {
+      "id": "file:tests/patientProfileMemory.test.ts",
+      "kind": "file",
+      "label": "patientProfileMemory.test.ts",
+      "source": "tests/patientProfileMemory.test.ts"
+    },
+    {
       "id": "file:tests/postgresLedger.test.ts",
       "kind": "file",
       "label": "postgresLedger.test.ts",
@@ -6724,7 +6742,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 860
+        "lines": 862
       }
     },
     {
@@ -6760,7 +6778,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 444
+        "lines": 463
       }
     },
     {
@@ -7273,7 +7291,7 @@
       "label": "lib/runtime/memoryService.ts",
       "source": "lib/runtime/memoryService.ts",
       "attrs": {
-        "lines": 77
+        "lines": 83
       }
     },
     {
@@ -7282,7 +7300,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 1010
+        "lines": 1013
       }
     },
     {
@@ -7399,7 +7417,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 143
+        "lines": 198
       }
     },
     {
@@ -7615,7 +7633,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1462
+        "lines": 1474
       }
     },
     {
@@ -7957,7 +7975,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 506
+        "lines": 511
       }
     },
     {
@@ -10259,6 +10277,20 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/patient_advocate.md"
+    },
+    {
+      "from": "/agents/patient_advocate.md",
+      "to": "/decisions/0156-standing-preload-queries.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/patient_advocate.md:37"
+    },
+    {
+      "from": "/agents/patient_advocate.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/patient_advocate.md:33"
     },
     {
       "from": "/agents/pipeline.md",
@@ -19186,6 +19218,41 @@
       "evidence": "/decisions/0155-every-call-is-answered.md:29"
     },
     {
+      "from": "/decisions/0156-standing-preload-queries.md",
+      "to": "file:tests/patientProfileMemory.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0156-standing-preload-queries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0156-standing-preload-queries.md",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0156-standing-preload-queries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0156-standing-preload-queries.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0156-standing-preload-queries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0156-standing-preload-queries.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0156-standing-preload-queries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0156-standing-preload-queries.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0156-standing-preload-queries.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19271,6 +19338,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "/agents/patient_advocate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:80"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -19295,7 +19369,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:110"
+      "evidence": "/memory/architecture.md:112"
     },
     {
       "from": "/memory/architecture.md",
@@ -19330,14 +19404,21 @@
       "to": "/decisions/0148-search-budget-and-reembed.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:82"
+      "evidence": "/memory/architecture.md:84"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0151-a-stable-prefix-and-automatic-cache-control.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:97"
+      "evidence": "/memory/architecture.md:99"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0156-standing-preload-queries.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:99"
     },
     {
       "from": "/memory/architecture.md",
@@ -19358,28 +19439,28 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:100"
+      "evidence": "/memory/architecture.md:102"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:110"
+      "evidence": "/memory/architecture.md:112"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:110"
+      "evidence": "/memory/architecture.md:112"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:95"
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/schema.md",

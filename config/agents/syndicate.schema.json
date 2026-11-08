@@ -2631,6 +2631,16 @@
       "description": "Domain rules appended to the fact-extraction prompt (long-term memory only).",
       "type": "string"
     },
+    "memory_preload_queries": {
+      "description": "Standing memory queries: before each request, preload_memory also recalls up to 2 records for each, after the message's own (ADR 0156). Long-term memory only.",
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
     "memory_extraction_model": {
       "description": "The model that distils this syndicate's turns into memory records; default MEMORY_EXTRACTION_MODEL (ADR 0020).",
       "type": "string",
