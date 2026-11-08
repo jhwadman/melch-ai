@@ -4,6 +4,63 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.15.6 — 2026-11-08
+
+**Fixed: a background job can only be changed by the claim that holds it.**
+`claimNext` gives every claim its own token (migration `0025_task_claim_token`,
+ADR 0157), and `renew`, `saveCheckpoint`, `finish` and the new
+`requeueInterrupted` match it, along with the worker id, `running` status and
+a lease that has not run out, so a worker that lost a job can no longer finish
+it, clear its checkpoint or end the next worker's run. An expired lease is
+refused before `recover()` has run, and every exit from `running` clears the
+claim in the same write. `finish` now answers `accepted` or `lost`: a lost
+finish reports no success, writes no record and leaves the checkpoint alone,
+on Postgres and, within what a file can promise, on the JSON store. The worker
+(`melchizedek-worker`) runs one renewal at a time, trusts only the last lease
+the store confirmed, stops as soon as it cannot confirm it, tells a lost claim
+from SIGTERM and from a model error, and reaps expired leases between polls on
+Postgres. The token sits beside `record`, so `task_get`, `task_list` and the
+operator view never show it.
+
+Additive on `melchizedek-agents/tools/taskTools` and `./storage/postgres`:
+new `JobClaim`, `ClaimedTask`, `FinishResult`, `FencedTaskBackend` and
+`requireFencedBackend`; `OwnedTask` gains an optional `claim`;
+`TaskBackend.finish` widens to `Promise<void | FinishResult>`; `applyFinish`
+returns `FinishResult`; `postgresTaskBackend`, `fileTaskBackendWith`,
+`fileTaskBackend` and `PostgresStorage.taskQueue` are typed
+`FencedTaskBackend`. A custom `TaskBackend` written against the earlier shape
+still type-checks, but the built-in worker requires `FencedTaskBackend` and
+refuses any other. On both built-in backends a job that carries no `claim` is
+`lost`, never written.
+
+Rolling upgrade, in this order: apply migration 0025 (additive and nullable;
+old workers keep running against it, and the A2A server refuses a database
+below the shipped schema version, so this also precedes any new server); stop
+or drain every old worker; start the new workers. An earlier release neither
+writes nor checks the token, so the guarantee holds only once the old workers
+are gone. A job an old worker left running has no token: it is left alone
+while its lease lives, recovered once it expires, and fenced from its next
+claim.
+
+**Fixed: signing out of ChatGPT wins over a sign-in or refresh still in
+flight.** Tokens no longer come back after a sign-out, two sign-ins at once
+leave one session, a cancelled sign-in stores nothing, and a lock left behind
+by a crash no longer holds up the next sign-out (ADR 0158). The credential
+file carries a lifecycle `epoch`, read as zero when absent: a committed
+sign-in and every sign-out advance it, and each result is written only if the
+epoch the work started under still stands, under a short lock never held
+across the browser or the network; refresh keeps its one-at-a-time flight on
+its own lease (`<file>.refresh.lock`). `signIn`, `signOut` and
+`chatGptSignInStatus` now report the epoch (`SignInResult.epoch`, the new
+`SignOutResult` with its `epoch`, `ChatGptSignInStatus.epoch`, and
+`StoredSignIn.epoch` in the file); none of them returns a token. `signIn` has
+a new failure code, `superseded`, for a sign-in a sign-out or a newer sign-in
+overtook; `discover` takes an optional `signal`; `clearTokens` is gone from
+`lib/chatgpt/store.ts`, an unguarded write. `lib/chatgpt` is outside the
+exports map, but the desktop app loads it by path from `dist/lib/chatgpt/`,
+so its changes are recorded here. The file stays `version: 1`, an older
+engine can read it, and no migration is needed.
+
 ## 1.15.5 — 2026-11-07
 
 **Added: `memory_preload_queries`, standing recall for a syndicate's core
