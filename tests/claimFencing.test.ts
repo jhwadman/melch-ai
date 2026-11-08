@@ -23,6 +23,7 @@ import pg from 'pg';
 
 import { inProcessTurnLock, postgresStorage } from '../lib/storage/postgres/index.ts';
 import type { PostgresStorage } from '../lib/storage/postgres/index.ts';
+import { runClaimedJob } from '../lib/runtime/claimedJob.ts';
 import { postgresTaskBackend } from '../lib/storage/postgres/taskQueue.ts';
 import { executeContract } from '../lib/tools/toolContract.ts';
 import { fileTaskBackendWith, setTaskBackend, fileTaskBackend, taskGetContract, taskQueueContract } from '../lib/tools/taskTools.ts';
@@ -373,4 +374,33 @@ test('file store: a job carrying no claim, or one whose record left running, is 
   });
   assert.equal(await q.finish(job, { result: 'late' }), 'lost');
   assert.doesNotMatch(String(await executeContract(taskGetContract, { id: job.id })), /late/);
+});
+
+// ── 4. A worker whose job was taken ──────────────────────────────────────────
+
+test('a run whose job another worker reclaimed while it ran records nothing, and B keeps the job', async () => {
+  const q = storage.taskQueue;
+  await queued();
+  const claimedAt = performance.now();
+  const stale = (await q.claimNext(A))!;
+  let current: OwnedTask | undefined;
+  const lines: string[] = [];
+  const end = await runClaimedJob({
+    backend: q,
+    lease: A,
+    job: stale,
+    claimedAt,
+    controller: new AbortController(),
+    log: (l) => lines.push(l),
+    turn: async () => {
+      current = await reclaim(stale, B);
+      return { status: 'completed', text: 'the stale answer', lostClaim: false, resumedFromStep: 0 };
+    },
+  });
+  assert.equal(end, 'lost');
+  const r = await state(current!);
+  assert.deepEqual([r.status, r.record.result, r.lease_owner, r.claim_token], ['running', undefined, B.workerId, current!.claim!.token]);
+  assert.doesNotMatch(lines.join('\n'), /done in/);
+  assert.ok(!lines.join('\n').includes(stale.claim!.token), 'the token is not logged');
+  assert.equal(await q.finish(current!, { result: 'the real answer' }), 'accepted');
 });
