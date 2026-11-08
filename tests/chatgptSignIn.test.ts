@@ -1105,12 +1105,13 @@ test('the lock names its owner and no credential, mode 600', async () => {
   const holder = checkpoint();
   const a = withSignInLock(file, () => holder.wait());
   await holder.arrived;
-  const body = JSON.parse(readFileSync(lock, 'utf-8'));
+  const text = readFileSync(lock, 'utf-8');
+  const body = JSON.parse(text);
   assert.deepEqual(Object.keys(body).sort(), ['host', 'owner', 'pid']);
   assert.match(body.owner, /^[0-9a-f-]{36}$/);
   assert.equal(body.pid, process.pid);
+  assert.ok(!text.includes('fake-'));
   assert.equal(statSync(lock).mode & 0o777, 0o600);
-  assert.ok(!readFileSync(lock, 'utf-8').includes('fake-'));
   holder.release();
   await a;
 });
