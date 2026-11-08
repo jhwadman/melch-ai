@@ -31,6 +31,10 @@
  *   renewal or checkpoint save sees it, and the run is aborted without
  *   writing a result over the cancellation.
  *
+ *   Every write the worker makes is bound to one claim, and a claim whose
+ *   lease it cannot confirm is over (ADR 0157, lib/runtime/claimedJob.ts):
+ *   the run stops, and the job is left to whoever holds it now.
+ *
  * Usage:
  *   npm run assistant:worker                      poll every 30 s until Ctrl-C
  *   npm run assistant:worker -- --once            drain the queue, then exit (cron)
@@ -49,8 +53,9 @@ import { randomUUID } from 'node:crypto';
 import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { Interrupted, runClaimedJob, systemClock } from '../lib/runtime/claimedJob.ts';
 import { runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
-import type { RunCheckpoint } from '../lib/runtime/native/checkpoint.ts';
+import type { CheckpointSink } from '../lib/runtime/native/checkpoint.ts';
 import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { refuseChatGptSignInOnServedSurface } from '../lib/chatgpt/state.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
@@ -61,10 +66,9 @@ import {
 } from '../lib/models/registry.ts';
 import {
   CHECKPOINT_MAX_BYTES_ENV,
-  applyInterrupted,
   checkpointMaxBytesSetting,
   fileTaskBackendWith,
-  getTaskBackend,
+  requireFencedBackend,
   setTaskBackend,
   taskStorePath,
 } from '../lib/tools/taskTools.ts';
@@ -133,8 +137,8 @@ if (rawCap?.trim() && Number(rawCap.trim()) !== checkpointMaxBytes) {
 const taskQueue = { checkpointMaxBytes, log };
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl, schema: dbSchema(), taskQueue }) : undefined;
-setTaskBackend(pg ? pg.taskQueue : fileTaskBackendWith(taskQueue));
-const backend = getTaskBackend();
+const backend = requireFencedBackend(pg ? pg.taskQueue : fileTaskBackendWith(taskQueue));
+setTaskBackend(backend);
 /** A claimed job stays this worker's while it renews; the job timeout bounds a turn. */
 const lease: WorkerLease = { workerId: `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`, leaseMs: 60_000 };
 
@@ -159,99 +163,59 @@ let current: AbortController | undefined;
 /** Set by SIGTERM: the job in hand goes back to the queue with its checkpoint. */
 let interrupted = false;
 
-/** The run lost its claim on the job (cancelled while it ran, or taken by another worker). */
-class ClaimLost extends Error {}
-/** SIGTERM stopped the run; the job is re-queued, not failed. */
-class Interrupted extends Error {}
-
 // ── One job = one durable single-turn run (ADR 0113) ────────────────────────
-async function runJob(job: OwnedTask): Promise<string> {
-  const controller = new AbortController();
-  current = controller;
-  try {
-    // A fresh in-process store per attempt, restored from the job's last
-    // checkpoint when an earlier attempt left one (ADR 0080, ADR 0113).
-    const result = await runDurableTurn({
-      config: workerConfig,
-      parts: [{ text: job.instruction ?? job.title }],
-      appName: 'assistant-worker',
-      userId: 'local-user',
-      runId: `${job.owner}:${job.id}`,
-      checkpoints: {
-        load: async () => ((await backend.loadCheckpoint?.(job)) ?? null) as RunCheckpoint | null,
-        save: async (checkpoint) => (backend.saveCheckpoint ? backend.saveCheckpoint(lease, job, checkpoint) : true),
-      },
-      onSaveError: (e) => log(`checkpoint not saved: ${e instanceof Error ? e.message : String(e)}`),
-      compile: { log, onUnknownTool: (n) => log(`unknown tool '${n}' skipped`) },
-      signal: controller.signal,
-      deadlineMs: JOB_TIMEOUT_MS,
-      events: { warn: (m) => log(`⚠ ${m}`) },
-    });
-    if (result.resumedFromStep > 0) log(`${job.id} resumed from step ${result.resumedFromStep}`);
-    if (result.lostClaim || controller.signal.reason instanceof ClaimLost) throw new ClaimLost('the job was cancelled or claimed elsewhere');
-    if (interrupted) throw new Interrupted('stopped by SIGTERM');
-    if (result.status !== 'completed') {
-      throw new Error(`${result.error?.code ?? 'ERROR'}: ${result.error?.message ?? ''}`.trim());
-    }
-    if (!result.text.trim()) throw new Error('the agent returned no text');
-    return result.text.trim();
-  } finally {
-    current = undefined;
-  }
-}
+// A fresh in-process store per attempt, restored from the job's last
+// checkpoint when an earlier attempt left one (ADR 0080, ADR 0113).
+const durableTurn = (job: OwnedTask) => (args: { signal: AbortSignal; checkpoints: CheckpointSink }) =>
+  runDurableTurn({
+    config: workerConfig,
+    parts: [{ text: job.instruction ?? job.title }],
+    appName: 'assistant-worker',
+    userId: 'local-user',
+    runId: `${job.owner}:${job.id}`,
+    checkpoints: args.checkpoints,
+    onSaveError: (e) => log(`checkpoint not saved: ${e instanceof Error ? e.message : String(e)}`),
+    compile: { log, onUnknownTool: (n) => log(`unknown tool '${n}' skipped`) },
+    signal: args.signal,
+    deadlineMs: JOB_TIMEOUT_MS,
+    events: { warn: (m) => log(`⚠ ${m}`) },
+  });
 
 /** Runs queued jobs until none is left. Returns how many it ran. */
 async function drain(): Promise<number> {
-  let ran = 0;
-  for (let job = await backend.claimNext(lease); job; job = stopping ? null : await backend.claimNext(lease)) {
+  for (let ran = 0; ; ) {
+    // Measured before the claim is sent, so the window the worker trusts ends no later than the store's.
+    const claimedAt = systemClock.now();
+    const job = await backend.claimNext(lease);
+    if (!job) return ran;
     ran += 1;
-    const started = Date.now();
     const label = job.owner ? `${job.id} (${job.owner})` : job.id;
     // The title is the person's words: the log names the job, never its text.
     log(`${label} started (${(job.instruction ?? job.title).length.toLocaleString()} chars)`);
-    // Renew the lease while the job runs, so no other worker takes it back;
-    // a renewal that finds the claim gone (the job was cancelled) stops the run.
-    const held: OwnedTask = job;
-    const heartbeat = setInterval(() => {
-      backend
-        .renew(lease, held)
-        .then((kept) => {
-          if (kept === false) current?.abort(new ClaimLost('claim lost'));
-        })
-        .catch((e: unknown) => log(`lease renewal failed: ${e instanceof Error ? e.message : e}`));
-    }, Math.floor(lease.leaseMs / 3));
+    const controller = new AbortController();
+    current = controller;
+    // SIGTERM landed while the claim was in flight.
+    if (interrupted) controller.abort(new Interrupted('SIGTERM'));
     try {
-      const result = await runJob(job);
-      await backend.finish(job, { result });
-      log(`${label} done in ${Math.round((Date.now() - started) / 1000)} s`);
-    } catch (error: any) {
-      if (error instanceof ClaimLost) {
-        // Cancelled while it ran: the record already says so; nothing is written over it.
-        log(`${label} stopped: ${error.message}`);
-      } else if (error instanceof Interrupted) {
-        // Back to the queue with its checkpoint, or failed after MAX_ATTEMPTS interruptions.
-        const outcome = await backend.mutate(job.owner, (store) => {
-          const t = store.tasks.find((r) => r.id === held.id);
-          return t && t.status === 'running' ? applyInterrupted(t) : 'left as is';
-        });
-        log(`${label} interrupted: ${outcome}`);
-      } else {
-        await backend.finish(job, { error: String(error?.message ?? error) });
-        log(`${label} failed: ${error?.message ?? error}`);
-      }
+      await runClaimedJob({ backend, lease, job, claimedAt, controller, turn: durableTurn(job), log });
     } finally {
-      clearInterval(heartbeat);
+      current = undefined;
     }
+    if (stopping) return ran;
   }
-  return ran;
+}
+
+/** Puts back jobs whose lease ran out: a dead worker's, or one that stopped because it could no longer confirm its own. */
+async function recoverExpired(): Promise<void> {
+  const { requeued, failed } = await backend.recover();
+  if (requeued.length) log(`re-queued interrupted jobs: ${requeued.join(', ')}`);
+  if (failed.length) log(`gave up on repeatedly interrupted jobs: ${failed.join(', ')}`);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 log(`agent ${agentName} (${model ?? 'default model'}) from ${syndicateFile}`);
 log(pg ? 'store Postgres (DATABASE_URL)' : `store ${taskStorePath()}`);
-const { requeued, failed } = await backend.recover();
-if (requeued.length) log(`re-queued interrupted jobs: ${requeued.join(', ')}`);
-if (failed.length) log(`gave up on repeatedly interrupted jobs: ${failed.join(', ')}`);
+await recoverExpired();
 
 if (once) {
   const ran = await drain();
@@ -279,5 +243,7 @@ while (!stopping) {
   for (let waited = 0; waited < intervalSeconds && !stopping; waited += 1) {
     await new Promise((r) => setTimeout(r, 1000));
   }
+  // Only on Postgres: the file store's recover takes every running job, and has no leases to expire.
+  if (pg && !stopping) await recoverExpired().catch((e: unknown) => log(`recovery failed: ${e instanceof Error ? e.message : String(e)}`));
 }
 process.exit(0);

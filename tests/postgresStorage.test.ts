@@ -791,6 +791,71 @@ test('durable runs (migration 0014): checkpoints beside the record, leased, kept
   assert.equal(await q.loadCheckpoint!(gone), null);
 });
 
+test('claim fencing with two transactions really open: a finish behind recover finds the claim gone; recover skips a row a finish holds', { skip }, async () => {
+  const q = storage.taskQueue;
+  const owner = 'fence-race-owner';
+  const w = { workerId: 'race-w', leaseMs: 60_000 };
+  const row = async (id: string) =>
+    (await pool.query(`SELECT status, record, claim_token FROM melchizedek_tasks WHERE owner = $1 AND id = $2`, [owner, id])).rows[0];
+  const claimOne = async () => {
+    await q.mutate(owner, (s: any) => {
+      s.tasks.push({ id: `t${s.next_id}`, kind: 'background', status: 'queued', title: 'race', instruction: 'x', created_at: '', updated_at: '' });
+      s.next_id += 1;
+    });
+    const j = await q.claimNext(w);
+    assert.equal(j?.owner, owner);
+    return j!;
+  };
+  /** Waits until a backend is blocked on a row lock, so the interleaving is the one under test. */
+  const blocked = async () => {
+    for (let i = 0; i < 250; i++) {
+      const r = await pool.query(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`);
+      if (r.rows[0].n > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.fail('no backend waited on the row lock');
+  };
+
+  // A recover mid-transaction holds the row; a finish arrives, waits, and then finds the claim gone.
+  const reaped = await claimOne();
+  const recovering = await pool.connect();
+  let verdict: string | undefined;
+  try {
+    await recovering.query('BEGIN');
+    await recovering.query(`SELECT 1 FROM melchizedek_tasks WHERE owner = $1 AND id = $2 FOR UPDATE`, [owner, reaped.id]);
+    const finishing = q.finish(reaped, { result: 'raced' }).then((v) => (verdict = v));
+    await blocked();
+    assert.equal(verdict, undefined, 'the finish waits on the row');
+    await recovering.query(`UPDATE melchizedek_tasks SET status = 'queued', lease_owner = NULL, lease_until = NULL, claim_token = NULL WHERE owner = $1 AND id = $2`, [owner, reaped.id]);
+    await recovering.query('COMMIT');
+    await finishing;
+  } finally {
+    recovering.release();
+  }
+  assert.equal(verdict, 'lost');
+  assert.equal((await row(reaped.id)).status, 'queued');
+  assert.equal((await row(reaped.id)).record.result, undefined);
+  await q.mutate(owner, (s: any) => {
+    s.tasks = [];
+  });
+
+  // A finish holds the row of a lease that has since run out: recover skips it rather than waiting or taking it.
+  const held = await claimOne();
+  await pool.query(`UPDATE melchizedek_tasks SET lease_until = now() - interval '1 second' WHERE owner = $1 AND id = $2`, [owner, held.id]);
+  const finishing = await pool.connect();
+  try {
+    await finishing.query('BEGIN');
+    await finishing.query(`SELECT 1 FROM melchizedek_tasks WHERE owner = $1 AND id = $2 FOR UPDATE`, [owner, held.id]);
+    const recovered = await q.recover();
+    assert.ok(!recovered.requeued.includes(`${owner}:${held.id}`), 'a locked row is skipped');
+    assert.equal((await row(held.id)).status, 'running');
+    await finishing.query('ROLLBACK');
+  } finally {
+    finishing.release();
+  }
+  assert.deepEqual((await q.recover()).requeued, [`${owner}:${held.id}`], 'the lock released, the reaper takes it');
+});
+
 test('a private schema: the whole chain installs into it and the stores work there', { skip }, async () => {
   const { sqlForSchema } = await import('../lib/storage/schema.ts');
   const { shippedSchemaVersion } = await import('../lib/storage/schemaVersion.ts');

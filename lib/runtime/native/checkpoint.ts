@@ -45,6 +45,10 @@
  *     aborts the run and reports lostClaim. A save that throws is reported
  *     to onSaveError and the run goes on; a later attempt resumes from the
  *     older checkpoint.
+ *   - A worker's sink is bound to one claim (claimCheckpoints, ADR 0157): a
+ *     save under a claim that has ended is refused. The claim is a storage
+ *     concern, never part of a checkpoint, so its JSON is the same as it was
+ *     and any earlier checkpoint of the job restores under a new claim.
  *
  * LIMITS:
  *   - A dispatch syndicate's route classifier runs in a throwaway store, so
@@ -92,6 +96,7 @@ import type {
 } from '../sessions.ts';
 import { runSyndicateTurn } from '../syndicateTurn.ts';
 import type { MessagePart, SyndicateTurnOptions, SyndicateTurnResult } from '../syndicateTurn.ts';
+import type { ClaimedTask, FencedTaskBackend, WorkerLease } from '../../tools/taskTools.ts';
 
 // ── Shapes ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +133,19 @@ export interface RunCheckpoint {
 export interface CheckpointSink {
   load(): Promise<RunCheckpoint | null>;
   save(checkpoint: RunCheckpoint): Promise<boolean>;
+}
+
+/**
+ * The sink of one claim on one job. Saves go through the backend under that
+ * claim, so a run that lost it stops at its next step boundary; loading does
+ * not depend on the claim, since a new claim resumes what an earlier one (or
+ * an earlier release) left.
+ */
+export function claimCheckpoints(backend: Pick<FencedTaskBackend, 'loadCheckpoint' | 'saveCheckpoint'>, worker: WorkerLease, job: ClaimedTask): CheckpointSink {
+  return {
+    load: async () => (await backend.loadCheckpoint(job)) as RunCheckpoint | null,
+    save: (checkpoint) => backend.saveCheckpoint(worker, job, checkpoint),
+  };
 }
 
 export interface CheckpointingOptions {

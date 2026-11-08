@@ -137,20 +137,20 @@ test('Postgres: a save over the cap writes nothing, reports the claim and logs t
   };
   const lines: string[] = [];
   const backend = postgresTaskBackend(pool as any, { checkpointMaxBytes: 200, log: (l) => lines.push(l) });
-  const job = { id: 't7', owner: 'owner-1' } as OwnedTask;
+  const job = { id: 't7', owner: 'owner-1', claim: { workerId: 'w', token: 'claim-1' } } as OwnedTask;
 
   const small = { step: 1 };
   assert.equal(await backend.saveCheckpoint!(W, job, small), true);
   assert.equal(queries.length, 1);
-  assert.match(queries[0]!.sql, /UPDATE melchizedek_tasks SET checkpoint = \$4::jsonb/);
-  assert.equal(queries[0]!.params[3], JSON.stringify(small));
+  assert.match(queries[0]!.sql, /UPDATE melchizedek_tasks SET checkpoint = \$5::jsonb/);
+  assert.equal(queries[0]!.params[4], JSON.stringify(small));
 
   const big = { step: 2, note: PRIVATE.repeat(20) };
   assert.equal(await backend.saveCheckpoint!(W, job, big), true);
   assert.equal(queries.length, 2);
   assert.match(queries[1]!.sql, /^SELECT 1 FROM melchizedek_tasks/);
   assert.doesNotMatch(queries[1]!.sql, /UPDATE/);
-  assert.deepEqual(queries[1]!.params, ['owner-1', 't7', 'w']);
+  assert.deepEqual(queries[1]!.params, ['owner-1', 't7', 'w', 'claim-1']);
   assert.deepEqual(lines, [`checkpoint for job t7 not saved: ${bytesOf(big)} bytes is over the 200-byte cap; the previous checkpoint is kept`]);
 
   // Over the cap after the claim is gone: the run still learns it must stop.
