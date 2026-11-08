@@ -33,6 +33,7 @@
  * applied twice, because the first write that lands ends the claim.
  */
 
+import { claimCheckpoints } from './native/checkpoint.ts';
 import type { DurableTurnResult, CheckpointSink } from './native/checkpoint.ts';
 import type { ClaimedTask, FencedTaskBackend, JobOutcome, WorkerLease } from '../tools/taskTools.ts';
 
@@ -171,10 +172,7 @@ export async function runClaimedJob(options: ClaimedJobOptions): Promise<JobEnd>
   const runTurn = async (): Promise<string> => {
     const result = await options.turn({
       signal: controller.signal,
-      checkpoints: {
-        load: async () => (await backend.loadCheckpoint(job)) as Awaited<ReturnType<CheckpointSink['load']>>,
-        save: (checkpoint) => backend.saveCheckpoint(lease, job, checkpoint),
-      },
+      checkpoints: claimCheckpoints(backend, lease, job),
     });
     if (result.resumedFromStep > 0) log(`${job.id} resumed from step ${result.resumedFromStep}`);
     if (result.lostClaim) throw new ClaimLost('the job was cancelled or claimed elsewhere');

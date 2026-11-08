@@ -20,14 +20,22 @@ import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite-pgvector';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import pg from 'pg';
+import { z } from 'zod';
 
 import { inProcessTurnLock, postgresStorage } from '../lib/storage/postgres/index.ts';
 import type { PostgresStorage } from '../lib/storage/postgres/index.ts';
 import { runClaimedJob } from '../lib/runtime/claimedJob.ts';
+import { claimCheckpoints, runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
+import type { CheckpointSink } from '../lib/runtime/native/checkpoint.ts';
+import type { ModelRequest } from '../lib/models/contract.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
 import { postgresTaskBackend } from '../lib/storage/postgres/taskQueue.ts';
-import { executeContract } from '../lib/tools/toolContract.ts';
+import { defineTool, executeContract } from '../lib/tools/toolContract.ts';
 import { fileTaskBackendWith, setTaskBackend, fileTaskBackend, taskGetContract, taskQueueContract } from '../lib/tools/taskTools.ts';
 import type { OwnedTask, WorkerLease } from '../lib/tools/taskTools.ts';
+import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 
 const INSTALL = [...readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort().map((f) => `db/migrations/${f}`), 'db/hardening.sql'];
 
@@ -403,4 +411,92 @@ test('a run whose job another worker reclaimed while it ran records nothing, and
   assert.doesNotMatch(lines.join('\n'), /done in/);
   assert.ok(!lines.join('\n').includes(stale.claim!.token), 'the token is not logged');
   assert.equal(await q.finish(current!, { result: 'the real answer' }), 'accepted');
+});
+
+// ── 5. The checkpoint sink carries the claim ─────────────────────────────────
+
+registerTool(
+  'fence_lookup',
+  defineTool({ name: 'fence_lookup', description: 'Look a key up.', schema: z.object({ key: z.string() }), execute: async ({ key }) => `value of ${key}` }),
+  { override: true },
+);
+
+const toolResults = (req: ModelRequest): number => req.messages.filter((m) => m.role === 'tool').flatMap((m) => m.parts).length;
+
+/** Looks up a, b and c, then answers; `third` stands in for the third step when given. */
+function lookupModel(third?: (signal?: AbortSignal) => ReturnType<typeof untilAborted>) {
+  return new ScriptedModel('scripted/worker', (req, _n, signal) => {
+    const done = toolResults(req);
+    if (done < 3) {
+      if (done === 2 && third) return third(signal);
+      return toolCall('fence_lookup', { key: 'abc'[done] }, `call-${done}`);
+    }
+    return answer(`done: ${lastToolResult(req)?.result}`);
+  });
+}
+
+function attempt(job: OwnedTask, sink: CheckpointSink, model: ScriptedModel, signal?: AbortSignal) {
+  resetCircuits();
+  return runDurableTurn({
+    config: {
+      syndicate_name: 'Worker',
+      orchestrator: { name: 'Worker', model: 'scripted/worker', instruction: 'Look things up.', tools: ['fence_lookup'] },
+      subagents: [],
+    } as any as SyndicateYamlConfig,
+    parts: [{ text: job.instruction ?? job.title }],
+    appName: 'assistant-worker',
+    userId: 'local-user',
+    runId: `${job.owner}:${job.id}`,
+    checkpoints: sink,
+    compile: { resolveModel: shimResolver({ worker: model }), log: () => {} },
+    trace: false,
+    ...(signal ? { signal } : {}),
+  });
+}
+
+test('a stale sink\'s save is refused, the run stops as lost, and the current claim\'s checkpoint stands', async () => {
+  const q = storage.taskQueue;
+  await queued();
+  const stale = (await q.claimNext(A))!;
+  const staleSink = claimCheckpoints(q, A, stale);
+  const current = await reclaim(stale, B);
+  assert.equal(await q.saveCheckpoint(B, current, { step: 'current' }), true);
+
+  assert.equal(await staleSink.save({ step: 'stale' } as any), false);
+  assert.deepEqual((await state(current)).checkpoint, { step: 'current' });
+
+  // The whole run, on the stale sink: stopped at its first step boundary.
+  const model = lookupModel();
+  const result = await attempt(stale, staleSink, model);
+  assert.equal(result.lostClaim, true);
+  assert.equal(model.calls, 1);
+  assert.deepEqual((await state(current)).checkpoint, { step: 'current' });
+});
+
+test('a restart resumes from a checkpoint no claim wrote: the format is unchanged and carries no token', async () => {
+  const q = storage.taskQueue;
+  await queued();
+  const first = (await q.claimNext(A))!;
+  const kill = new AbortController();
+  const killed = lookupModel((signal) => {
+    kill.abort();
+    return untilAborted(signal);
+  });
+  const killedRun = await attempt(first, claimCheckpoints(q, A, first), killed, kill.signal);
+  assert.notEqual(killedRun.status, 'completed');
+
+  const stored = (await state(first)).checkpoint;
+  assert.deepEqual(Object.keys(stored).sort(), ['openingHash', 'runId', 'savedAt', 'sessionId', 'sessions', 'steps', 'version'], 'the v1 format');
+  assert.ok(!JSON.stringify(stored).includes(first.claim!.token), 'a checkpoint knows nothing of its claim');
+
+  // As a release before claim tokens left it: queued, the checkpoint kept, no claim on the row.
+  await db.query(`UPDATE melchizedek_tasks SET status = 'queued', record = record || '{"status":"queued"}', lease_owner = NULL, lease_until = NULL, claim_token = NULL WHERE owner = $1 AND id = $2`, [first.owner, first.id]);
+  const second = (await q.claimNext(B))!;
+  assert.notEqual(second.claim!.token, first.claim!.token);
+  const resumedModel = lookupModel();
+  const resumed = await attempt(second, claimCheckpoints(q, B, second), resumedModel);
+  assert.equal(resumed.status, 'completed', resumed.error?.message);
+  assert.equal(resumed.resumedFromStep, 2);
+  assert.equal(resumedModel.calls, 2, 'the third lookup and the answer');
+  assert.equal(await q.finish(second, { result: resumed.text }), 'accepted');
 });

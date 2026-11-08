@@ -19,8 +19,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
 
-import { runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
-import type { RunCheckpoint } from '../lib/runtime/native/checkpoint.ts';
+import { claimCheckpoints, runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
@@ -29,7 +28,7 @@ import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool, executeContract } from '../lib/tools/toolContract.ts';
 import { applyInterrupted, fileTaskBackend, taskGetContract, taskQueueContract, taskUpdateContract } from '../lib/tools/taskTools.ts';
-import type { OwnedTask, WorkerLease } from '../lib/tools/taskTools.ts';
+import type { ClaimedTask, WorkerLease } from '../lib/tools/taskTools.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'melch-durable-'));
@@ -71,7 +70,7 @@ function workerModel(third?: (signal?: AbortSignal) => ReturnType<typeof untilAb
 }
 
 /** One attempt at a job, wired as scripts/assistant_worker.ts wires it. */
-async function attempt(job: OwnedTask, lease: WorkerLease, model: ScriptedModel, signal?: AbortSignal) {
+async function attempt(job: ClaimedTask, lease: WorkerLease, model: ScriptedModel, signal?: AbortSignal) {
   resetCircuits();
   const sessions = new InProcessSessionService();
   const backend = fileTaskBackend;
@@ -81,10 +80,7 @@ async function attempt(job: OwnedTask, lease: WorkerLease, model: ScriptedModel,
     appName: 'assistant-worker',
     userId: 'local-user',
     runId: `${job.owner}:${job.id}`,
-    checkpoints: {
-      load: async () => ((await backend.loadCheckpoint?.(job)) ?? null) as RunCheckpoint | null,
-      save: async (cp) => (backend.saveCheckpoint ? backend.saveCheckpoint(lease, job, cp) : true),
-    },
+    checkpoints: claimCheckpoints(backend, lease, job),
     sessions,
     compile: { resolveModel: shimResolver({ worker: model }), log: () => {} },
     trace: false,
