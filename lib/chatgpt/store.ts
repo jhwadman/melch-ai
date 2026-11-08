@@ -14,7 +14,7 @@ import { chmodSync, closeSync, existsSync, mkdirSync, openSync, renameSync, rmSy
 import { dirname } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { insideGitWorkTree, readStoredSignIn } from './state.ts';
+import { credentialEpoch, insideGitWorkTree, readStoredSignIn } from './state.ts';
 import type { StoredSignIn } from './state.ts';
 
 /** Write the credential file: mode 600, atomically, never inside a git work tree. */
@@ -47,22 +47,12 @@ export function withoutTokens(s: StoredSignIn): StoredSignIn {
   return { ...kept, savedAt: new Date().toISOString() };
 }
 
-/** Remove the tokens from the file, keeping the registration. */
-export function clearTokens(file: string): void {
-  const s = readStoredSignIn(file);
-  if (s) writeStoredSignIn(file, withoutTokens(s));
-}
-
 const LOCK_STALE_MS = 60_000;
 const LOCK_WAIT_MS = 20_000;
 
-/**
- * Run `fn` holding the credential's lock file (created exclusively). A lock
- * older than a minute is a crashed holder's and is taken over.
- */
-export async function withSignInLock<T>(file: string, fn: () => Promise<T>, opts: { waitMs?: number } = {}): Promise<T> {
-  const lock = `${file}.lock`;
-  const dir = dirname(file);
+/** Run `fn` holding a lock file created exclusively. A lock older than a minute is a crashed holder's and is taken over. */
+async function withLockFile<T>(lock: string, fn: () => Promise<T>, opts: { waitMs?: number }): Promise<T> {
+  const dir = dirname(lock);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   const deadline = Date.now() + (opts.waitMs ?? LOCK_WAIT_MS);
   for (;;) {
@@ -88,4 +78,40 @@ export async function withSignInLock<T>(file: string, fn: () => Promise<T>, opts
   } finally {
     rmSync(lock, { force: true });
   }
+}
+
+/**
+ * The credential's short commit lock. It guards one read-compare-write of the
+ * file and is never held across a browser wait or a network call: a sign-out
+ * waits on it, and a sign-out must not wait on the network.
+ */
+export function withSignInLock<T>(file: string, fn: () => Promise<T>, opts: { waitMs?: number } = {}): Promise<T> {
+  return withLockFile(`${file}.lock`, fn, opts);
+}
+
+/**
+ * One refresher at a time, across processes: OpenAI's refresh tokens rotate,
+ * so a second refresh of the same token would be a reuse. Held across the
+ * refresh's network calls, so it is a separate file from the commit lock and
+ * a sign-out never takes it.
+ */
+export function withRefreshLease<T>(file: string, fn: () => Promise<T>, opts: { waitMs?: number } = {}): Promise<T> {
+  return withLockFile(`${file}.refresh.lock`, fn, opts);
+}
+
+/**
+ * The way a result reaches the file: under the commit lock, re-read it, and
+ * write what `build` makes of it only if the file is still at `expected`.
+ * `build` may decline with undefined. Returns what was written, or undefined
+ * when the result lost (an advanced epoch, no file, or a decline) and the file
+ * was left alone.
+ */
+export function commitAtEpoch(file: string, expected: number, build: (current: StoredSignIn) => StoredSignIn | undefined): Promise<StoredSignIn | undefined> {
+  return withSignInLock(file, async () => {
+    const current = readStoredSignIn(file);
+    if (!current || credentialEpoch(current) !== expected) return undefined;
+    const next = build(current);
+    if (next) writeStoredSignIn(file, next);
+    return next;
+  });
 }

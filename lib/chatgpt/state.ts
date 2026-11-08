@@ -53,6 +53,8 @@ export interface StoredSignIn {
   /** Epoch milliseconds before which a refresh is not attempted while the token is valid. */
   earliestRefreshAt?: number;
   savedAt?: string;
+  /** The credential lifecycle epoch; absent reads as 0 (`credentialEpoch`). */
+  epoch?: number;
 }
 
 /** The sign-in as the doctor and the bins see it: presence and times, never a token. */
@@ -91,6 +93,17 @@ export function isStoredSignIn(v: unknown): v is StoredSignIn {
   if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return o.version === 1 && typeof o.issuer === 'string' && typeof o.hostId === 'string';
+}
+
+/**
+ * A credential's lifecycle epoch. A sign-out advances it, so work that started
+ * under an earlier epoch can no longer commit (`commitAtEpoch`,
+ * lib/chatgpt/store.ts). A file from before the field, or one holding anything
+ * but a non-negative integer, is at zero.
+ */
+export function credentialEpoch(s: StoredSignIn | undefined): number {
+  const e = s?.epoch;
+  return typeof e === 'number' && Number.isSafeInteger(e) && e >= 0 ? e : 0;
 }
 
 /**

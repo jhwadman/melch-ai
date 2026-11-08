@@ -22,21 +22,27 @@
  * anything is saved, and the plan scope must be granted.
  *
  * TOKENS: an access token lasts an hour and the refresh token rotates on every
- * refresh. Refreshes are serialized through a lock file (lib/chatgpt/store.ts)
+ * refresh. Refreshes are serialized through a lease file (lib/chatgpt/store.ts)
  * and an unusable refresh token clears the tokens and asks for a new sign-in.
  * No token is ever logged or put in an error message.
+ *
+ * WHO WINS: the file carries a lifecycle epoch. Every result is committed
+ * through `commitAtEpoch`, which re-reads the file under a short lock and
+ * writes only if the epoch the work started under still stands, so a sign-out
+ * beats any sign-in or refresh still in flight.
  */
 
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 import { trimTrailingSlashes } from '../models/urls.ts';
-import { PLAN_SCOPE, isSignedIn, readStoredSignIn } from './state.ts';
+import { PLAN_SCOPE, credentialEpoch, isSignedIn, readStoredSignIn } from './state.ts';
 import type { StoredSignIn } from './state.ts';
-import { clearTokens, withSignInLock, writeStoredSignIn } from './store.ts';
+import { commitAtEpoch, withRefreshLease, withSignInLock, withoutTokens, writeStoredSignIn } from './store.ts';
 
 export const OPENAI_AUTH_ISSUER = 'https://auth.openai.com';
 /** The resource the tokens are for: the public API, where the Responses endpoint lives. */
@@ -359,8 +365,9 @@ export interface SignInResult {
  */
 export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const issuer = issuerOf(opts);
-  const d = await discover({ issuer });
   const previous = readStoredSignIn(opts.file);
+  const epoch = credentialEpoch(previous);
+  const d = await discover({ issuer });
   const sameIssuer = previous?.issuer === issuer;
   const hostId = previous?.hostId ?? `urn:uuid:${randomUUID()}`;
   const savedClientId = sameIssuer ? previous?.clientId : undefined;
@@ -423,16 +430,26 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     if (!planUsage) {
       throw new SignInError('plan_not_granted', 'The sign-in did not grant use of your ChatGPT plan; sign in again and allow it.');
     }
-    writeStoredSignIn(opts.file, { ...registration, subject, ...fields, savedAt: new Date().toISOString() });
+    const committed = await commitAtEpoch(opts.file, epoch, (current) => ({ ...withoutTokens(current), clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString() }));
+    if (!committed) throw superseded();
     return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage };
   } finally {
     listener.close();
   }
 }
 
-/** One refresh of the stored session; the caller holds the lock. */
-async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): Promise<StoredSignIn> {
+/** A result that lost to a sign-out or a newer sign-in. */
+const superseded = () => new SignInError('superseded', 'A sign-out or a newer sign-in replaced this ChatGPT sign-in before it finished.');
+
+/**
+ * One refresh of the stored session; the caller holds the refresh lease.
+ * Undefined when the result lost to a sign-out, a newer sign-in or another
+ * rotation of the same session, and the file was left alone.
+ */
+async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): Promise<StoredSignIn | undefined> {
   const issuer = issuerOf(opts);
+  const epoch = credentialEpoch(s);
+  const sameSession = (current: StoredSignIn) => current.refreshToken === s.refreshToken;
   if (s.issuer !== issuer || !s.clientId || !s.refreshToken) {
     throw new SignInError('not_signed_in', 'The stored ChatGPT sign-in cannot be refreshed here; sign in again.');
   }
@@ -447,7 +464,8 @@ async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): P
     });
   } catch (err) {
     if (err instanceof SignInError && UNUSABLE_REFRESH.has(err.code)) {
-      clearTokens(file);
+      const cleared = await commitAtEpoch(file, epoch, (current) => (sameSession(current) ? withoutTokens(current) : undefined));
+      if (!cleared) return undefined;
       throw new SignInError('signin_expired', 'Your ChatGPT sign-in has expired or was revoked; run `melchizedek-setup --chatgpt-signin` again.');
     }
     throw err;
@@ -457,9 +475,7 @@ async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): P
     const subject = await verifyIdToken(data.id_token, d, s.clientId);
     if (s.subject && subject !== s.subject) throw new SignInError('account_mismatch', 'The refreshed ChatGPT identity is a different account; sign in again.');
   }
-  const next: StoredSignIn = { ...s, ...fields, savedAt: new Date().toISOString() };
-  writeStoredSignIn(file, next);
-  return next;
+  return commitAtEpoch(file, epoch, (current) => (sameSession(current) ? { ...withoutTokens(current), ...fields, savedAt: new Date().toISOString() } : undefined));
 }
 
 const SKEW_MS = 120_000;
@@ -471,8 +487,9 @@ export interface AccessTokenOptions extends OAuthOptions {
 /**
  * A usable access token from the credential file, refreshed when it is within
  * two minutes of expiry (and past `earliest_refresh_at`). Refreshes take the
- * file's lock and re-read it first, so a refresh another process just made is
- * used rather than repeated.
+ * refresh lease and re-read the file first, so a refresh another process just
+ * made is used rather than repeated. A refresh that lost to a sign-out or a
+ * newer sign-in stores nothing and the file is read again.
  */
 export async function freshAccessToken(file: string, opts: AccessTokenOptions = {}): Promise<string> {
   const now = opts.now ?? Date.now;
@@ -481,29 +498,33 @@ export async function freshAccessToken(file: string, opts: AccessTokenOptions = 
   const first = readStoredSignIn(file);
   if (!isSignedIn(first)) throw notSignedIn();
   if (fresh(first)) return first!.accessToken!;
-  return withSignInLock(file, async () => {
+  const token = await withRefreshLease(file, async () => {
     const s = readStoredSignIn(file);
     if (!isSignedIn(s)) throw notSignedIn();
     if (fresh(s)) return s!.accessToken!;
     const valid = (s!.expiresAt ?? 0) > now();
     if (valid && s!.earliestRefreshAt !== undefined && now() < s!.earliestRefreshAt) return s!.accessToken!;
-    return (await refreshOnce(file, s!, opts)).accessToken!;
+    return (await refreshOnce(file, s!, opts))?.accessToken;
   });
+  return token ?? freshAccessToken(file, opts);
 }
 
 /**
- * Sign out: the tokens leave the file (the host id and issued client id
- * stay, for the next sign-in), and the refresh token is revoked at the
- * issuer. `revoked: false` means the local tokens are gone but the remote
- * revocation was not confirmed: disconnect the app in ChatGPT's settings.
+ * Sign out: under the commit lock the epoch advances, so no sign-in or
+ * refresh still in flight can commit, and the tokens leave the file (the host
+ * id and issued client id stay, for the next sign-in). Only then is the
+ * refresh token revoked at the issuer. `revoked: false` means the local
+ * tokens are gone but the remote revocation was not confirmed: disconnect the
+ * app in ChatGPT's settings.
  */
 export async function signOut(file: string, opts: OAuthOptions = {}): Promise<{ hadTokens: boolean; revoked: boolean }> {
-  const s = readStoredSignIn(file);
-  if (!s?.refreshToken) {
-    if (s) clearTokens(file);
-    return { hadTokens: false, revoked: false };
-  }
-  clearTokens(file);
+  if (!existsSync(file)) return { hadTokens: false, revoked: false };
+  const s = await withSignInLock(file, async () => {
+    const held = readStoredSignIn(file);
+    if (held) writeStoredSignIn(file, { ...withoutTokens(held), epoch: credentialEpoch(held) + 1 });
+    return held;
+  });
+  if (!s?.refreshToken) return { hadTokens: false, revoked: false };
   try {
     const d = await discover(opts);
     if (!d.revocation_endpoint || !s.clientId) return { hadTokens: true, revoked: false };

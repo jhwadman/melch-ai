@@ -49,6 +49,7 @@ import { DYNAMIC_CLIENT_ID, OPENAI_API_RESOURCE, SignInError, freshAccessToken, 
 import {
   PLAN_SCOPE,
   chatGptSignInRoutesOpenAi,
+  credentialEpoch,
   markServedSurface,
   readStoredSignIn,
   refuseChatGptSignInOnServedSurface,
@@ -85,6 +86,10 @@ interface FakeAuth {
   refreshAnswer: string;
   /** Set to delay each refresh, to widen a race. */
   refreshDelayMs: number;
+  /** Awaited after the issuer has minted the tokens and before it answers: a delayed exchange or refresh, without a sleep. */
+  tokenGate?: (form: Record<string, string>) => Promise<void>;
+  /** Awaited before the JWKS answers: a delayed ID-token verification. */
+  jwksGate?: () => Promise<void>;
   issuedClientId: string;
   /** The browser: follow the URL like the consent page would. `state` overrides the state sent back. */
   browser: (opts?: { state?: string; scope?: string }) => (url: string) => Promise<void>;
@@ -146,7 +151,10 @@ async function fakeAuthServer(): Promise<FakeAuth> {
         revocation_endpoint: `${fake.issuer}/revoke`,
       });
     }
-    if (url.pathname === '/jwks') return json(200, { keys: [jwk] });
+    if (url.pathname === '/jwks') {
+      await fake.jwksGate?.();
+      return json(200, { keys: [jwk] });
+    }
     if (url.pathname === '/revoke') {
       fake.revoked.push(form.token);
       refreshTokens.delete(form.token);
@@ -161,15 +169,21 @@ async function fakeAuthServer(): Promise<FakeAuth> {
         if (!p) return json(400, { error: 'invalid_grant' });
         const challenge = createHash('sha256').update(form.code_verifier ?? '').digest('base64url');
         if (challenge !== p.challenge || form.redirect_uri !== p.redirectUri || form.client_id !== p.clientId) return json(400, { error: 'invalid_grant' });
-        return json(200, await tokens(p.clientId, p.nonce, `openid profile email offline_access resource.invoke ${PLAN_SCOPE}`));
+        const minted = await tokens(p.clientId, p.nonce, `openid profile email offline_access resource.invoke ${PLAN_SCOPE}`);
+        await fake.tokenGate?.(form);
+        return json(200, minted);
       }
       if (form.grant_type === 'refresh_token') {
         if (fake.refreshDelayMs) await new Promise((r) => setTimeout(r, fake.refreshDelayMs));
-        if (fake.refreshAnswer !== 'ok' && fake.refreshAnswer !== 'ok-with-id') return json(400, { error: fake.refreshAnswer });
+        if (fake.refreshAnswer !== 'ok' && fake.refreshAnswer !== 'ok-with-id') {
+          await fake.tokenGate?.(form);
+          return json(400, { error: fake.refreshAnswer });
+        }
         if (!refreshTokens.has(form.refresh_token)) return json(400, { error: 'refresh_token_reused' });
         refreshTokens.delete(form.refresh_token);
         const t = await tokens(form.client_id, undefined, '');
         const { scope: _scope, id_token, ...rest } = t;
+        await fake.tokenGate?.(form);
         return json(200, fake.refreshAnswer === 'ok-with-id' ? { ...rest, id_token } : rest);
       }
       return json(400, { error: 'unsupported_grant_type' });
@@ -536,6 +550,118 @@ test('sign-out: the tokens leave the file and the refresh token is revoked', asy
     const after = readStoredSignIn(file)!;
     assert.equal(after.refreshToken, undefined);
     assert.equal(after.clientId, fake.issuedClientId);
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── Sign-out wins over work still in flight ──────────────────────────────────
+
+/** A point the fake issuer stops at: `arrived` when it gets there, on again after `release`. */
+function checkpoint() {
+  let arrive!: () => void;
+  let release!: () => void;
+  const arrived = new Promise<void>((r) => (arrive = r));
+  const released = new Promise<void>((r) => (release = r));
+  return {
+    arrived,
+    release,
+    wait: () => {
+      arrive();
+      return released;
+    },
+  };
+}
+
+const failsWith = (code: string) => (e: unknown) => e instanceof SignInError && e.code === code;
+
+function assertNoTokens(file: string, fake: FakeAuth): void {
+  const s = readStoredSignIn(file)!;
+  assert.equal(s.accessToken, undefined, 'no access token');
+  assert.equal(s.refreshToken, undefined, 'no refresh token');
+  assert.equal(s.expiresAt, undefined);
+  assert.equal(s.scopes, undefined);
+  assert.equal(s.clientId, fake.issuedClientId, 'the registration stays');
+  assert.match(s.hostId, /^urn:uuid:/);
+}
+
+test('the epoch: a file without one reads as zero, and a sign-out advances it even with nothing to clear', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    assert.equal(credentialEpoch(readStoredSignIn(file)), 0);
+    assert.equal(credentialEpoch(undefined), 0);
+    assert.equal(credentialEpoch({ ...readStoredSignIn(file)!, epoch: -3 }), 0, 'a nonsense epoch reads as zero');
+    await signOut(file, { issuer: fake.issuer });
+    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    await signOut(file, { issuer: fake.issuer });
+    assert.equal(readStoredSignIn(file)!.epoch, 2, 'with nothing to clear, older work is still invalidated');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: a delayed refresh that comes back afterwards leaves no tokens', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const before = readStoredSignIn(file)!;
+    writeStoredSignIn(file, { ...before, expiresAt: Date.now() + 30_000 });
+    const gate = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'refresh_token' ? gate.wait() : Promise.resolve());
+
+    const refreshing = assert.rejects(freshAccessToken(file, { issuer: fake.issuer }), failsWith('not_signed_in'));
+    await gate.arrived;
+    const out = await signOut(file, { issuer: fake.issuer });
+    assert.equal(out.hadTokens, true);
+    assert.equal(readStoredSignIn(file)!.refreshToken, undefined, 'the tokens left before the refresh came back');
+    gate.release();
+    await refreshing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    assert.equal(existsSync(`${file}.lock`), false, 'the commit lock is released');
+    assert.equal(existsSync(`${file}.refresh.lock`), false, 'the refresh lease is released');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: during the browser exchange no tokens are stored', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const gate = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? gate.wait() : Promise.resolve());
+
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, 1);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out wins: during ID-token verification no tokens are stored', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const gate = checkpoint();
+    fake.jwksGate = () => gate.wait();
+
+    const signing = assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), failsWith('superseded'));
+    await gate.arrived;
+    await signOut(file, { issuer: fake.issuer });
+    gate.release();
+    await signing;
+
+    assertNoTokens(file, fake);
+    assert.equal(readStoredSignIn(file)!.epoch, 1);
   } finally {
     await fake.close();
   }
