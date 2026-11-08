@@ -17,12 +17,16 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { credentialEpoch, insideGitWorkTree, readStoredSignIn } from './state.ts';
 import type { StoredSignIn } from './state.ts';
 
-/** Write the credential file: mode 600, atomically, never inside a git work tree. */
-export function writeStoredSignIn(file: string, value: StoredSignIn): void {
+function refuseInsideGitWorkTree(file: string): void {
   const repo = insideGitWorkTree(file);
   if (repo) {
     throw new Error(`refusing to store a ChatGPT sign-in inside the git work tree ${repo}; set MELCHIZEDEK_CHATGPT_SIGNIN_FILE to a path outside it.`);
   }
+}
+
+/** Write the credential file: mode 600, atomically, never inside a git work tree. */
+export function writeStoredSignIn(file: string, value: StoredSignIn): void {
+  refuseInsideGitWorkTree(file);
   const dir = dirname(file);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   const tmp = `${file}.${randomUUID()}.tmp`;
@@ -52,6 +56,7 @@ const LOCK_WAIT_MS = 20_000;
 
 /** Run `fn` holding a lock file created exclusively. A lock older than a minute is a crashed holder's and is taken over. */
 async function withLockFile<T>(lock: string, fn: () => Promise<T>, opts: { waitMs?: number }): Promise<T> {
+  refuseInsideGitWorkTree(lock);
   const dir = dirname(lock);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   const deadline = Date.now() + (opts.waitMs ?? LOCK_WAIT_MS);

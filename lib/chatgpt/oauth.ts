@@ -358,23 +358,31 @@ export interface SignInResult {
 }
 
 /**
- * The browser sign-in. Stores the host id before the browser opens when no
- * file exists yet, the registration (host id, issued client id) before the
- * code exchange, and the tokens after the ID token verifies and the plan
- * scope is confirmed.
+ * The browser sign-in. Stores the host id first when no file exists yet, the
+ * registration (host id, issued client id) before the code exchange, and the
+ * tokens after the ID token verifies and the plan scope is confirmed, which
+ * advances the epoch. Nothing is held while the person is in the browser or
+ * the network is answering; a result that was overtaken is discarded and the
+ * sign-in fails `superseded`.
  */
 export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const issuer = issuerOf(opts);
-  const previous = readStoredSignIn(opts.file);
-  const epoch = credentialEpoch(previous);
+  // The epoch this attempt answers to, read before anything slow. OpenAI asks
+  // for the host id to be chosen and persisted before the first sign-in, so a
+  // timed-out or cancelled attempt does not send a new one next time; it also
+  // means a sign-out always has a file to advance. A stored registration is kept.
+  const start = await withSignInLock(opts.file, async () => {
+    const held = readStoredSignIn(opts.file);
+    if (held) return held;
+    const created: StoredSignIn = { version: 1, issuer, hostId: `urn:uuid:${randomUUID()}` };
+    writeStoredSignIn(opts.file, created);
+    return created;
+  });
+  const epoch = credentialEpoch(start);
   const d = await discover({ issuer });
-  const sameIssuer = previous?.issuer === issuer;
-  const hostId = previous?.hostId ?? `urn:uuid:${randomUUID()}`;
-  const savedClientId = sameIssuer ? previous?.clientId : undefined;
-  // OpenAI asks for the host id to be chosen and persisted before the first
-  // sign-in, so a timed-out or cancelled attempt does not send a new one next
-  // time. Only written when nothing is stored: a stored registration is kept.
-  if (!previous) writeStoredSignIn(opts.file, { version: 1, issuer, hostId });
+  const sameIssuer = start.issuer === issuer;
+  const hostId = start.hostId;
+  const savedClientId = sameIssuer ? start.clientId : undefined;
 
   const state = randomValue();
   const nonce = randomValue();
@@ -403,8 +411,8 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     const cb = await listener.result;
 
     // Keep the issued registration even if the one-time code fails below.
-    const registration: StoredSignIn = sameIssuer && previous
-      ? { ...previous, clientId: cb.clientId, hostId }
+    const registration: StoredSignIn = sameIssuer
+      ? { ...start, clientId: cb.clientId, hostId }
       : { version: 1, issuer, hostId, clientId: cb.clientId };
     writeStoredSignIn(opts.file, registration);
 
@@ -430,11 +438,46 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
     if (!planUsage) {
       throw new SignInError('plan_not_granted', 'The sign-in did not grant use of your ChatGPT plan; sign in again and allow it.');
     }
-    const committed = await commitAtEpoch(opts.file, epoch, (current) => ({ ...withoutTokens(current), clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString() }));
-    if (!committed) throw superseded();
+    const committed = await commitAtEpoch(opts.file, epoch, (current) => ({ ...withoutTokens(current), clientId: cb.clientId, subject, ...fields, savedAt: new Date().toISOString(), epoch: epoch + 1 }));
+    if (!committed) {
+      await revokeDiscarded(opts.file, d, cb.clientId, fields.refreshToken);
+      throw superseded();
+    }
     return { subject, scopes: fields.scopes!, expiresAt: fields.expiresAt!, planUsage };
   } finally {
     listener.close();
+  }
+}
+
+/** Post a refresh token to the issuer's revocation endpoint; true once it confirms. */
+async function revokeAtIssuer(endpoint: string, refreshToken: string, clientId: string, attempts: number): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: refreshToken, token_type_hint: 'refresh_token', client_id: clientId }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => undefined);
+    await res?.body?.cancel().catch(() => undefined);
+    if (res?.status === 200) return true;
+    if (res && res.status < 500) break;
+  }
+  return false;
+}
+
+/**
+ * A freshly issued refresh token nobody will keep. With no tokens left in the
+ * file a sign-out won, and the issuer should not go on honoring this one; with
+ * tokens there it belongs to a newer session's account, and an issuer may
+ * revoke per client and account, so it is simply dropped.
+ */
+async function revokeDiscarded(file: string, d: Discovery, clientId: string, refreshToken: string | undefined): Promise<void> {
+  try {
+    if (!refreshToken || !d.revocation_endpoint || readStoredSignIn(file)?.refreshToken) return;
+    await revokeAtIssuer(d.revocation_endpoint, refreshToken, clientId, 1);
+  } catch {
+    // Best effort: the result is already discarded locally.
   }
 }
 
@@ -475,7 +518,9 @@ async function refreshOnce(file: string, s: StoredSignIn, opts: OAuthOptions): P
     const subject = await verifyIdToken(data.id_token, d, s.clientId);
     if (s.subject && subject !== s.subject) throw new SignInError('account_mismatch', 'The refreshed ChatGPT identity is a different account; sign in again.');
   }
-  return commitAtEpoch(file, epoch, (current) => (sameSession(current) ? { ...withoutTokens(current), ...fields, savedAt: new Date().toISOString() } : undefined));
+  const next = await commitAtEpoch(file, epoch, (current) => (sameSession(current) ? { ...withoutTokens(current), ...fields, savedAt: new Date().toISOString() } : undefined));
+  if (!next) await revokeDiscarded(file, d, s.clientId, fields.refreshToken);
+  return next;
 }
 
 const SKEW_MS = 120_000;
@@ -528,18 +573,7 @@ export async function signOut(file: string, opts: OAuthOptions = {}): Promise<{ 
   try {
     const d = await discover(opts);
     if (!d.revocation_endpoint || !s.clientId) return { hadTokens: true, revoked: false };
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await fetch(d.revocation_endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token: s.refreshToken, token_type_hint: 'refresh_token', client_id: s.clientId }),
-        redirect: 'error',
-        signal: AbortSignal.timeout(10_000),
-      }).catch(() => undefined);
-      await res?.body?.cancel().catch(() => undefined);
-      if (res?.status === 200) return { hadTokens: true, revoked: true };
-      if (res && res.status < 500) break;
-    }
+    return { hadTokens: true, revoked: await revokeAtIssuer(d.revocation_endpoint, s.refreshToken, s.clientId, 2) };
   } catch {
     // The local tokens are gone either way.
   }

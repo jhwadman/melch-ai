@@ -90,6 +90,8 @@ interface FakeAuth {
   tokenGate?: (form: Record<string, string>) => Promise<void>;
   /** Awaited before the JWKS answers: a delayed ID-token verification. */
   jwksGate?: () => Promise<void>;
+  /** Awaited before the discovery document answers. */
+  discoveryGate?: () => Promise<void>;
   issuedClientId: string;
   /** The browser: follow the URL like the consent page would. `state` overrides the state sent back. */
   browser: (opts?: { state?: string; scope?: string }) => (url: string) => Promise<void>;
@@ -143,6 +145,7 @@ async function fakeAuthServer(): Promise<FakeAuth> {
     const form = Object.fromEntries(new URLSearchParams(raw));
 
     if (url.pathname === '/.well-known/openid-configuration') {
+      await fake.discoveryGate?.();
       return json(200, {
         issuer: fake.issuer,
         authorization_endpoint: `${fake.issuer}/api/accounts/authorize`,
@@ -585,10 +588,12 @@ function assertNoTokens(file: string, fake: FakeAuth): void {
   assert.match(s.hostId, /^urn:uuid:/);
 }
 
-test('the epoch: a file without one reads as zero, and a sign-out advances it even with nothing to clear', async () => {
+test('the epoch: a file from before the field reads as zero, and a sign-out advances it even with nothing to clear', async () => {
   const fake = await fakeAuthServer();
   try {
-    const file = await signedIn(fake);
+    const file = credentialFile();
+    fakeStored(file, { issuer: fake.issuer });
+    assert.equal('epoch' in JSON.parse(readFileSync(file, 'utf-8')), false, 'written as an older engine writes it');
     assert.equal(credentialEpoch(readStoredSignIn(file)), 0);
     assert.equal(credentialEpoch(undefined), 0);
     assert.equal(credentialEpoch({ ...readStoredSignIn(file)!, epoch: -3 }), 0, 'a nonsense epoch reads as zero');
@@ -619,7 +624,7 @@ test('sign-out wins: a delayed refresh that comes back afterwards leaves no toke
     await refreshing;
 
     assertNoTokens(file, fake);
-    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    assert.equal(readStoredSignIn(file)!.epoch, before.epoch! + 1, 'the sign-out alone moved it');
     assert.equal(existsSync(`${file}.lock`), false, 'the commit lock is released');
     assert.equal(existsSync(`${file}.refresh.lock`), false, 'the refresh lease is released');
   } finally {
@@ -631,6 +636,7 @@ test('sign-out wins: during the browser exchange no tokens are stored', async ()
   const fake = await fakeAuthServer();
   try {
     const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
     const gate = checkpoint();
     fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? gate.wait() : Promise.resolve());
 
@@ -641,7 +647,7 @@ test('sign-out wins: during the browser exchange no tokens are stored', async ()
     await signing;
 
     assertNoTokens(file, fake);
-    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'the sign-out alone moved it');
   } finally {
     await fake.close();
   }
@@ -651,6 +657,7 @@ test('sign-out wins: during ID-token verification no tokens are stored', async (
   const fake = await fakeAuthServer();
   try {
     const file = await signedIn(fake);
+    const startEpoch = readStoredSignIn(file)!.epoch!;
     const gate = checkpoint();
     fake.jwksGate = () => gate.wait();
 
@@ -661,7 +668,168 @@ test('sign-out wins: during ID-token verification no tokens are stored', async (
     await signing;
 
     assertNoTokens(file, fake);
-    assert.equal(readStoredSignIn(file)!.epoch, 1);
+    assert.equal(readStoredSignIn(file)!.epoch, startEpoch + 1, 'the sign-out alone moved it');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-out with nothing stored writes nothing', async () => {
+  const file = credentialFile();
+  assert.deepEqual(await signOut(file, { issuer: 'http://127.0.0.1:1' }), { hadTokens: false, revoked: false });
+  assert.equal(existsSync(join(file, '..')), false, 'no directory, no lock, no file');
+});
+
+test('a result a sign-out beat is revoked at the issuer, so nothing stays alive remotely', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = await signedIn(fake);
+    const before = readStoredSignIn(file)!;
+    writeStoredSignIn(file, { ...before, expiresAt: Date.now() + 30_000 });
+    let minted: string | undefined;
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init: any) => {
+      const res = await original(input, init);
+      if (!String(input).endsWith('/oauth/token')) return res;
+      const body = (await res.clone().json()) as Record<string, string>;
+      minted = body.refresh_token;
+      return res;
+    }) as typeof fetch;
+    try {
+      const gate = checkpoint();
+      fake.tokenGate = () => gate.wait();
+      const refreshing = assert.rejects(freshAccessToken(file, { issuer: fake.issuer }), failsWith('not_signed_in'));
+      await gate.arrived;
+      await signOut(file, { issuer: fake.issuer });
+      gate.release();
+      await refreshing;
+    } finally {
+      globalThis.fetch = original;
+    }
+    assert.ok(minted && minted !== before.refreshToken);
+    assert.deepEqual(fake.revoked, [before.refreshToken, minted], 'the stored token, then the one the late refresh brought back');
+  } finally {
+    await fake.close();
+  }
+});
+
+// ── The lock's scope, and newer sign-ins ─────────────────────────────────────
+
+test('two concurrent sign-ins leave one set of tokens and one epoch advance', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const gates = [checkpoint(), checkpoint()];
+    let exchange = 0;
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? gates[exchange++].wait() : Promise.resolve());
+    const start = () => signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    const attempts = [start(), start()];
+    await Promise.all(gates.map((g) => g.arrived));
+
+    gates[0].release();
+    const first = await Promise.allSettled([attempts.shift()!]);
+    gates[1].release();
+    const second = await Promise.allSettled([attempts.shift()!]);
+    const settled = [...first, ...second];
+
+    assert.equal(settled.filter((r) => r.status === 'fulfilled').length, 1, 'one sign-in commits');
+    const lost = settled.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    assert.ok(failsWith('superseded')(lost.reason), 'the other reports it was replaced');
+
+    assert.equal(readStoredSignIn(file)!.epoch, 1, 'one advance, not two');
+    assert.equal(fake.authorizations[0].searchParams.get('ext_agent_host_id'), fake.authorizations[1].searchParams.get('ext_agent_host_id'), 'one host id for the installation');
+    assert.equal(readStoredSignIn(file)!.hostId, fake.authorizations[0].searchParams.get('ext_agent_host_id'));
+    assert.ok(readStoredSignIn(file)!.refreshToken);
+    assert.deepEqual(fake.revoked, [], 'the winner is not put at risk by revoking the loser');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the commit lock is never held across the browser wait or a network call', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    const lock = `${file}.lock`;
+    const lease = `${file}.refresh.lock`;
+    const held: Record<string, boolean> = {};
+
+    const discovery = checkpoint();
+    fake.discoveryGate = () => discovery.wait();
+    const browser = fake.browser();
+    const exchange = checkpoint();
+    const jwks = checkpoint();
+    fake.tokenGate = (form) => (form.grant_type === 'authorization_code' ? exchange.wait() : Promise.resolve());
+    fake.jwksGate = () => jwks.wait();
+    const signing = signIn({
+      file,
+      issuer: fake.issuer,
+      timeoutMs: 10_000,
+      openBrowser: async (url) => {
+        held.browser = existsSync(lock);
+        await browser(url);
+      },
+    });
+    await discovery.arrived;
+    held.discovery = existsSync(lock);
+    discovery.release();
+    await exchange.arrived;
+    held.exchange = existsSync(lock);
+    exchange.release();
+    await jwks.arrived;
+    held.verification = existsSync(lock);
+    jwks.release();
+    await signing;
+
+    writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+    fake.discoveryGate = undefined;
+    fake.jwksGate = undefined;
+    const refresh = checkpoint();
+    fake.tokenGate = () => refresh.wait();
+    const refreshing = freshAccessToken(file, { issuer: fake.issuer });
+    await refresh.arrived;
+    held.refresh = existsSync(lock);
+    assert.equal(existsSync(lease), true, 'the refresh lease is what spans the network');
+    refresh.release();
+    await refreshing;
+
+    assert.deepEqual(held, { discovery: false, browser: false, exchange: false, verification: false, refresh: false });
+  } finally {
+    await fake.close();
+  }
+});
+
+test('a newer sign-in: a late refresh or a late refusal leaves it alone, and the caller gets its token', async () => {
+  for (const answer of ['ok', 'invalid_grant']) {
+    const fake = await fakeAuthServer();
+    try {
+      const file = await signedIn(fake);
+      writeStoredSignIn(file, { ...readStoredSignIn(file)!, expiresAt: Date.now() + 30_000 });
+      fake.refreshAnswer = answer;
+      const gate = checkpoint();
+      fake.tokenGate = (form) => (form.grant_type === 'refresh_token' ? gate.wait() : Promise.resolve());
+      const refreshing = freshAccessToken(file, { issuer: fake.issuer });
+      await gate.arrived;
+      await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+      const newer = readStoredSignIn(file)!;
+      assert.equal(newer.epoch, 2, 'each committed sign-in advances once');
+      gate.release();
+      assert.equal(await refreshing, newer.accessToken, `the caller gets the newer session's token (${answer})`);
+      assert.deepEqual(readStoredSignIn(file), newer, `the file is untouched (${answer})`);
+    } finally {
+      await fake.close();
+    }
+  }
+});
+
+test('a sign-in refused inside a git work tree leaves no directory or lock behind', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const repo = tempDir('melch-chatgpt-repo-');
+    mkdirSync(join(repo, '.git'));
+    const file = join(repo, 'nested', 'chatgpt-signin.json');
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 }), /inside the git work tree/);
+    assert.equal(existsSync(join(repo, 'nested')), false);
   } finally {
     await fake.close();
   }
