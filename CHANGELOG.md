@@ -4,7 +4,7 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 1.15.5 — 2026-11-07
 
 **Added: `memory_preload_queries`, standing recall for a syndicate's core
 memory.** Up to 8 queries a long-term syndicate declares; before each
