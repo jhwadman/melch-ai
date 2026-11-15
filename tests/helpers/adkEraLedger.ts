@@ -1,12 +1,13 @@
 /**
  * tests/helpers/adkEraLedger.ts — what the parity suites set aside when they
  * compare the ledger against ADK's recorded rows: what the engine records
- * beyond them (ADR 0139). ADK's recording has none of it; tests/spanTree.test.ts,
- * tests/nativeLedger.test.ts and tests/postgresLedger.test.ts check its values.
+ * beyond them (ADR 0139, and the run key of ADR 0159). ADK's recording has none
+ * of it; tests/spanTree.test.ts, tests/nativeLedger.test.ts,
+ * tests/postgresLedger.test.ts and tests/runKey.test.ts check its values.
  */
 
-/** The span tree's columns and the cache counts. */
-export const SPAN_TREE_COLUMNS = ['parent_span_id', 'kind', 'error', 'cache_read_tokens', 'cache_write_tokens'];
+/** The span tree's columns, the cache counts and the run key. */
+export const SPAN_TREE_COLUMNS = ['parent_span_id', 'kind', 'error', 'cache_read_tokens', 'cache_write_tokens', 'run_id', 'run_step_span_id'];
 
 /** The cache counts, the finish reason and the recorded ledger parent. */
 export const SPAN_TREE_ATTRIBUTES = [

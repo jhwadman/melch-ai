@@ -15,9 +15,11 @@
  *                    and provenance (config_hash, engine_version).
  *     adk_telemetry  one row per span the ledger keeps — the turn's root, each
  *                    agent run, model step and provider call, tool call,
- *                    script run and call, workflow walk and node run — each
- *                    with its parent among them and its kind, so a turn's
- *                    span tree is stored (ADR 0139).
+ *                    script run and call, workflow walk and node run, and
+ *                    each step of a program's run — each with its parent
+ *                    among them and its kind, so a turn's span tree is
+ *                    stored (ADR 0139), and a run's steps with the key
+ *                    that ties its turns to them (run_id, ADR 0159).
  *     adk_payloads   full request/response per model call, captured by
  *                    POLICY and expiring. ADK's own call_llm spans carry the
  *                    assembled prompt and raw response, and the native
@@ -82,6 +84,8 @@ export interface TelemetryRow {
   kind: LedgerSpanKind | null;
   /** The span failed: an error status, an error code, a tool's error response. */
   error: boolean;
+  /** The run the span belongs to (`run.id`, ADR 0159): on a step, and on any other span the ledger keeps that was opened in a run and outside a turn; null on a turn's own spans, its root included. */
+  run_id: string | null;
   schema_version: number;
   span: Record<string, unknown>;
 }
@@ -132,6 +136,9 @@ export interface TurnRow {
   eval_case: string | null;
   eval_variant: string | null;
   eval_trial: number | null;
+  /** The run that started the turn (`run.id`) and the step of it that was active (`run.step_span_id`, a span id in the run's own trace); null for a turn outside a run (ADR 0159). */
+  run_id: string | null;
+  run_step_span_id: string | null;
   attributes: Record<string, unknown>;
   schema_version: number;
 }
@@ -364,6 +371,8 @@ export function toTelemetryRow(span: ReadableSpan): TelemetryRow {
     parent_span_id: ledgerParentOf(span),
     kind: ledgerSpanKind(span.name),
     error: spanFailed(span),
+    // A turn's root names its run in adk_turns; its own spans stay out of the run's rows here.
+    run_id: isRootSpan(span) ? null : str(attrs, 'run.id'),
     schema_version: TELEMETRY_SCHEMA_VERSION,
     span: spanJson(span),
   };
@@ -425,6 +434,8 @@ export function toTurnRow(span: ReadableSpan): TurnRow {
     eval_case: str(attrs, 'eval.case'),
     eval_variant: str(attrs, 'eval.variant'),
     eval_trial: typeof evalTrial === 'number' ? evalTrial : evalTrial ? Number(evalTrial) || null : null,
+    run_id: str(attrs, 'run.id'),
+    run_step_span_id: str(attrs, 'run.step_span_id'),
     attributes: attrs,
     schema_version: TELEMETRY_SCHEMA_VERSION,
   };
