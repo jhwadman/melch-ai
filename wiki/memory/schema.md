@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Memory & telemetry schema
-description: "The Postgres DDL shipped in db/, verbatim and in install order: the 25 numbered migrations (0001_base to 0025_task_claim_token), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
+description: "The Postgres DDL shipped in db/, verbatim and in install order: the 26 numbered migrations (0001_base to 0026_run_key), the telemetry ledger, the row-level-security hardening and the memory_v2 upgrade."
 tags:
   - schema
   - postgres
@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-11-08
+  at: 2026-11-15
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -36,6 +36,7 @@ sources:
   - resource: db/migrations/0023_memory_embedder.sql
   - resource: db/migrations/0024_image_model_pricing.sql
   - resource: db/migrations/0025_task_claim_token.sql
+  - resource: db/migrations/0026_run_key.sql
   - resource: db/telemetry.sql
   - resource: db/hardening.sql
   - resource: db/memory_v2.sql
@@ -2607,6 +2608,59 @@ ON CONFLICT (version) DO NOTHING;
 ```
 <!-- /wiki:generated -->
 
+<!-- wiki:generated section="migration-0026_run_key" source="db/migrations/0026_run_key.sql" -->
+## Migration 0026_run_key
+
+```sql
+-- ============================================================================
+-- 0026_run_key — the ledger ties a program's run to its steps and its turns
+--                (ADR 0159, extends ADR 0139)
+-- ============================================================================
+-- A run is a trace of steps (spans named `step.execute <name>`, kind 'step'
+-- in adk_telemetry; the root step has no parent). Every turn stays a trace
+-- of its own and names the run that started it:
+--   adk_telemetry.run_id        the run a span belongs to: on each step, and
+--                               on a model call made directly under one
+--                               (an llm.request outside any turn). NULL on a
+--                               turn's own spans.
+--   adk_turns.run_id            the run that started the turn
+--   adk_turns.run_step_span_id  the step of that run that was active when
+--                               the turn started: a span_id in the run's
+--                               trace, so a row of adk_telemetry
+-- The run id is the caller's own (a date, a job id) or a UUID. All three are
+-- NULL outside a run and on every row written before 0026. The partial
+-- indexes hold only rows that are in a run.
+--
+-- `kind` is plain TEXT with no check constraint (0016), so 'step' needs no
+-- change to it.
+--
+-- The ledger tables are optional: db/telemetry.sql creates them, after the
+-- migrations, and adds the same columns for a fresh install. This migration
+-- upgrades a ledger that already exists in place, and does nothing where
+-- there is none. An identifier a caller chose and a span id: no content of a
+-- turn. Idempotent; safe to re-run.
+-- ============================================================================
+
+DO $run_key$
+BEGIN
+  IF to_regclass('public.adk_turns') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS run_id           TEXT';
+    EXECUTE 'ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS run_step_span_id TEXT';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_adk_turns_run ON adk_turns (run_id, ts) WHERE run_id IS NOT NULL';
+  END IF;
+  IF to_regclass('public.adk_telemetry') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS run_id TEXT';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_adk_telemetry_run ON adk_telemetry (run_id, ts) WHERE run_id IS NOT NULL';
+  END IF;
+END
+$run_key$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (26, '0026_run_key')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
 <!-- wiki:generated section="telemetry-ddl" source="db/telemetry.sql" -->
 ## Telemetry ledger (optional)
 
@@ -2638,7 +2692,8 @@ ON CONFLICT (version) DO NOTHING;
 --   adk_telemetry  ONE ROW PER SPAN the ledger keeps — the turn's root, each
 --                  agent run, model step (model.call) and provider call
 --                  (llm.request), tool call, script run and call, workflow
---                  walk and node run — with its parent among them and its
+--                  walk and node run, and each step of a program's run (ADR
+--                  0159) — with its parent among them and its
 --                  kind, so the turn's span tree is stored (ADR 0139). Per-call
 --                  tokens, latency and the agent that made the call; a tool
 --                  call's arguments and the start of its result. Small; kept
@@ -2688,7 +2743,7 @@ CREATE INDEX IF NOT EXISTS idx_adk_telemetry_session ON adk_telemetry (session_i
 -- The span tree (migration 0016_span_tree, ADR 0139), for a fresh install;
 -- 0016 adds the same columns to a ledger that already exists:
 --   parent_span_id      the nearest ancestor span the ledger keeps; NULL for a root
---   kind                turn | agent | model | tool | script | node
+--   kind                turn | agent | model | tool | script | node | step
 --   error               the span failed (status, error code, a tool's error response)
 --   cache_read_tokens   parts of input_tokens read from / written to the
 --   cache_write_tokens  provider's prompt cache: one call's, or a root's sum
@@ -2701,6 +2756,15 @@ ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS error              BOOLEAN;
 ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
 ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
 CREATE INDEX IF NOT EXISTS idx_adk_telemetry_parent ON adk_telemetry (trace_id, parent_span_id);
+
+-- The run key (migration 0026_run_key, ADR 0159), for a fresh install; 0026
+-- adds the same column to a ledger that already exists:
+--   run_id   the run a span belongs to: on each of its steps (kind 'step',
+--            the root step has no parent) and on a model call made directly
+--            under one. NULL on a turn's own spans (the turn's row in
+--            adk_turns names its run) and on every row written before 0026.
+ALTER TABLE adk_telemetry ADD COLUMN IF NOT EXISTS run_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_adk_telemetry_run ON adk_telemetry (run_id, ts) WHERE run_id IS NOT NULL;
 
 -- ── adk_turns: one row per turn — the system of record ───────────────────
 CREATE TABLE IF NOT EXISTS adk_turns (
@@ -2761,6 +2825,12 @@ CREATE TABLE IF NOT EXISTS adk_turns (
 ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_read_tokens  INTEGER;
 ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER;
 
+-- The run that started the turn and the step of it that was active, a span
+-- id in the run's own trace (migration 0026_run_key, ADR 0159). NULL for a
+-- turn outside a run, and on every row written before 0026.
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS run_id           TEXT;
+ALTER TABLE adk_turns ADD COLUMN IF NOT EXISTS run_step_span_id TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_adk_turns_ts        ON adk_turns (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_trace     ON adk_turns (trace_id);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_session   ON adk_turns (session_id, ts);
@@ -2768,6 +2838,7 @@ CREATE INDEX IF NOT EXISTS idx_adk_turns_user      ON adk_turns (user_id, ts DES
 CREATE INDEX IF NOT EXISTS idx_adk_turns_syndicate ON adk_turns (syndicate, ts DESC);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_route     ON adk_turns (route);
 CREATE INDEX IF NOT EXISTS idx_adk_turns_eval_run  ON adk_turns (eval_run);
+CREATE INDEX IF NOT EXISTS idx_adk_turns_run       ON adk_turns (run_id, ts) WHERE run_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_adk_turns_search    ON adk_turns USING gin (search);
 
 -- ── Surface identity: WHERE the turn came from ───────────────────────────

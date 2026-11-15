@@ -4,6 +4,97 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 1.16.0 — 2026-11-15
+
+A minor release for observability: a program that runs several turns is
+recorded as a run of steps, and every turn names the run and the step that
+started it (ADR 0159). One additive migration, `0026_run_key`.
+
+**Apply the schema before upgrading the engine.** `npx melchizedek-db apply
+--telemetry` runs migration 0026 and `db/telemetry.sql`. The sinks write the
+new columns on every row, so a ledger without them refuses the rows (they
+are spooled to the dead-letter file, and `telemetry:replay` re-sends them
+once the schema is applied), and the A2A server refuses a database below
+the shipped schema version. Rolling upgrade, in this order: apply 0026
+(additive and nullable; 1.15 servers and workers keep running against it),
+then start the 1.16 servers. Rows written before keep NULL in every new
+column.
+
+**Fixed: a turn is always its own trace.** A turn started while the calling
+code had a span active became a child of that span and took its trace id, so
+two turns run under one span shared one trace. A turn's trace id keys its
+model time and call count, its per-model usage and so its price, its payload
+policy and its erasure, so those turns were mispriced, and erasing one's
+session deleted the other's rows. `traceAgentRun` now opens the turn's root
+span with `root: true`: every turn has a trace id of its own and no parent,
+whatever span is active around it. The `traceparent` option is unchanged (a
+link, never a parent). A caller who read a turn's spans as children of their
+own span no longer finds them there; inside a run, the run's key ties them
+(below).
+
+### Added
+
+- **`traceRun` and `traceStep`** (`lib/observability/run.ts`; from the
+  package index and at `melchizedek-agents/observability/run`).
+  `traceRun({ name, id?, meta? }, fn)` runs `fn` as a run: a root step in a
+  trace of its own, and a run context (an `AsyncLocalStorage`) for
+  everything `fn` starts. `traceStep(name, fn, { meta? })` runs `fn` as a
+  child of the step that is active; outside a run it is a run of its own.
+  A step is a span named `step.execute <name>` carrying `step.name`,
+  `run.id` and its labels as `meta.<key>`. Both return what `fn` returns; a
+  step whose `fn` throws is marked failed, with `error.type` (the error's
+  name), and rethrows. A step records no argument, no result and no error
+  message. A run's id is the caller's (a string of at most 256 characters,
+  refused when shaped like a key or token) or a UUID; a name is one line of
+  at most 128 characters (`MAX_STEP_NAME_CHARS`). `meta` follows the
+  metadata limits of 1.9.0 (key pattern, 256-character strings, numbers,
+  booleans, at most 32 keys, credential-shaped values dropped, strings
+  through the telemetry redactor); what is dropped is named in one warning,
+  by key (`stepMetaAttributes`). In a turn that opted out of tracing a
+  step records nothing and sets no run context. `currentRun()` returns
+  `{ id, name, traceId, stepSpanId }` inside a run. New types
+  `TraceRunOptions`, `TraceStepOptions`, `RunContext`.
+- **The run key on spans.** When a span starts inside a run: a turn's root
+  span gets `run.id`, `run.name` and `run.step_span_id` (the span id of the
+  step that was active); a step, and every other span the ledger keeps that
+  is opened outside a turn (an `llm.request` under a step, a script's
+  `script.invoke` and `script.call`), gets `run.id`. A turn's own spans get
+  none. A run's root step also carries `run.name` and, as it ends,
+  `run.llm_calls` and `run.models`: the model calls made directly in its
+  trace, which no turn counts. `melchizedek-agents/observability/runContext`
+  holds the context and the attribute names (`RUN_ID_ATTRIBUTE`,
+  `RUN_NAME_ATTRIBUTE`, `RUN_STEP_ATTRIBUTE`).
+- **`traceModelCall({ provider, model }, fn)`**: how a model call made
+  outside an agent is traced. `fn` makes the call and returns `{ result,
+  usage? }`, `usage` in the model contract's terms (`{ inputTokens,
+  outputTokens, thinkingTokens?, cacheReadTokens?, cacheWriteTokens? }`,
+  input and output each counting everything); `result` is returned. The
+  call gets the `llm.request` span and `adk_telemetry` row an agent's call
+  gets: under its step and carrying the run's id inside a run, priced by the
+  ledger when `model` is an id `model_pricing` holds. Inside a turn it counts
+  against the turn's step budget and stops with the turn; a refused call
+  throws (with the stop's `code`) without calling `fn`. No request or
+  response is recorded. New type `ModelCallOutcome`.
+- **The `step` kind and the run key in the ledger (migration
+  `0026_run_key`).** `ledgerSpanKind` returns `'step'` for `step.execute
+  <name>`, `LedgerSpanKind` gains `'step'`, and `STEP_SPAN_PREFIX` names the
+  prefix (`./observability/lineage`). `adk_turns` gains `run_id` and
+  `run_step_span_id`; `adk_telemetry` gains `run_id` (set on a run's steps
+  and direct calls, NULL on a turn's own rows, its root row included); both
+  get a partial index on `(run_id, ts) WHERE run_id IS NOT NULL`
+  (`idx_adk_turns_run`, `idx_adk_telemetry_run`). `TurnRow` gains `run_id`
+  and `run_step_span_id`, `TelemetryRow` gains `run_id`
+  (`./observability/supabaseSpanExporter`). `adk_telemetry.kind` is plain
+  text, so the new kind needs no constraint change, and
+  `TELEMETRY_SCHEMA_VERSION` stays 2, as it did for 0016's columns.
+
+### Unchanged
+
+- A script run keeps its shape and its own key (`script.run`); inside a run
+  its spans and its turns carry the run's key like any others.
+- A turn outside a run writes the rows it wrote before, with NULL in the
+  three new columns.
+
 ## 1.15.6 — 2026-11-08
 
 **Fixed: a background job can only be changed by the claim that holds it.**

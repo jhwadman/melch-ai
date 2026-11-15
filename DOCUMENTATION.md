@@ -766,7 +766,7 @@ full-text `search` column; `adk_telemetry` — one row per span of the
 turn's tree (the root, `agent.invoke`, `model.call`, `llm.request`,
 `tool.execute`, script and workflow spans), each with `parent_span_id`
 (the nearest ancestor that has a row), `kind` (`turn | agent | model |
-tool | script | node`) and `error` (migration 0016, ADR 0139); a tool
+tool | script | node | step`) and `error` (migration 0016, ADR 0139); a tool
 span carries `tool.args` and `tool.result` (redacted, then cut at 8 KB),
 and tokens sit on the `llm.request` rows and the root, never on a
 `model.call` row; and `adk_payloads` — full prompts and responses per model call,
@@ -800,6 +800,26 @@ them (migration 0017; NULL prices them as input), seeded for Anthropic and
 OpenAI from their price lists (ADR 0139). Migration 0019 adds DeepSeek (at
 its peak rate) and Moonshot Kimi rows; 0022 adds TypeSafe Jev (input only,
 output free).
+**A program's run.** A program that runs several turns records itself
+with `traceRun({ name, id?, meta? }, fn)` and `traceStep(name, fn, { meta? })`
+(from the package index, or `melchizedek-agents/observability/run`; ADR
+0159). A step is a span named `step.execute <name>` with a row of kind
+`step`; a run is a step with no parent, in a trace of its own. Every turn
+started inside one stays the root of its own trace (a turn never joins a
+span the calling code has active) and carries `run.id`, `run.name` and
+`run.step_span_id`, which the ledger keeps in `adk_turns.run_id` and
+`run_step_span_id`; steps, and model calls made directly under them,
+carry `adk_telemetry.run_id` (migration 0026, with partial indexes on
+`(run_id, ts)`). A step records its name, timing, failure and `meta.*`
+labels (the metadata limits above), never an argument, a result or an
+error message. **A model call outside an agent** is traced with
+`traceModelCall({ provider, model }, fn)`, where `fn` returns
+`{ result, usage? }` (`usage` as `{ inputTokens, outputTokens,
+thinkingTokens?, cacheReadTokens?, cacheWriteTokens? }`): it gets the
+`llm.request` row an agent's call gets, under its step, priced when
+`model` is an id `model_pricing` holds, and the run's root step counts it
+(`run.llm_calls`, `run.models`). Apply migration 0026 before an engine
+that writes these columns starts against a ledger.
 Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).

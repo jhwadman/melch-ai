@@ -102,6 +102,8 @@ export type { Metrics, TaskRecord } from './observability/metrics.ts';
 export { patternRedactor, redactRow, setTelemetryRedactor, telemetryRedactor } from './observability/redact.ts';
 export type { Redactor } from './observability/redact.ts';
 export type { Metadata, MetadataValue } from './observability/metadata.ts';
+export { currentRun, traceModelCall, traceRun, traceStep } from './observability/run.ts';
+export type { ModelCallOutcome, RunContext, TraceRunOptions, TraceStepOptions } from './observability/run.ts';
 export { RemoteA2AAgent, remoteAgentTool } from './a2a/remoteAgent.ts';
 export type { RemoteAnswer } from './a2a/remoteAgent.ts';
 
