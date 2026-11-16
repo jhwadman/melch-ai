@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-08"
+    "at": "2026-11-15"
   },
   "stats": {
-    "nodes": 1112,
-    "edges": 4414,
+    "nodes": 1118,
+    "edges": 4451,
     "byKind": {
-      "doc": 231,
+      "doc": 233,
       "provider": 8,
       "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 260,
+      "file": 262,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 219,
+      "module": 221,
       "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 882,
+      "links_to": 892,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1010,
-      "reads_table": 31,
+      "imports": 1018,
+      "reads_table": 33,
       "runs": 77,
-      "derives_from": 1325,
+      "derives_from": 1342,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3930,
+      "extracted": 3967,
       "inferred": 484
     },
     "isolated": 5
@@ -2344,6 +2344,18 @@
       }
     },
     {
+      "id": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "kind": "doc",
+      "label": "ADR 0159: A run is a trace of steps; a turn joins it by key",
+      "source": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 277
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2364,7 +2376,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 19985
+        "words": 20548
       }
     },
     {
@@ -2592,7 +2604,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2942
+        "words": 3024
       }
     },
     {
@@ -2628,7 +2640,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9713
+        "words": 9752
+      }
+    },
+    {
+      "id": "/overview/runs.md",
+      "kind": "doc",
+      "label": "Runs and steps",
+      "source": "/overview/runs.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1025
       }
     },
     {
@@ -5213,6 +5237,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0026_run_key.sql",
+      "kind": "file",
+      "label": "0026_run_key.sql",
+      "source": "db/migrations/0026_run_key.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -6173,6 +6204,13 @@
       "source": "tests/rlsStatus.test.ts"
     },
     {
+      "id": "file:tests/runKey.test.ts",
+      "kind": "file",
+      "label": "runKey.test.ts",
+      "source": "tests/runKey.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/scriptOrchestration.test.ts",
       "kind": "file",
       "label": "scriptOrchestration.test.ts",
@@ -6755,7 +6793,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 180
+        "lines": 182
       }
     },
     {
@@ -7178,7 +7216,7 @@
       "label": "lib/observability/lineage.ts",
       "source": "lib/observability/lineage.ts",
       "attrs": {
-        "lines": 181
+        "lines": 186
       }
     },
     {
@@ -7218,12 +7256,30 @@
       }
     },
     {
+      "id": "module:lib/observability/run.ts",
+      "kind": "module",
+      "label": "lib/observability/run.ts",
+      "source": "lib/observability/run.ts",
+      "attrs": {
+        "lines": 239
+      }
+    },
+    {
+      "id": "module:lib/observability/runContext.ts",
+      "kind": "module",
+      "label": "lib/observability/runContext.ts",
+      "source": "lib/observability/runContext.ts",
+      "attrs": {
+        "lines": 46
+      }
+    },
+    {
       "id": "module:lib/observability/supabaseSpanExporter.ts",
       "kind": "module",
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 705
+        "lines": 716
       }
     },
     {
@@ -7232,7 +7288,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 976
+        "lines": 1012
       }
     },
     {
@@ -19370,6 +19426,90 @@
       "evidence": "/decisions/0158-credential-lifecycle-epoch-and-owned-locks.md:29"
     },
     {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "file:db/migrations/0026_run_key.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "file:db/telemetry.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "file:tests/postgresLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "file:tests/runKey.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "module:lib/observability/run.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "module:lib/observability/runContext.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "/decisions/0043-link-inbound-trace-context.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md:31"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "/decisions/0139-the-ledger-keeps-the-span-tree.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md:31"
+    },
+    {
+      "from": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "to": "/overview/runs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md:35"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19770,6 +19910,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0026_run_key.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19780,21 +19927,21 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:46"
+      "evidence": "/memory/schema.md:47"
     },
     {
       "from": "/memory/schema.md",
       "to": "/decisions/0150-the-registry-follows-database-url.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:48"
+      "evidence": "/memory/schema.md:49"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3460"
+      "evidence": "/memory/schema.md:3531"
     },
     {
       "from": "/memory/sessions.md",
@@ -22486,6 +22633,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:64"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -22525,6 +22679,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:76"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/overview/runs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:64"
     },
     {
       "from": "/operations/setup.md",
@@ -23368,6 +23529,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:408"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -23386,6 +23554,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:67"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/overview/runs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:406"
     },
     {
       "from": "/overview/native-loop.md",
@@ -23435,6 +23610,76 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:76"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "file:db/migrations/0026_run_key.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "file:tests/runKey.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "module:lib/observability/run.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "module:lib/observability/runContext.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md frontmatter"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "/decisions/0141-metadata-and-the-task-state-hook.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md:73"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md:24"
+    },
+    {
+      "from": "/overview/runs.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/runs.md:85"
     },
     {
       "from": "/overview/script-orchestration.md",
@@ -28177,6 +28422,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/observability/run.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/project.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30024,6 +30276,62 @@
       "evidence": "lib/observability/redact.ts"
     },
     {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/observability/metadata.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/observability/runContext.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "table:adk_telemetry",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
+      "from": "module:lib/observability/run.ts",
+      "to": "table:model_pricing",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/observability/run.ts"
+    },
+    {
       "from": "module:lib/observability/supabaseSpanExporter.ts",
       "to": "module:lib/observability/lineage.ts",
       "rel": "imports",
@@ -30145,6 +30453,13 @@
     {
       "from": "module:lib/observability/tracer.ts",
       "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/tracer.ts"
+    },
+    {
+      "from": "module:lib/observability/tracer.ts",
+      "to": "module:lib/observability/runContext.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/observability/tracer.ts"

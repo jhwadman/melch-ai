@@ -2,6 +2,7 @@ import { trace, context, defaultTextMapGetter, ROOT_CONTEXT, INVALID_SPAN_CONTEX
 import type { Context, Span, SpanContext, SpanOptions } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
 import { ADK_SPAN_SCOPE, LEDGER_PARENT_ATTRIBUTE, RUNTIME_SPAN_SCOPE, TELEMETRY_SCHEMA_VERSION, agentOfSpanName, engineVersion, isModelCallSpan, isToolSpanName, ledgerSpanKind } from './lineage.ts';
+import { RUN_ID_ATTRIBUTE, RUN_NAME_ATTRIBUTE, RUN_STEP_ATTRIBUTE, currentRun } from './runContext.ts';
 import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
 import { telemetryRedactor } from './redact.ts';
 import { chargeLlmCall, chargeTokens, turnUntraced } from '../runtime/turnControl.ts';
@@ -285,9 +286,26 @@ class SpanLineageProcessor {
     // now: an ancestor's entry is gone once it ends, and the exporter sees
     // the span only after that (ADR 0139). Recorded only when it differs
     // from the direct parent, which the span carries itself.
-    if (ledgerSpanKind(span.name) !== null) {
+    const kind = ledgerSpanKind(span.name);
+    if (kind !== null) {
       const ledgerParent = ledgerAncestor(parent);
       if (ledgerParent && ledgerParent !== parent) span.setAttribute(LEDGER_PARENT_ATTRIBUTE, ledgerParent);
+      // The run key (ADR 0159), read from the run context now, in the code
+      // that opened the span: a turn's root names its run and the step that
+      // started it; any other span the ledger keeps names its run when it is
+      // not part of a turn (a step, a model call made directly under one, a
+      // script's own spans). A turn's own spans carry no run key: the turn does.
+      const run = currentRun();
+      if (run) {
+        if (kind === 'turn') {
+          span.setAttribute(RUN_ID_ATTRIBUTE, run.id);
+          span.setAttribute(RUN_NAME_ATTRIBUTE, run.name);
+          span.setAttribute(RUN_STEP_ATTRIBUTE, run.stepSpanId);
+        } else if (span.attributes?.[RUN_ID_ATTRIBUTE] === undefined && !insideTurn(parent)) {
+          // A step names its own run when it opens (a run started inside a run is its own).
+          span.setAttribute(RUN_ID_ATTRIBUTE, run.id);
+        }
+      }
     }
     // The model-call span (the loop's model.call, ADK's call_llm before 1.0.0: the one
     // carrying the full request/response payloads) learns its agent the same
@@ -355,6 +373,18 @@ function ledgerAncestor(spanId: string | undefined): string | undefined {
     cursor = entry.parent;
   }
   return spanId;
+}
+
+/** True when `spanId` or one of its ancestors still open is a turn's root span. */
+function insideTurn(spanId: string | undefined): boolean {
+  let cursor = spanId;
+  for (let depth = 0; cursor && depth < 32; depth++) {
+    const entry = spanLineage.get(cursor);
+    if (!entry) return false;
+    if (ledgerSpanKind(entry.name) === 'turn') return true;
+    cursor = entry.parent;
+  }
+  return false;
 }
 
 /** Name of the agent of the nearest enclosing agent span (ADK's `invoke_agent`, the loop's `agent.invoke`), or null. */
@@ -480,6 +510,8 @@ export interface TraceMetadata {
    * span (and records `caller.trace_id`) instead of joining its trace: a turn's
    * trace id keys its ledger attribution, its in-process stats and erasure,
    * so it must stay unique to the turn and never be chosen by a caller.
+   * The same holds for a span active in the calling code: the turn's root
+   * span is always the root of a new trace (ADR 0159).
    * Ignored unless well formed (validTraceparent).
    */
   traceparent?: string;
@@ -572,10 +604,14 @@ export async function* traceAgentRun(
   initializeTracing();
 
   const caller = callerSpanContext(metadata.traceparent);
-  const span = tracer.startSpan(
-    `Syndicate Execution: ${metadata.syndicateName}`,
-    caller ? { links: [{ context: caller }], attributes: { 'caller.trace_id': caller.traceId } } : undefined,
-  );
+  // Always the root of a new trace, whatever span is active in the calling
+  // code: a turn's trace id keys its stats, its pricing, its payload policy
+  // and its erasure, so two turns never share one (ADR 0159). A turn started
+  // inside a run is tied to it by the run key the lineage processor stamps.
+  const span = tracer.startSpan(`Syndicate Execution: ${metadata.syndicateName}`, {
+    root: true,
+    ...(caller ? { links: [{ context: caller }], attributes: { 'caller.trace_id': caller.traceId } } : {}),
+  });
   turnContexts.set(span.spanContext().traceId, {
     sessionId: metadata.sessionId,
     userId: metadata.userId,

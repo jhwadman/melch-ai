@@ -110,6 +110,22 @@ console.log(result.status, result.text);
 
 A served syndicate also takes end-user ratings at `POST /feedback` (`{ traceId | taskId, score: 'up' | 'down' | 1–5, comment?, userId? }`, into the ledger's `adk_labels`; `melchizedek-agents/a2a/feedback`, ADR 0140), and `budgets(config, { onBudgetState, hardStop })` from `melchizedek-agents/a2a/policy` mirrors each caller's spend and takes an outside stop. On Postgres, `melchizedek_task_queue` (migration 0018) is the job queue's read model and `postgresStorage().retryTask(owner, id)` its Retry.
 
+A program that runs several turns (a pipeline, a batch job) records itself as a run: `traceRun({ name, id }, fn)` and `traceStep(name, fn)` open step spans the ledger keeps, and every turn started inside them is tied to its run and step (`adk_turns.run_id`, `run_step_span_id`; ADR 0159). A model call made outside an agent is traced with `traceModelCall({ provider, model }, fn)`, where `fn` returns `{ result, usage }`: it gets the same `llm.request` row and price an agent's call gets.
+
+```typescript
+import { runSyndicateTurn, traceModelCall, traceRun, traceStep } from 'melchizedek-agents';
+
+await traceRun({ name: 'daily', id: '2026-11-15' }, async () => {
+  await traceStep('collect', () => runSyndicateTurn({ config, parts, appName, userId, sessionId }));
+  await traceStep('label', () =>
+    traceModelCall({ provider: 'gemini', model: 'gemini-3.5-flash-lite' }, async () => {
+      const response = await myProviderCall();
+      return { result: response.text, usage: { inputTokens: response.inputTokens, outputTokens: response.outputTokens } };
+    }),
+  );
+});
+```
+
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 
 ### Custom Tools and Guards

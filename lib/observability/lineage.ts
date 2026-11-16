@@ -68,16 +68,20 @@ export function isModelCallSpan(name: string, scope: string): boolean {
 }
 
 /** What a span the ledger keeps is, as `adk_telemetry.kind` records it (ADR 0139). */
-export type LedgerSpanKind = 'turn' | 'agent' | 'model' | 'tool' | 'script' | 'node';
+export type LedgerSpanKind = 'turn' | 'agent' | 'model' | 'tool' | 'script' | 'node' | 'step';
+
+/** The name of a step's span: `step.execute <name>` (lib/observability/run.ts, ADR 0159). */
+export const STEP_SPAN_PREFIX = 'step.execute ';
 
 /**
  * The kind of a span the ledger keeps a row for, from its name, else null:
  * the turn's root (`Syndicate Execution: <name>`), an agent's run
  * (`agent.invoke`), a model step and each provider call in it (`model.call`,
  * `llm.request`), a tool call (`tool.execute`), a script's run and calls
- * (`script.invoke`, `script.call`), and a workflow's walk and node runs
- * (`workflow.invoke`, `node.execute`). Every other span (a credential
- * refresh, a library's own) stays out of the ledger.
+ * (`script.invoke`, `script.call`), a workflow's walk and node runs
+ * (`workflow.invoke`, `node.execute`), and a step of a program's run
+ * (`step.execute`, ADR 0159). Every other span (a credential refresh, a
+ * library's own) stays out of the ledger.
  */
 export function ledgerSpanKind(name: string): LedgerSpanKind | null {
   if (name.startsWith('Syndicate Execution: ')) return 'turn';
@@ -86,6 +90,7 @@ export function ledgerSpanKind(name: string): LedgerSpanKind | null {
   if (name.startsWith('tool.execute ')) return 'tool';
   if (name.startsWith('script.invoke ') || name.startsWith('script.call ')) return 'script';
   if (name.startsWith('workflow.invoke ') || name.startsWith('node.execute ')) return 'node';
+  if (name.startsWith(STEP_SPAN_PREFIX)) return 'step';
   return null;
 }
 

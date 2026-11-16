@@ -326,3 +326,50 @@ test('a 1.8 ledger upgrades in place: 0016 and 0017 add the columns, old rows ke
     await db.close();
   }
 });
+
+test('a 1.15 ledger upgrades in place: 0026 adds the run key and its partial indexes, old rows keep NULL, re-running is a no-op, and it does nothing where there is no ledger', async () => {
+  const db = await PGlite.create({ extensions: { vector } });
+  try {
+    const migrations = INSTALL.filter((f) => f.startsWith('db/migrations/'));
+    const before26 = migrations.filter((f) => Number(f.match(/(\d{4})_/)![1]) < 26);
+    const from26 = migrations.filter((f) => !before26.includes(f));
+    const cols = async (table: string) =>
+      (await db.query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_name = $1`, [table])).rows.map((r) => r.column_name);
+
+    // No ledger: the migration records itself and creates nothing.
+    for (const f of [...before26, 'db/hardening.sql']) await db.exec(readFileSync(f, 'utf-8'));
+    await db.exec(readFileSync('db/migrations/0026_run_key.sql', 'utf-8'));
+    assert.deepEqual(await cols('adk_turns'), []);
+    assert.deepEqual(await cols('adk_telemetry'), []);
+    await db.exec(`DELETE FROM melchizedek_schema_version WHERE version = 26`);
+
+    // The ledger as 1.15 leaves it: telemetry.sql without the run key, and a row in each table.
+    const telemetry = readFileSync('db/telemetry.sql', 'utf-8');
+    const telemetry115 = telemetry.split('\n').filter((line) => !/^(ALTER TABLE adk_(turns|telemetry) ADD COLUMN IF NOT EXISTS run_|CREATE INDEX IF NOT EXISTS idx_adk_(turns|telemetry)_run )/.test(line)).join('\n');
+    await db.exec(telemetry115);
+    for (const table of ['adk_turns', 'adk_telemetry']) assert.ok(!(await cols(table)).some((c) => c.startsWith('run_')), `${table} is 1.15's`);
+    await db.exec(`INSERT INTO adk_telemetry (trace_id, span_id, span_name, span) VALUES ('t-old', 's-old', 'llm.request', '{}')`);
+    await db.exec(`INSERT INTO adk_turns (ts, trace_id, span_id, syndicate) VALUES (now(), 't-old', 's-old', 'Old')`);
+
+    for (let i = 0; i < 2; i++) for (const f of [...from26, 'db/hardening.sql']) await db.exec(readFileSync(f, 'utf-8'));
+    for (const c of ['run_id', 'run_step_span_id']) assert.ok((await cols('adk_turns')).includes(c), c);
+    assert.ok((await cols('adk_telemetry')).includes('run_id'));
+    assert.ok(!(await cols('adk_telemetry')).includes('run_step_span_id'));
+    const indexes = (await db.query<{ indexname: string; indexdef: string }>(`SELECT indexname, indexdef FROM pg_indexes WHERE indexname IN ('idx_adk_turns_run', 'idx_adk_telemetry_run') ORDER BY indexname`)).rows;
+    assert.deepEqual(indexes.map((i) => i.indexname), ['idx_adk_telemetry_run', 'idx_adk_turns_run']);
+    for (const i of indexes) assert.match(i.indexdef, /\(run_id, ts\) WHERE \(run_id IS NOT NULL\)/, i.indexname);
+    assert.deepEqual((await db.query(`SELECT run_id, run_step_span_id FROM adk_turns WHERE span_id = 's-old'`)).rows[0], { run_id: null, run_step_span_id: null });
+    assert.deepEqual((await db.query(`SELECT run_id FROM adk_telemetry WHERE span_id = 's-old'`)).rows[0], { run_id: null });
+    const versions = (await db.query<{ version: number; name: string }>(`SELECT version, name FROM melchizedek_schema_version WHERE version = 26`)).rows;
+    assert.deepEqual(versions.map((v) => [v.version, v.name]), [[26, '0026_run_key']]);
+
+    // telemetry.sql after it is a no-op for the run key, and a step's row and a turn's row take the new columns.
+    await db.exec(telemetry);
+    await db.exec(`INSERT INTO adk_telemetry (trace_id, span_id, span_name, kind, error, run_id, span) VALUES ('t-run', 's-step', 'step.execute collect', 'step', false, '2026-11-15', '{}')`);
+    await db.exec(`INSERT INTO adk_turns (ts, trace_id, span_id, syndicate, run_id, run_step_span_id) VALUES (now(), 't-turn', 's-turn', 'New', '2026-11-15', 's-step')`);
+    const joined = (await db.query<{ span_name: string }>(`SELECT s.span_name FROM adk_turns t JOIN adk_telemetry s ON s.run_id = t.run_id AND s.span_id = t.run_step_span_id WHERE t.run_id = '2026-11-15'`)).rows;
+    assert.deepEqual(joined, [{ span_name: 'step.execute collect' }]);
+  } finally {
+    await db.close();
+  }
+});
