@@ -16,7 +16,7 @@ This file lives in both places and is identical in both.
 ```text
 Set up the melchizedek-agents framework on this machine.
 
-1. Check prerequisites: `node --version` must be 22 or newer. If it
+1. Check prerequisites: `node --version` must be 22.6 or newer. If it
    isn't, stop and tell me before doing anything else.
 2. Clone and install:
      git clone https://github.com/jhwadman/melch-ai.git
