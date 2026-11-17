@@ -15,7 +15,7 @@ are the two most common paths spelled out.
 
 ## 1. Prerequisites
 
-- **Node.js 22+** (the CLI uses `--experimental-strip-types` to run
+- **Node.js 22.6+** (the CLI uses `--experimental-strip-types` to run
   TypeScript directly — no build step).
 - **A Google AI Studio API key** — free at
   [aistudio.google.com](https://aistudio.google.com). This powers all
