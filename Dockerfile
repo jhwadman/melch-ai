@@ -12,7 +12,7 @@
 # ALLOW_UNAUTHENTICATED=true) — the server refuses otherwise.
 
 # Base image pinned by digest (Dependabot's docker ecosystem proposes updates).
-FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
+FROM node:26-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts: the package's own `prepare` is the build, which needs the
@@ -21,7 +21,7 @@ RUN npm ci --ignore-scripts
 COPY . .
 RUN npm run build
 
-FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS runtime
+FROM node:26-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS runtime
 ENV NODE_ENV=production \
     PORT=4000 \
     HOST=0.0.0.0
