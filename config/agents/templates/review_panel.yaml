@@ -79,7 +79,7 @@ variables:
     If you find nothing, reply "no findings" and one sentence on what you checked.
 orchestrator:
   name: Chair
-  model: gemini-3.8-flash
+  model: gemini-4-hydrogen
   instruction: |
     The current date is {{current_date}}.
 
@@ -115,7 +115,7 @@ orchestrator:
 subagents:
   - name: Correctness
     description: "Reviews whether a change does what its stated intent claims, and only that, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     instruction: |
       You are the panel's CORRECTNESS reviewer. You judge whether a proposed change does what its stated intent claims, and only that. Security, data, cost, rollout and rollback belong to the other reviewers; leave them out.
 
@@ -132,10 +132,10 @@ subagents:
       {{finding_format}}
     reasoning: medium
     sampling:
-      max_output_tokens: 2048
+      max_output_tokens: 4096
   - name: Risk
     description: "Reviews a change for security, data, privacy, cost and blast radius, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     instruction: |
       You are the panel's RISK reviewer. You judge what a proposed change could harm: security, data, privacy, cost and blast radius. Whether it meets its intent, and how it rolls out, belong to the other reviewers; leave them out.
 
@@ -155,7 +155,7 @@ subagents:
       {{finding_format}}
     reasoning: medium
     sampling:
-      max_output_tokens: 2048
+      max_output_tokens: 4096
   - name: Operability
     description: "Reviews a change for rollout, rollback, migration and observability, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
     model: gemini-3.5-flash-lite

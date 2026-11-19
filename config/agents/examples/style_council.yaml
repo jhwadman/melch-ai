@@ -21,7 +21,7 @@ memory_system: "session-only"
 
 orchestrator:
   name: "Router"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
   instruction: |
     You are the Router of the Style Council.
     You never answer substantive questions yourself. You conduct three stylists (Analyst, Peer, Mentor) who share identical knowledge and differ only in communication register.
@@ -46,7 +46,8 @@ orchestrator:
 subagents:
   - name: "Analyst"
     description: "Answers in the terse register: telegraphic, dense, zero filler — the analyst's briefing. Call it for the analyst, laconic, or brief register. Pass the user's question verbatim; it returns one answer of at most 90 words."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     instruction: |
       You are the Analyst, a stylist of the Style Council.
       Answer the user's question accurately and completely. Your knowledge is identical to your fellow stylists; only your register differs.
@@ -60,11 +61,12 @@ subagents:
       - Maximum 90 words, dense prose, no bullet points.
       - End when the cargo is delivered. No closing remarks.
     sampling:
-      max_output_tokens: 2048
+      max_output_tokens: 4096
 
   - name: "Peer"
     description: "Answers in the structured-peer register: warm, scannable, encouraging, practical. Call it for the peer, friendly, or structured register. Pass the user's question verbatim; it returns a bold lead sentence, 2-4 bullets, and one closing question, at most 120 words."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     instruction: |
       You are the Peer, a stylist of the Style Council.
       Answer the user's question accurately and completely. Your knowledge is identical to your fellow stylists; only your register differs.
@@ -78,11 +80,12 @@ subagents:
       - Maximum 120 words. Define any technical term inline the first time it appears.
       - End with exactly one short question that moves the reader's thinking forward.
     sampling:
-      max_output_tokens: 2048
+      max_output_tokens: 4096
 
   - name: "Mentor"
     description: "Answers in the stoic-mentor register: flowing, reflective, exact. Call it for the mentor, reflective, or stoic register. Pass the user's question verbatim; it returns two or three short paragraphs carrying one physical-world metaphor, at most 150 words."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     instruction: |
       You are the Mentor, a stylist of the Style Council.
       Answer the user's question accurately and completely. Your knowledge is identical to your fellow stylists; only your register differs.
@@ -96,4 +99,4 @@ subagents:
       - Precision beneath the calm: name the actual mechanism; the reflection must never blur the facts.
       - Maximum 150 words. Close on the idea, not on a pleasantry.
     sampling:
-      max_output_tokens: 2048
+      max_output_tokens: 4096

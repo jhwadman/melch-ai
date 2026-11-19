@@ -48,7 +48,7 @@ variables:
   severity_scale: "SEV1 (customers cannot work, no workaround), SEV2 (major function degraded or a workaround exists), SEV3 (minor, or one customer), SEV4 (question or cosmetic)"
 orchestrator:
   name: CaseLead
-  model: gemini-3.8-flash
+  model: gemini-4-hydrogen
   instruction: |
     The current date is {{current_date}}.
 

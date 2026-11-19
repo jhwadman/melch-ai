@@ -48,12 +48,13 @@ syndicate_name: "The Scriptorium"
 memory_system: "internal-only"
 
 variables:
-  illuminator_actor: "melchizedek/gemini-3.8-flash"
+  illuminator_actor: "melchizedek/gemini-4-hydrogen"
 
 orchestrator:
   name: "Armarius"
   description: "Keeper of the knowledge bundle: answers what the house knows via the Seeker, records what it learns via the Illuminator."
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
+  reasoning: medium
   instruction: |
     <prompt_instructions>
       <system_identity>
@@ -119,7 +120,7 @@ orchestrator:
       </safety_boundaries>
     </prompt_instructions>
   sampling:
-    max_output_tokens: 2048
+    max_output_tokens: 4096
 
 subagents:
   - name: "Seeker"
@@ -139,7 +140,8 @@ subagents:
 
   - name: "Illuminator"
     description: "Authors or revises one knowledge-bundle document per request, writing through the validated wiki_save gate (tools: wiki_map, wiki_search, wiki_read, wiki_links, wiki_save). Call it when the visitor asks for something to be recorded. Pass it one editorial instruction with all supplied facts. It reports the saved path, or the gate's rejection."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     tools: ["wiki_map", "wiki_search", "wiki_read", "wiki_links", "wiki_save"]
     instruction: |
       The current date is {{current_date}}.

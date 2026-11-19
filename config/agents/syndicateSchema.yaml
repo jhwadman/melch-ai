@@ -110,7 +110,7 @@ memory_extraction_rules: |
 # [optional] The model that distils this syndicate's turns into memory
 # records. Default: the deployment's MEMORY_EXTRACTION_MODEL. A cheaper model
 # for a chatty desk, a stronger one where a missed fact costs more.
-memory_extraction_model: "gemini-3.8-flash"
+memory_extraction_model: "gemini-4-hydrogen"
 
 # [optional] Days a fact in this syndicate's namespace is kept; older facts
 # are deleted once a day by the server. Needs memory_namespace: retention
@@ -242,7 +242,7 @@ dispatch:
 #   - A yaml_reference to a script syndicate runs its whole script as a
 #     subagent, a route or a node, its pauses reaching the turn.
 # script:
-#   models: ["gemini-3.8-flash", "claude-opus-5-5"]
+#   models: ["gemini-4-hydrogen", "claude-opus-5-5"]
 #   tools: ["web_extract", "publish"]
 #   require_approval: ["publish"]
 #   source: |

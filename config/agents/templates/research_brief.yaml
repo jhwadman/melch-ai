@@ -60,7 +60,7 @@ variables:
     SOURCES: one line per [n]: publisher · what the page is, in a few words taken from its notes · URL · page date.
 orchestrator:
   name: Editor
-  model: gemini-3.8-flash
+  model: gemini-4-hydrogen
   instruction: |
     The current date is {{current_date}}.
 
@@ -109,7 +109,7 @@ subagents:
     yaml_reference: research_desk.yaml
   - name: Writer
     description: "Writes the brief from the research notes it is given and returns only the brief. Pass the question and the desk's notes verbatim; on a revision, pass the draft and the verifier's list."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     instruction: |
       The current date is {{current_date}}.
 

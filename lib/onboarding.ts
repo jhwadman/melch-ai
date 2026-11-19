@@ -239,7 +239,7 @@ export const LEVELS: readonly Level[] = [
     },
     notes: [
       'Set only the one variable you have; leave the others blank. The doctor names, per file, the variable that would unblock it.',
-      'To run a shipped file on your provider, change its `model:` lines (for example `gemini-3.8-flash` to `claude-sonnet-4-6`); `doctor` then shows it ready.',
+      'To run a shipped file on your provider, change its `model:` lines (for example `gemini-4-hydrogen` to `claude-sonnet-4-6`); `doctor` then shows it ready.',
     ],
     skill: 'melchizedek-onboard-keys',
     detectable: true,

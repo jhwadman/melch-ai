@@ -200,7 +200,7 @@ subagents:
       max_output_tokens: 2048
   - name: account
     description: "Looks up or changes this customer's own records through the tools your systems expose over MCP. Replies to the customer; proposes any change they did not ask for in words and makes it only after their yes."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     mcp_server_url: "{{systems_mcp_url}}"
     instruction: |
       The current date is {{current_date}}. The product is {{product_name}}.

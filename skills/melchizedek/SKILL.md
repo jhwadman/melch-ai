@@ -151,7 +151,7 @@ CHAT_STREAMING=false npx melchizedek-chat --syndicate scribe -- "$(cat brief.md)
 - `Gemini API Key is not configured`: `.env` is missing or `GOOGLE_GENAI_API_KEY` is unset.
 - `Model not found` for a claude-*, gpt-*, grok-*, or kimi-* id: you did not set that provider's key, so the framework did not register the provider; run `npx melchizedek-doctor` to see the missing variable.
 - `OLLAMA_UNREACHABLE` for ollama/* ids: Ollama is not running, or you have not pulled the target model (`ollama list`).
-- `[400] Tool call context circulation is not enabled`: the agent uses a `model:` too old for agent transfer; update the agent to `gemini-3.8-flash` or newer.
+- `[400] Tool call context circulation is not enabled`: the agent uses a `model:` too old for agent transfer; update the agent to `gemini-4-hydrogen` (any Gemini 3 or later model works).
 - `Refusing to connect to private/loopback MCP host`: the SSRF guard blocked the connection; for a local MCP server, set `ALLOW_PRIVATE_MCP=true` in `.env`.
 - Sessions do not persist between runs: you did not set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, so the framework fell back to in-memory storage.
 

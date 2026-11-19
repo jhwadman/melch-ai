@@ -63,7 +63,7 @@ When something fails:
 - `Gemini API Key is not configured`: `.env` missing or GOOGLE_GENAI_API_KEY unset.
 - `Model not found` for a claude-*, gpt-*, grok-*, kimi-*, deepseek-* or jev-* id: that provider's key is not set, so the provider was not registered; the doctor names the variable.
 - `OLLAMA_UNREACHABLE` for ollama/* ids: Ollama is not running, or the model is not pulled (`ollama list`).
-- `[400] Tool call context circulation is not enabled`: the agent's `model:` is too old for agent transfer; use `gemini-3.8-flash` or newer.
+- `[400] Tool call context circulation is not enabled`: the agent's `model:` is too old for agent transfer; use `gemini-4-hydrogen` (any Gemini 3 or later model works).
 - `Refusing to connect to private/loopback MCP host`: the SSRF guard; for a local MCP server set `ALLOW_PRIVATE_MCP=true` in `.env`.
 - Sessions do not persist between runs: the Supabase variables are missing and the framework fell back to in-memory sessions.
 
