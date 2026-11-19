@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/systems_operator.yaml
 ---
@@ -23,9 +23,9 @@ Try it against the demo catalog: run `npm run mcp:demo`, then `ALLOW_PRIVATE_MCP
 
 <!-- wiki:generated section="composition" source="config/agents/templates/systems_operator.yaml" -->
 - memory: `session-only` · max_steps: 16
-- orchestrator: **Operator** (`gemini-3.8-flash`)
+- orchestrator: **Operator** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Systems | `gemini-3.8-flash` | — | `mcp_server_url` |
+| Systems | `gemini-4-hydrogen` | — | `mcp_server_url` |
 <!-- /wiki:generated -->

@@ -24,7 +24,7 @@ A syndicate orchestrates in one of four ways: DELEGATE (subagents as tools), pla
 
 ```yaml
 script:
-  models: ["gemini-3.8-flash", "claude-opus-5-5"]
+  models: ["gemini-4-hydrogen", "claude-opus-5-5"]
   tools: ["web_extract"]
   source: |
     export default async ({ message, transcript, agent, askUser, log }) => {

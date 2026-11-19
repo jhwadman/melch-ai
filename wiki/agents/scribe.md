@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-24
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/scribe.yaml
 ---
@@ -25,9 +25,9 @@ Run it one shot with `CHAT_STREAMING=false npm run syndicate:scribe -- "$(cat br
 Run: `npm run syndicate:scribe`
 
 - memory: `internal-only`
-- orchestrator: **Scribe** (`gemini-3.8-flash`)
+- orchestrator: **Scribe** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Auditor | `gemini-3.8-flash` | — | — |
+| Auditor | `gemini-4-hydrogen` | — | — |
 <!-- /wiki:generated -->

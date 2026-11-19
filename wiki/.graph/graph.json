@@ -2,18 +2,18 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-15"
+    "at": "2026-11-19"
   },
   "stats": {
-    "nodes": 1118,
-    "edges": 4451,
+    "nodes": 1122,
+    "edges": 4493,
     "byKind": {
-      "doc": 233,
+      "doc": 234,
       "provider": 8,
-      "env": 119,
+      "env": 120,
       "model": 13,
       "tool": 35,
-      "file": 262,
+      "file": 264,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
@@ -23,8 +23,8 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 892,
-      "requires_env": 183,
+      "links_to": 904,
+      "requires_env": 187,
       "routes_to": 13,
       "defined_in": 84,
       "documents": 61,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1018,
+      "imports": 1033,
       "reads_table": 33,
       "runs": 77,
-      "derives_from": 1342,
+      "derives_from": 1353,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3967,
+      "extracted": 4009,
       "inferred": 484
     },
     "isolated": 5
@@ -1020,7 +1020,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 108
+        "words": 124
       }
     },
     {
@@ -1236,7 +1236,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 128
+        "words": 139
       }
     },
     {
@@ -1644,7 +1644,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 136
+        "words": 151
       }
     },
     {
@@ -1680,7 +1680,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 121
+        "words": 136
       }
     },
     {
@@ -2356,6 +2356,18 @@
       }
     },
     {
+      "id": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "kind": "doc",
+      "label": "ADR 0160: Gemini 4 reads earlier turns as text; the placeholder signs its current turn",
+      "source": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 352
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2376,7 +2388,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 20548
+        "words": 20753
       }
     },
     {
@@ -2484,7 +2496,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3458
+        "words": 3983
       }
     },
     {
@@ -2508,7 +2520,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8717
+        "words": 8753
       }
     },
     {
@@ -2520,7 +2532,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 6552
+        "words": 6616
       }
     },
     {
@@ -2604,7 +2616,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 3024
+        "words": 3045
       }
     },
     {
@@ -2640,7 +2652,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9752
+        "words": 9791
       }
     },
     {
@@ -4466,6 +4478,12 @@
       "source": "lib/observability/tracer.ts"
     },
     {
+      "id": "env:OUTPUTS_DIR",
+      "kind": "env",
+      "label": "OUTPUTS_DIR",
+      "source": "scripts/gemini_engine_check.ts"
+    },
+    {
       "id": "env:PGDATABASE",
       "kind": "env",
       "label": "PGDATABASE",
@@ -4564,7 +4582,8 @@
       "id": "env:TELEMETRY_POSTGRES",
       "kind": "env",
       "label": "TELEMETRY_POSTGRES",
-      "source": "scripts/a2a_server.ts"
+      "source": "scripts/gemini_engine_check.ts",
+      "attrs": {}
     },
     {
       "id": "env:TELEMETRY_REDACT",
@@ -5244,6 +5263,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0027_gemini_4_pricing.sql",
+      "kind": "file",
+      "label": "0027_gemini_4_pricing.sql",
+      "source": "db/migrations/0027_gemini_4_pricing.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5732,6 +5758,12 @@
       "label": "gateway.test.ts",
       "source": "tests/gateway.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/gemini4.test.ts",
+      "kind": "file",
+      "label": "gemini4.test.ts",
+      "source": "tests/gemini4.test.ts"
     },
     {
       "id": "file:tests/geminiAdapter.test.ts",
@@ -6524,16 +6556,16 @@
       "source": "lib/config.ts (DEFAULT_GEMINI_MODEL)"
     },
     {
-      "id": "model:gemini-3.8-flash",
-      "kind": "model",
-      "label": "gemini-3.8-flash",
-      "source": "lib/config.ts (WIKI_AGENT_MODEL)"
-    },
-    {
       "id": "model:gemini-4-argon",
       "kind": "model",
       "label": "gemini-4-argon",
       "source": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "id": "model:gemini-4-hydrogen",
+      "kind": "model",
+      "label": "gemini-4-hydrogen",
+      "source": "lib/config.ts (WIKI_AGENT_MODEL)"
     },
     {
       "id": "model:gpt-5-mini",
@@ -6910,7 +6942,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 533
+        "lines": 527
       }
     },
     {
@@ -7036,7 +7068,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 998
+        "lines": 1036
       }
     },
     {
@@ -7045,7 +7077,7 @@
       "label": "lib/models/geminiState.ts",
       "source": "lib/models/geminiState.ts",
       "attrs": {
-        "lines": 58
+        "lines": 72
       }
     },
     {
@@ -7054,7 +7086,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 1136
+        "lines": 1140
       }
     },
     {
@@ -7135,7 +7167,7 @@
       "label": "lib/models/reasoning.ts",
       "source": "lib/models/reasoning.ts",
       "attrs": {
-        "lines": 129
+        "lines": 196
       }
     },
     {
@@ -7414,7 +7446,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 341
+        "lines": 359
       }
     },
     {
@@ -7468,7 +7500,7 @@
       "label": "lib/runtime/native/selfCorrection.ts",
       "source": "lib/runtime/native/selfCorrection.ts",
       "attrs": {
-        "lines": 407
+        "lines": 402
       }
     },
     {
@@ -7819,7 +7851,7 @@
       "label": "lib/tools/inspectImageTool.ts",
       "source": "lib/tools/inspectImageTool.ts",
       "attrs": {
-        "lines": 115
+        "lines": 118
       }
     },
     {
@@ -8116,7 +8148,7 @@
       "label": "lib/tools/xApiSearchTool.ts",
       "source": "lib/tools/xApiSearchTool.ts",
       "attrs": {
-        "lines": 663
+        "lines": 666
       }
     },
     {
@@ -8125,7 +8157,7 @@
       "label": "lib/wiki/agentRun.ts",
       "source": "lib/wiki/agentRun.ts",
       "attrs": {
-        "lines": 139
+        "lines": 145
       }
     },
     {
@@ -8404,7 +8436,7 @@
       "label": "scripts/gemini_engine_check.ts",
       "source": "scripts/gemini_engine_check.ts",
       "attrs": {
-        "lines": 259
+        "lines": 621
       }
     },
     {
@@ -12434,10 +12466,17 @@
     },
     {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "/models/provider-routing.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md:25"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md:27"
     },
     {
       "from": "/decisions/0047-provider-neutral-reasoning-key.md",
@@ -13492,6 +13531,13 @@
     {
       "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:27"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:27"
@@ -15619,6 +15665,13 @@
     },
     {
       "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:34"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15864,10 +15917,17 @@
     },
     {
       "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:31"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:33"
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:34"
     },
     {
       "from": "/decisions/0105-workflow-node-run-ceiling.md",
@@ -19510,6 +19570,111 @@
       "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md:35"
     },
     {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "file:db/migrations/0027_gemini_4_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "file:tests/gemini4.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/config.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "module:scripts/gemini_engine_check.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md frontmatter"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md:32"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md:32"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md:32"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md:32"
+    },
+    {
+      "from": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md:36"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -19917,6 +20082,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0027_gemini_4_pricing.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19927,21 +20099,21 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:47"
+      "evidence": "/memory/schema.md:48"
     },
     {
       "from": "/memory/schema.md",
       "to": "/decisions/0150-the-registry-follows-database-url.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:49"
+      "evidence": "/memory/schema.md:50"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:3531"
+      "evidence": "/memory/schema.md:3565"
     },
     {
       "from": "/memory/sessions.md",
@@ -20939,6 +21111,13 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:62"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -21559,6 +21738,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:42"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
@@ -23533,6 +23719,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:408"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0160-gemini-4-reads-earlier-turns-as-text.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
@@ -26007,7 +26200,7 @@
     },
     {
       "from": "agent:account_memory/AccountLead",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/account_memory.yaml"
@@ -26140,7 +26333,7 @@
     },
     {
       "from": "agent:cartographers/Cosmographer",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/cartographers.yaml"
@@ -26175,7 +26368,7 @@
     },
     {
       "from": "agent:cartographers/Surveyor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/cartographers.yaml"
@@ -26217,7 +26410,7 @@
     },
     {
       "from": "agent:case_desk/CaseLead",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/case_desk.yaml"
@@ -26294,7 +26487,7 @@
     },
     {
       "from": "agent:connectors/Desk",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/connectors.yaml"
@@ -26329,35 +26522,35 @@
     },
     {
       "from": "agent:critic/CriticAgent",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/critic.yaml"
     },
     {
       "from": "agent:critic/DrafterAgent",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/critic.yaml"
     },
     {
       "from": "agent:critic/ReviewOrchestrator",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/critic.yaml"
     },
     {
       "from": "agent:current_events/Arbiter",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/current_events.yaml"
     },
     {
       "from": "agent:current_events/WebResearcher",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/current_events.yaml"
@@ -26378,7 +26571,7 @@
     },
     {
       "from": "agent:current_events/XResearcher",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/current_events.yaml"
@@ -26399,28 +26592,28 @@
     },
     {
       "from": "agent:delegation/CodeExpert",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/delegation.yaml"
     },
     {
       "from": "agent:delegation/MathExpert",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/delegation.yaml"
     },
     {
       "from": "agent:delegation/RouterAgent",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/delegation.yaml"
     },
     {
       "from": "agent:draft_review/Drafter",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
@@ -26462,21 +26655,21 @@
     },
     {
       "from": "agent:harness/Harness",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/harness.yaml"
     },
     {
       "from": "agent:hierarchical/ProjectManager",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/hierarchical.yaml"
     },
     {
       "from": "agent:hierarchical/ResearcherAgent",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/hierarchical.yaml"
@@ -26490,14 +26683,14 @@
     },
     {
       "from": "agent:hierarchical/WriterAgent",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/hierarchical.yaml"
     },
     {
       "from": "agent:image_production/ImageDesigner",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/image_production.yaml"
@@ -26518,7 +26711,7 @@
     },
     {
       "from": "agent:image_production/SpecAuditor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/image_production.yaml"
@@ -26532,7 +26725,7 @@
     },
     {
       "from": "agent:librarian/Archivist",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/librarian.yaml"
@@ -26609,7 +26802,7 @@
     },
     {
       "from": "agent:patient_advocate/Asclepius",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/patient_advocate.yaml"
@@ -26651,21 +26844,21 @@
     },
     {
       "from": "agent:pipeline/Checker",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/pipeline.yaml"
     },
     {
       "from": "agent:pipeline/Editor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/pipeline.yaml"
     },
     {
       "from": "agent:pipeline/Planner",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/pipeline.yaml"
@@ -26679,7 +26872,7 @@
     },
     {
       "from": "agent:pipeline/Writer",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/pipeline.yaml"
@@ -26714,7 +26907,7 @@
     },
     {
       "from": "agent:research_brief/Editor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_brief.yaml"
@@ -26728,7 +26921,7 @@
     },
     {
       "from": "agent:research_brief/ResearchDesk",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_brief.yaml"
@@ -26742,7 +26935,7 @@
     },
     {
       "from": "agent:research_brief/Writer",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_brief.yaml"
@@ -26763,7 +26956,7 @@
     },
     {
       "from": "agent:research_desk/ResearchLead",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_desk.yaml"
@@ -26791,7 +26984,7 @@
     },
     {
       "from": "agent:research/landscape",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
@@ -26875,14 +27068,14 @@
     },
     {
       "from": "agent:review_panel/Chair",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/review_panel.yaml"
     },
     {
       "from": "agent:review_panel/Correctness",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/review_panel.yaml"
@@ -26896,35 +27089,35 @@
     },
     {
       "from": "agent:review_panel/Risk",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/review_panel.yaml"
     },
     {
       "from": "agent:scribe/Auditor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/scribe.yaml"
     },
     {
       "from": "agent:scribe/Scribe",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/scribe.yaml"
     },
     {
       "from": "agent:scriptorium/Armarius",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/scriptorium.yaml"
     },
     {
       "from": "agent:scriptorium/Illuminator",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/scriptorium.yaml"
@@ -27022,28 +27215,28 @@
     },
     {
       "from": "agent:style_council/Analyst",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/style_council.yaml"
     },
     {
       "from": "agent:style_council/Mentor",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/style_council.yaml"
     },
     {
       "from": "agent:style_council/Peer",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/style_council.yaml"
     },
     {
       "from": "agent:style_council/Router",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/style_council.yaml"
@@ -27057,7 +27250,7 @@
     },
     {
       "from": "agent:support_triage/account",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/support_triage.yaml"
@@ -27127,7 +27320,7 @@
     },
     {
       "from": "agent:systems_operator/Operator",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/systems_operator.yaml"
@@ -27141,7 +27334,7 @@
     },
     {
       "from": "agent:systems_operator/Systems",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/systems_operator.yaml"
@@ -27155,7 +27348,7 @@
     },
     {
       "from": "agent:weather/Forecaster",
-      "to": "model:gemini-3.8-flash",
+      "to": "model:gemini-4-hydrogen",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/weather.yaml"
@@ -27217,18 +27410,18 @@
       "evidence": "lib/config.ts (DEFAULT_GEMINI_MODEL)"
     },
     {
-      "from": "model:gemini-3.8-flash",
-      "to": "provider:gemini",
-      "rel": "routes_to",
-      "tier": "extracted",
-      "evidence": "lib/config.ts (WIKI_AGENT_MODEL)"
-    },
-    {
       "from": "model:gemini-4-argon",
       "to": "provider:gemini",
       "rel": "routes_to",
       "tier": "extracted",
       "evidence": "config/agents/templates/prompt_writer.yaml"
+    },
+    {
+      "from": "model:gemini-4-hydrogen",
+      "to": "provider:gemini",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "lib/config.ts (WIKI_AGENT_MODEL)"
     },
     {
       "from": "model:gpt-5-mini",
@@ -29297,6 +29490,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30103,6 +30303,13 @@
     {
       "from": "module:lib/models/reasoning.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/reasoning.ts"
+    },
+    {
+      "from": "module:lib/models/reasoning.ts",
+      "to": "module:lib/models/geminiState.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/reasoning.ts"
@@ -30936,6 +31143,13 @@
     {
       "from": "module:lib/runtime/native/compaction.ts",
       "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/compaction.ts"
@@ -32559,6 +32773,13 @@
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/inspectImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/inspectImageTool.ts",
       "to": "module:lib/paths.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -33329,6 +33550,13 @@
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/xApiSearchTool.ts"
+    },
+    {
+      "from": "module:lib/tools/xApiSearchTool.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -33351,6 +33579,13 @@
     {
       "from": "module:lib/wiki/agentRun.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/wiki/agentRun.ts"
@@ -34750,6 +34985,41 @@
     },
     {
       "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/memory/providers.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -34764,7 +35034,21 @@
     },
     {
       "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
       "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/runtime/native/compaction.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/gemini_engine_check.ts"
@@ -34792,6 +35076,13 @@
     },
     {
       "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
       "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -34806,6 +35097,13 @@
     },
     {
       "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/tools/inspectImageTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -34814,6 +35112,34 @@
     {
       "from": "module:scripts/gemini_engine_check.ts",
       "to": "env:GEMINI_ADAPTER",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "env:OTEL_CONSOLE_SPANS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "env:OUTPUTS_DIR",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "env:TELEMETRY_POSTGRES",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "env:TELEMETRY_SUPABASE",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/gemini_engine_check.ts"

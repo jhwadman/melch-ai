@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/current_events.yaml
 ---
@@ -23,10 +23,10 @@ XResearcher reads X through `x_api_search`, a client-side tool over the X API v2
 Run: `npm run syndicate:current-events`
 
 - memory: `session-only`
-- orchestrator: **Arbiter** (`gemini-3.8-flash`)
+- orchestrator: **Arbiter** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| XResearcher | `gemini-3.8-flash` | `x_api_search`, `web_extract` | — |
-| WebResearcher | `gemini-3.8-flash` | `web_search`, `web_extract` | — |
+| XResearcher | `gemini-4-hydrogen` | `x_api_search`, `web_extract` | — |
+| WebResearcher | `gemini-4-hydrogen` | `web_search`, `web_extract` | — |
 <!-- /wiki:generated -->

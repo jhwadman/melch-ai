@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/case_desk.yaml
 ---
@@ -23,7 +23,7 @@ Memory is `session-only`: the thread persists in the session store, so the same 
 
 <!-- wiki:generated section="composition" source="config/agents/templates/case_desk.yaml" -->
 - memory: `session-only` · max_steps: 16
-- orchestrator: **CaseLead** (`gemini-3.8-flash`)
+- orchestrator: **CaseLead** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

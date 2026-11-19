@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/hierarchical.yaml
 ---
@@ -21,10 +21,10 @@ The Hierarchical Task Decomposition syndicate handles complex user goals by brea
 Run: `npm run syndicate:hierarchical`
 
 - memory: `session-only`
-- orchestrator: **ProjectManager** (`gemini-3.8-flash`)
+- orchestrator: **ProjectManager** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| ResearcherAgent | `gemini-3.8-flash` | `google_search` | — |
-| WriterAgent | `gemini-3.8-flash` | — | — |
+| ResearcherAgent | `gemini-4-hydrogen` | `google_search` | — |
+| WriterAgent | `gemini-4-hydrogen` | — | — |
 <!-- /wiki:generated -->

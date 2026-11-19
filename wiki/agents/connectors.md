@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-09
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/connectors.yaml
 ---
@@ -21,7 +21,7 @@ The header comment and a commented entry show an official remote MCP server reac
 
 <!-- wiki:generated section="composition" source="config/agents/examples/connectors.yaml" -->
 - memory: `internal-only`
-- orchestrator: **Desk** (`gemini-3.8-flash`)
+- orchestrator: **Desk** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

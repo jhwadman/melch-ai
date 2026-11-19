@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/critic.yaml
 ---
@@ -23,10 +23,10 @@ The loop runs within a single user-facing turn. If the confidence score is below
 Run: `npm run syndicate:critic`
 
 - memory: `session-only`
-- orchestrator: **ReviewOrchestrator** (`gemini-3.8-flash`)
+- orchestrator: **ReviewOrchestrator** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| DrafterAgent | `gemini-3.8-flash` | — | — |
-| CriticAgent | `gemini-3.8-flash` | — | — |
+| DrafterAgent | `gemini-4-hydrogen` | — | — |
+| CriticAgent | `gemini-4-hydrogen` | — | — |
 <!-- /wiki:generated -->

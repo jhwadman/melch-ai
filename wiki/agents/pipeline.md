@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/pipeline.yaml
 ---
@@ -21,7 +21,7 @@ The Editorial Pipeline is the starter pack's specimen of the third orchestration
 Run: `npm run syndicate:pipeline`
 
 - memory: `internal-only`
-- orchestrator: **Planner** (`gemini-3.8-flash`)
+- orchestrator: **Planner** (`gemini-4-hydrogen`)
 - workflow (a graph; the orchestrator is a node):
   - `START → Planner → { article: [Writer, Checker], default: Answerer }`
   - `[Writer, Checker] → Both → Editor → Confirm → Publisher`
@@ -33,9 +33,9 @@ Run: `npm run syndicate:pipeline`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Writer | `gemini-3.8-flash` | — | — |
-| Checker | `gemini-3.8-flash` | — | — |
-| Editor | `gemini-3.8-flash` | — | — |
+| Writer | `gemini-4-hydrogen` | — | — |
+| Checker | `gemini-4-hydrogen` | — | — |
+| Editor | `gemini-4-hydrogen` | — | — |
 | Publisher | `gemini-3.5-flash-lite` | — | — |
 | Answerer | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->
