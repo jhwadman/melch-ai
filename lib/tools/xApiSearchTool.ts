@@ -61,6 +61,7 @@ import { z } from 'zod';
 
 import { asTool, defineTool } from './toolContract.ts';
 import { credentialValue } from '../models/credentialSource.ts';
+import { internalThinkingConfig } from '../models/reasoning.ts';
 
 export const X_API_SEARCH_TOOL_NAME = 'x_api_search';
 
@@ -285,6 +286,8 @@ async function geminiTranscribe(bytes: Uint8Array, mimeType: string, model: stri
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model,
+    // A transcription: `low` on a model that thinks high by default (Gemini 4).
+    ...(internalThinkingConfig(model, 'low') ? { config: internalThinkingConfig(model, 'low') } : {}),
     contents: [
       {
         role: 'user',

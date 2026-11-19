@@ -29,7 +29,7 @@
  *     Any other response resets the agent's count.
  *   - ON A GEMINI MODEL the stored reflection call is signed (ADR 0103), where
  *     ADK's plugin stores it unsigned: it carries the replaced response's
- *     thoughtSignature, or on Gemini 3 Gemini's documented placeholder when
+ *     thoughtSignature, or on Gemini 3 and later Gemini's documented placeholder when
  *     the response had none (a MALFORMED_FUNCTION_CALL has no parts). Gemini 3
  *     rejects the next request with an unsigned current-turn call (400,
  *     "missing a thought_signature"), which ADK's plugin did not avoid. This
@@ -63,7 +63,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { LlmResponse } from '../../models/genaiMapping.ts';
 
-import { GEMINI_PROVIDER, PLACEHOLDER_THOUGHT_SIGNATURE } from '../../models/geminiState.ts';
+import { GEMINI_PROVIDER, PLACEHOLDER_THOUGHT_SIGNATURE, geminiMajorVersion } from '../../models/geminiState.ts';
 import type { Tool } from '../../tools/tool.ts';
 
 // ── The settings ─────────────────────────────────────────────────────────────
@@ -134,18 +134,13 @@ export interface ReflectionSigning {
  * How self-correction signs the reflection call it stores in place of this
  * adapter's response, or undefined to store it unsigned, as ADK's plugin
  * does. A Gemini adapter's call carries the replaced response's signature;
- * on a Gemini 3 model, whose API rejects an unsigned current-turn call, the
- * placeholder stands in when there was none.
+ * on Gemini 3 and later, whose API rejects an unsigned current-turn call
+ * (400) and takes the placeholder there (confirmed live on Gemini 4, ADR
+ * 0160), the placeholder stands in when there was none.
  */
 export function reflectionSigning(adapter: { readonly provider: string }, model: string | undefined): ReflectionSigning | undefined {
   if (adapter.provider !== GEMINI_PROVIDER) return undefined;
-  return isGemini3(model) ? { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE } : {};
-}
-
-/** A Gemini 3 model id, bare or under a resource path (`models/…`, `publishers/google/models/…`). */
-function isGemini3(model: string | undefined): boolean {
-  if (!model) return false;
-  return model.slice(model.lastIndexOf('/') + 1).startsWith('gemini-3');
+  return geminiMajorVersion(model) >= 3 ? { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE } : {};
 }
 
 /** The signature the replaced response carried: its first call's, else its first signed part's. */

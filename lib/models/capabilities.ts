@@ -26,6 +26,7 @@ import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
 import { claudeGeneration, claudeUrlImagesOn } from './claudeModels.ts';
 import { contextWindowOf } from './contextWindow.ts';
+import { geminiMajorVersion } from './geminiState.ts';
 import type { ReasoningSetting } from '../loadSyndicate.ts';
 
 /** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
@@ -357,7 +358,8 @@ export function capabilityOf(
  * lib/models/reasoning.ts effortCeiling.
  */
 export const REASONING_ABOVE_HIGH: Readonly<Record<MatrixRow, string>> = {
-  gemini: 'xhigh and max go as thinkingLevel HIGH (a 16,384-token budget on Gemini 2.x), weakened',
+  gemini:
+    'xhigh as asked (thinkingLevel XHIGH) on gemini-4-hydrogen and gemini-4-neon, and max goes as XHIGH there, weakened; elsewhere xhigh and max go as thinkingLevel HIGH (a 16,384-token budget on Gemini 2.x), weakened. Gemini 4 cannot stop thinking: none and a budget of 0 go as LOW, weakened',
   anthropic:
     'output_config.effort xhigh and max as asked on the adaptive generations (Opus 4.7 and later, Sonnet 5 and later, Haiku 5.5); a 16,384-token budget, weakened, on Claude 4.6 and earlier',
   openai: 'xhigh as asked on GPT-5.2 and later, and max goes as xhigh there, weakened; high, weakened, on the o-series, GPT-5 and GPT-5.1',
@@ -397,14 +399,6 @@ export function outputSchemaBesideTools(model: string, opts: { callerKey?: boole
     default:
       return true;
   }
-}
-
-/** A Gemini id's major version (a Vertex AI resource name's last segment), or 0 when it is not a `gemini-<n>` id. Read without a pattern. */
-function geminiMajorVersion(model: string): number {
-  const name = model.slice(model.lastIndexOf('/') + 1);
-  if (!name.startsWith('gemini-')) return 0;
-  const major = Number.parseInt(name.slice('gemini-'.length), 10);
-  return Number.isFinite(major) ? major : 0;
 }
 
 /** What one agent's YAML asks of its model. */

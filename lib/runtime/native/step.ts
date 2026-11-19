@@ -39,7 +39,7 @@
  *     model class would (declaresReflectionTool): never to a Gemini model
  *     ADK's own Gemini would serve, which sends no toolsDict (ADR 0097).
  *     On a Gemini adapter the reflection call stored in a response's place
- *     carries its signature, or Gemini 3's placeholder (reflectionSigning,
+ *     carries its signature, or, on Gemini 3 and later, the placeholder (reflectionSigning,
  *     ADR 0103), where ADK stored it unsigned.
  *   - A THROWN FAILURE. The contract forbids an adapter to throw, but a
  *     leaf that does is read as ADK read it. With

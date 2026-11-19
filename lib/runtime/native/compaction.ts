@@ -30,7 +30,8 @@
  *     there is one, then the span, per event `[Event i - Author: <author>]`
  *     with its text (thoughts aside), each tool call as JSON and each tool
  *     result's text cut at RESULT_RENDER_CHARS. No tools, not streamed,
- *     output capped at SUMMARY_MAX_TOKENS. It goes to `summary_model`
+ *     output capped at SUMMARY_MAX_TOKENS; on a model that thinks high by
+ *     default (Gemini 4), reasoning `low` under SUMMARY_MAX_TOKENS_THINKING. It goes to `summary_model`
  *     (default the agent's own model), as a leaf adapter with no fallback,
  *     through traceLlmGeneration: the llm.request span, under the agent
  *     span and outside any model.call, and the turn's charge (ADR 0053,
@@ -61,6 +62,7 @@ import { createTurnEvent } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { compactAfterTokens } from '../../models/contextWindow.ts';
+import { internalReasoningConfig, thinksHighByDefault } from '../../models/reasoning.ts';
 import { DEFAULT_KEEP_RECENT_EVENTS, DEFAULT_MASK_OVER_CHARS, activeEvents, contentsOf, isCompacted, retainStartIndex } from './history.ts';
 import type { CompactedEvent } from './history.ts';
 
@@ -111,6 +113,12 @@ export const SUMMARY_SECTIONS = ['Intent', 'Stated facts', 'Decisions', 'Artifac
 export const SUMMARY_WORD_BUDGET = 1_200;
 /** The summarizer's output cap, in tokens. */
 export const SUMMARY_MAX_TOKENS = 2_048;
+/**
+ * The cap on a summary model that thinks high by default (Gemini 4,
+ * thinksHighByDefault): thinking shares the cap, so the call goes at `low`
+ * with room for its thoughts and the summary both.
+ */
+export const SUMMARY_MAX_TOKENS_THINKING = 8_192;
 /** A tool result's text, as the summarizer reads it, is cut here. */
 export const RESULT_RENDER_CHARS = 2_000;
 /** The stored event's format mark (ADR 0153). */
@@ -246,11 +254,21 @@ export function summaryInput(events: readonly TurnEvent[]): string {
   return text;
 }
 
-/** The one request the summarizer sends: the fixed instruction, the input, no tools, a capped output. */
+/**
+ * The one request the summarizer sends: the fixed instruction, the input, no
+ * tools, a capped output. A model that thinks high by default is asked for
+ * `low` under SUMMARY_MAX_TOKENS_THINKING; every other model gets no level
+ * and SUMMARY_MAX_TOKENS.
+ */
 export function summaryRequest(events: readonly TurnEvent[], model: string, signal?: AbortSignal): ModelRequest {
+  const thinking = thinksHighByDefault(model);
   const llmRequest = {
     contents: [{ role: 'user', parts: [{ text: summaryInput(events) }] }],
-    config: { systemInstruction: SUMMARY_INSTRUCTION, maxOutputTokens: SUMMARY_MAX_TOKENS },
+    config: {
+      systemInstruction: SUMMARY_INSTRUCTION,
+      maxOutputTokens: thinking ? SUMMARY_MAX_TOKENS_THINKING : SUMMARY_MAX_TOKENS,
+      ...internalReasoningConfig(model, 'low'),
+    },
     toolsDict: {},
     liveConnectConfig: {},
   } as unknown as LlmRequest;
