@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/weather.yaml
 ---
@@ -21,7 +21,7 @@ Weather is the starter pack's specimen of [OpenAPI tools](/tools/openapi-tools.m
 Run: `npm run syndicate:weather`
 
 - memory: `internal-only`
-- orchestrator: **Forecaster** (`gemini-3.8-flash`) · openapi: `specs/open-meteo-geocoding.json` (GET operations), `specs/open-meteo-forecast.json` (GET operations)
+- orchestrator: **Forecaster** (`gemini-4-hydrogen`) · openapi: `specs/open-meteo-geocoding.json` (GET operations), `specs/open-meteo-forecast.json` (GET operations)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/account_memory.yaml
 ---
@@ -25,7 +25,7 @@ It needs `GOOGLE_GENAI_API_KEY`, plus `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_
 
 <!-- wiki:generated section="composition" source="config/agents/templates/account_memory.yaml" -->
 - memory: `long-term` · max_steps: 12
-- orchestrator: **AccountLead** (`gemini-3.8-flash`) · tools: `preload_memory`, `load_memory`
+- orchestrator: **AccountLead** (`gemini-4-hydrogen`) · tools: `preload_memory`, `load_memory`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/research_brief.yaml
 ---
@@ -23,11 +23,11 @@ The run is bounded: at most two desk calls, two Writer calls and one Verifier ca
 
 <!-- wiki:generated section="composition" source="config/agents/templates/research_brief.yaml" -->
 - memory: `internal-only` · max_steps: 30
-- orchestrator: **Editor** (`gemini-3.8-flash`)
+- orchestrator: **Editor** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
 | ResearchDesk | syndicate: [research_desk](/agents/research_desk.md) | — | — |
-| Writer | `gemini-3.8-flash` | — | — |
+| Writer | `gemini-4-hydrogen` | — | — |
 | Verifier | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

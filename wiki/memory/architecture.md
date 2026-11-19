@@ -33,7 +33,7 @@ Extraction and embeddings are configured per deployment ([ADR 0020](/decisions/0
 
 | Variable | Default | Effect |
 |---|---|---|
-| `MEMORY_EXTRACTION_MODEL` | `gemini-3.8-flash` | Any model id. It runs through the same adapter an agent with that id would, so every provider and the gateway work, and each call is an `llm.request` span in the ledger. |
+| `MEMORY_EXTRACTION_MODEL` | `gemini-4-hydrogen` | Any model id. It runs through the same adapter an agent with that id would, so every provider and the gateway work, and each call is an `llm.request` span in the ledger. |
 | `MEMORY_EMBEDDING_PROVIDER` | `gemini` | `gemini`, `openai`, `ollama`, or `openai-compatible` (any `POST /embeddings` endpoint: Azure, LiteLLM, an internal proxy). With no key for `gemini` or `openai`, or under `MODEL_GATEWAY_PREFER=gateway`, the embedder goes through the configured gateway's `/embeddings` when it carries the same model (Vercel: `google/gemini-embedding-001`, `openai/text-embedding-3-small`, `dimensions` honoured; OpenRouter: OpenAI's only), so the vectors stay the model's own ([ADR 0146](/decisions/0146-gateway-search-and-embeddings.md)). On OpenRouter with no Gemini key the documented answer is `MEMORY_EMBEDDING_PROVIDER=openai` (`text-embedding-3-small` at 768), with the re-embed caveat below; `npm run doctor`'s `memory` line says what would embed, from `embedderPlan` ([ADR 0147](/decisions/0147-memory-embedder-recorded-and-doctored.md)). |
 | `MEMORY_EMBEDDING_MODEL` | `gemini-embedding-001` / `text-embedding-3-small` / `nomic-embed-text` | Per provider. |
 | `MEMORY_EMBEDDING_DIMENSIONS` | `768` | Must equal the vector column it was created with; a returned vector of another length is refused. |

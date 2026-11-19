@@ -186,7 +186,7 @@ The Gemini API (`generateContent`, `streamGenerateContent`), on Google AI or Ver
 | `toolChoice` | `toolConfig.functionCallingConfig.mode`: `AUTO`, `NONE`, `ANY`; `{ name }` is `ANY` with `allowedFunctionNames: [name]`. Native tools beside function declarations add `toolConfig.includeServerSideToolInvocations: true` on the Gemini API; the SDK refuses it for Vertex AI. |
 | `outputSchema` | `responseMimeType: 'application/json'` and `responseJsonSchema` |
 | `outputFormat` | `'json'` without a schema: `responseMimeType: 'application/json'` alone |
-| `reasoning` | ADR 0047's table: `thinkingConfig.thinkingLevel` (`MINIMAL`, `LOW`, `MEDIUM`, `HIGH`) on Gemini 3 and later (`xhigh` and `max` as `HIGH`, weakened), `thinkingBudget` on 1.x and 2.x and for any `budget_tokens`; `includeThoughts: true` unless the setting is `none` |
+| `reasoning` | ADR 0047's table: `thinkingConfig.thinkingLevel` (`MINIMAL`, `LOW`, `MEDIUM`, `HIGH`) on Gemini 3 and later (`xhigh` and `max` as `HIGH`, weakened); on Gemini 4 no `MINIMAL` (`none` as `LOW`, weakened) and `XHIGH` on gemini-4-hydrogen and gemini-4-neon (`max` as `XHIGH`, weakened) (ADR 0160), `thinkingBudget` on 1.x and 2.x and for any `budget_tokens`; `includeThoughts: true` unless the setting is `none` |
 | `sampling` | `temperature`, `topP`, `maxOutputTokens`, `stopSequences` |
 | `signal` | `config.abortSignal`; the adapter reads no other signal |
 | `usage` | input `promptTokenCount` + `toolUsePromptTokenCount`; output `candidatesTokenCount` + `thoughtsTokenCount`; thinking `thoughtsTokenCount`; cache read `cachedContentTokenCount` |
@@ -364,7 +364,7 @@ Only the Gemini adapter (provider `gemini`) replays a carried part. Every other 
 | `toolConfig.functionCallingConfig.mode` | `toolChoice`: `NONE` is `none`; `ANY` is `{ name }` with one allowed name, else `required`; `VALIDATED` makes every tool `strict`; `AUTO` is absent, the default |
 | `responseJsonSchema`, else `responseSchema` | `outputSchema`, through `toContractJsonSchema` |
 | `responseMimeType: 'application/json'` with neither | `outputFormat: 'json'` |
-| `thinkingConfig.thinkingLevel` | `reasoning`: `MINIMAL` is `none` (its Gemini 3 rendering, ADR 0047), and `LOW`, `MEDIUM` and `HIGH` their levels |
+| `thinkingConfig.thinkingLevel` | `reasoning`: `MINIMAL` is `none` (its Gemini 3 rendering, ADR 0047), `LOW` beside the effort word `none` is `none` (its Gemini 4 rendering, ADR 0160), and `LOW`, `MEDIUM`, `HIGH` and `XHIGH` their levels |
 | else `thinkingConfig.thinkingBudget`, n ≥ 0 | `{ budget_tokens: n }` |
 | else `reasoningEffort` | the level it names; `minimal` is `none` (its rendering on the first GPT-5 generation). `xhigh` and `max` also win over a `thinkingConfig` that says `high` (`HIGH`, or 16,384), which is what the compiler writes beside them (ADR 0117) |
 | `temperature`, `topP`, `maxOutputTokens`, `stopSequences` | `sampling` |
