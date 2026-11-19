@@ -40,6 +40,9 @@
  *   codesession code_execution in turn 1, a follow-up over its result in turn 2
  *   searchsession web_search in turn 1, a tool call and a follow-up in turn 2
  *   memory      memory extraction (modelExtractor) on --model
+ *   callonly    an earlier turn whose assistant message held only a call and
+ *               whose answer was never written: on Gemini 4 two user contents
+ *               then meet; straight on the adapter
  *   vision      inspect_image's vision pass (its own model,
  *               lib/tools/inspectImageTool.ts) on a generated PNG
  *
@@ -96,7 +99,7 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 export const CASES = [
   'grounding', 'code', 'mixed', 'session',
   'parallel', 'none', 'budget', 'cutover', 'trimmed', 'resume', 'reflection', 'toolerror',
-  'compaction', 'codesession', 'searchsession', 'memory', 'vision',
+  'compaction', 'codesession', 'searchsession', 'memory', 'vision', 'callonly',
 ] as const;
 export type CaseName = (typeof CASES)[number];
 const DEFAULT_MODEL = 'gemini-4-hydrogen';
@@ -283,6 +286,7 @@ function specs(model: string): Record<CaseName, CaseSpec> {
     reflection: { direct: reflectionCase },
     memory: { direct: memoryCase },
     vision: { direct: visionCase },
+    callonly: { direct: callOnlyCase },
   };
 }
 
@@ -394,6 +398,20 @@ async function reflectionCase(model: string): Promise<{ failure?: string; calls:
   const run = await loop(adapter, model, contentsToMessages(contents as never).messages);
   if (run.error) return { failure: run.error, calls: run.calls };
   return { failure: has(run.text, '14') ? undefined : 'the answer is not 14', calls: run.calls };
+}
+
+async function callOnlyCase(model: string): Promise<{ failure?: string; calls: number }> {
+  const adapter = new GeminiAdapter({ model });
+  // Turn 1 ended on its tool result (the turn was stopped before the answer).
+  const messages: Message[] = [
+    userMessage(`Call ${TOOL} with the key "alpha".`),
+    { role: 'assistant', parts: [{ type: 'toolCall', id: 'adk-1-0-lookup', name: TOOL, args: { key: 'alpha' } }] },
+    { role: 'tool', parts: [{ type: 'toolResult', id: 'adk-1-0-lookup', name: TOOL, result: { result: '14' } }] },
+    userMessage(`Call ${TOOL} with the key "beta" and tell me the number.`),
+  ];
+  const run = await loop(adapter, model, messages);
+  if (run.error) return { failure: run.error, calls: run.calls };
+  return { failure: has(run.text, '28') ? undefined : 'the answer is not 28', calls: run.calls };
 }
 
 async function memoryCase(model: string): Promise<{ failure?: string; calls: number }> {

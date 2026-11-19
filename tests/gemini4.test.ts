@@ -270,3 +270,59 @@ test('the compaction summary: low under the raised cap on Gemini 4; no level and
     assert.equal(r.sampling?.maxOutputTokens, SUMMARY_MAX_TOKENS, model);
   }
 });
+
+// ── An approval resume, through the engine ───────────────────────────────────
+
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { approvalResponsePart } from '../lib/runtime/approvals.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { llmRequestToModelRequest } from '../lib/models/genaiMapping.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { z } from 'zod';
+import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+
+registerTool(
+  'gemini4_test_send',
+  defineTool({ name: 'gemini4_test_send', description: 'Send a note.', schema: z.object({ to: z.string() }), execute: async ({ to }) => `sent to ${to}` }),
+  { override: true },
+);
+
+test('an approval resume read back from the trimmed store: on Gemini 4 the paused call and its result go as a pair, the call with the placeholder', async () => {
+  const seen: any[] = [];
+  const boss = new ScriptedLlm(HYDROGEN, (req, n) => {
+    seen.push(req);
+    return n === 1 ? call('gemini4_test_send', { to: 'ops@acme.test' }) : text('done');
+  });
+  const config = {
+    syndicate_name: 'Mailer',
+    orchestrator: { name: 'Boss', model: HYDROGEN, instruction: 'Send notes.', tools: ['gemini4_test_send'], require_approval: ['gemini4_test_send'] },
+    subagents: [],
+  } as unknown as SyndicateYamlConfig;
+  const key = { appName: 'app', userId: 'u', sessionId: 's' };
+  const live = new InProcessSessionService();
+  const run = (sessionService: InProcessSessionService, parts: any[]) =>
+    runSyndicateTurn({ config, parts, ...key, sessionService, compile: { resolveModel: scriptedResolver({ [HYDROGEN]: boss }) }, trace: false });
+
+  const first = await run(live, [{ text: 'tell ops' }]);
+  assert.equal(first.status, 'input-required');
+  // The paused turn as the Supabase store keeps it.
+  const stored = new InProcessSessionService();
+  const session = await stored.create(key);
+  for (const event of (await live.get(key))!.events) await stored.append(session, trimEventForStorage(event as TurnEvent) as TurnEvent);
+  const second = await run(stored, [approvalResponsePart(first.approval!.id, true)]);
+  assert.equal(second.status, 'completed');
+
+  // What the resumed step would send Hydrogen.
+  const request = llmRequestToModelRequest(seen.at(-1), { model: HYDROGEN });
+  const body = await send(HYDROGEN, { ...request, model: HYDROGEN });
+  const parts = body.contents.flatMap((c: any) => c.parts.map((p: any) => ({ role: c.role, ...p })));
+  const callPart = parts.find((p: any) => p.functionCall?.name === 'gemini4_test_send');
+  const result = parts.find((p: any) => p.functionResponse?.name === 'gemini4_test_send');
+  assert.ok(callPart, 'the paused call is sent');
+  assert.ok(result, 'its result is sent');
+  assert.equal(callPart.thoughtSignature, PLACEHOLDER_THOUGHT_SIGNATURE);
+  assert.equal(body.contents.at(-1).role, 'user');
+  assert.ok(!parts.some((p: any) => p.functionResponse && !parts.some((q: any) => q.functionCall?.name === p.functionResponse.name)), 'no orphan result');
+});
