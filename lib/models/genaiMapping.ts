@@ -616,7 +616,7 @@ export interface ModelRequestOptions {
 }
 
 // Maps, not object literals: a config value such as `constructor` must read as nothing.
-const THINKING_LEVELS = new Map<unknown, ReasoningLevel>([['MINIMAL', 'none'], ['LOW', 'low'], ['MEDIUM', 'medium'], ['HIGH', 'high']]);
+const THINKING_LEVELS = new Map<unknown, ReasoningLevel>([['MINIMAL', 'none'], ['LOW', 'low'], ['MEDIUM', 'medium'], ['HIGH', 'high'], ['XHIGH', 'xhigh']]);
 const EFFORT_LEVELS = new Map<unknown, ReasoningLevel>([
   ['none', 'none'],
   ['minimal', 'none'],
@@ -630,13 +630,15 @@ const EFFORT_LEVELS = new Map<unknown, ReasoningLevel>([
 /**
  * The ReasoningSetting a generateContentConfig asks for, where one is exact:
  *   - `thinkingConfig.thinkingLevel`: `MINIMAL` is `none` (ADR 0047's
- *     Gemini 3 rendering of it), `LOW`, `MEDIUM`, `HIGH` their levels.
+ *     Gemini 3 rendering of it), `LOW`, `MEDIUM`, `HIGH`, `XHIGH` their
+ *     levels; `LOW` beside the effort word `none` is `none` (Gemini 4's
+ *     rendering of it, which has no `MINIMAL`, ADR 0160).
  *   - else `thinkingConfig.thinkingBudget` n ≥ 0: `{ budget_tokens: n }`,
  *     which every adapter maps to what the budget maps to today (0 included).
  *   - else `reasoningEffort`: a level word is that level, and `minimal` is
  *     `none` (ADR 0047's rendering of it on the first GPT-5 generation).
  * The words above `high` (`xhigh`, `max`) win over a thinkingConfig that
- * says `high` (`HIGH`, or `high`'s budget of 16,384), which is what the
+ * says `high` or `xhigh` (`HIGH`, `XHIGH`, or `high`'s budget of 16,384), which is what the
  * compiler writes beside them (ADR 0117); a thinkingConfig that says less
  * keeps its own reading.
  * Lossy, and absent: a budget of -1 (Gemini's dynamic thinking, which is
@@ -652,7 +654,9 @@ export function reasoningOf(config: GenerateContentConfig | undefined): Reasonin
   const thinking = cfg.thinkingConfig;
   if (isObject(thinking)) {
     const level = THINKING_LEVELS.get(thinking.thinkingLevel);
-    if (level) return above && level === 'high' ? above : level;
+    // `none` beside `LOW` is Gemini 4's rendering of `none` (it has no MINIMAL).
+    if (level === 'low' && word === 'none') return 'none';
+    if (level) return above && (level === 'high' || level === 'xhigh') ? above : level;
     const budget = thinking.thinkingBudget;
     if (typeof budget === 'number' && Number.isInteger(budget) && budget >= 0) return above && budget === REASONING_BUDGETS.high ? above : { budget_tokens: budget };
   }

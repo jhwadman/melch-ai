@@ -9,6 +9,7 @@
  * names, so existing imports keep working.
  */
 import type { ReasoningLevel, ReasoningSetting } from './contract.ts';
+import { geminiMajorVersion } from './geminiState.ts';
 import { providerForModel } from './providerMap.ts';
 
 /**
@@ -22,6 +23,68 @@ import { providerForModel } from './providerMap.ts';
 export const REASONING_BUDGETS: Readonly<Record<ReasoningLevel, number>> = { none: 0, low: 2048, medium: 8192, high: 16384, xhigh: 16384, max: 16384 };
 
 const GEMINI_THINKING_LEVEL: Readonly<Record<ReasoningLevel, string>> = { none: 'MINIMAL', low: 'LOW', medium: 'MEDIUM', high: 'HIGH', xhigh: 'HIGH', max: 'HIGH' };
+
+/**
+ * Gemini 4's levels: no `MINIMAL` (the API rejects it, 400), so `none` goes
+ * as `LOW`; `XHIGH` on the ids that take it (geminiTakesXhigh), else `HIGH`.
+ */
+const GEMINI_4_THINKING_LEVEL: Readonly<Record<ReasoningLevel, string>> = { none: 'LOW', low: 'LOW', medium: 'MEDIUM', high: 'HIGH', xhigh: 'XHIGH', max: 'XHIGH' };
+
+/** A Gemini id (bare or under a resource path) that takes thinkingLevel `XHIGH`: gemini-4-hydrogen and gemini-4-neon. */
+export function geminiTakesXhigh(model: string): boolean {
+  return /^gemini-4-(?:hydrogen|neon)(?![a-z0-9])/.test(model.slice(model.lastIndexOf('/') + 1));
+}
+
+/** The thinkingLevel a level goes as on one Gemini model that takes levels (Gemini 3 and later). */
+function geminiThinkingLevel(model: string, level: ReasoningLevel): string {
+  if (geminiMajorVersion(model) < 4) return GEMINI_THINKING_LEVEL[level];
+  const sent = GEMINI_4_THINKING_LEVEL[level];
+  return sent === 'XHIGH' && !geminiTakesXhigh(model) ? 'HIGH' : sent;
+}
+
+/**
+ * The level asked for when a Gemini request for `model` thinks other than
+ * asked, for the span's `llm.reasoning.weakened`; undefined when it goes as
+ * asked. Above `high`: anything past effortCeiling(model) (`max` everywhere,
+ * `xhigh` except on gemini-4-hydrogen and gemini-4-neon). On Gemini 4 and
+ * later, `none` and a budget of 0 too: those models cannot stop thinking,
+ * so they think at `LOW`.
+ */
+export function geminiWeakened(model: string, setting: ReasoningSetting): ReasoningLevel | undefined {
+  const level = reasoningLevel(setting);
+  if (level === 'none') return geminiMajorVersion(model) >= 4 ? 'none' : undefined;
+  if (!isAboveHigh(level)) return undefined;
+  return REASONING_ORDER.indexOf(level) > REASONING_ORDER.indexOf(effortCeiling(model)) ? level : undefined;
+}
+
+/**
+ * Whether `model` thinks at its highest level when a request sends none:
+ * Gemini 4 and later (`high`; Gemini 3 defaulted to `medium`). The engine's
+ * own calls that run outside an agent's YAML (the compaction summary, the
+ * wiki agent run, the vision passes) send such a model an explicit level.
+ */
+export function thinksHighByDefault(model: string): boolean {
+  return providerForModel(model) === 'gemini' && geminiMajorVersion(model) >= 4;
+}
+
+/**
+ * The generateContentConfig fields for one of the engine's own calls at
+ * `level` (reasoningConfig), on a model that thinks high by default; `{}`
+ * on every other model, whose calls go as they did.
+ */
+export function internalReasoningConfig(model: string, level: ReasoningLevel): Record<string, unknown> {
+  return thinksHighByDefault(model) ? reasoningConfig(model, level) : {};
+}
+
+/**
+ * The genai config for one of the engine's own direct Gemini calls (the
+ * vision passes) at `level`: `{ thinkingConfig }` on a model that thinks
+ * high by default, undefined elsewhere, so the call goes with no config.
+ */
+export function internalThinkingConfig(model: string, level: ReasoningLevel): { thinkingConfig: Record<string, unknown> } | undefined {
+  const thinking = internalReasoningConfig(model, level).thinkingConfig as Record<string, unknown> | undefined;
+  return thinking ? { thinkingConfig: thinking } : undefined;
+}
 
 /** The levels in order of how hard they ask the model to think. */
 export const REASONING_ORDER: readonly ReasoningLevel[] = ['none', 'low', 'medium', 'high', 'xhigh', 'max'];
@@ -38,7 +101,7 @@ function openAiTakesXhigh(model: string): boolean {
 }
 
 /** The smallest level whose budget covers the setting: never less thought than asked. */
-function reasoningLevel(setting: ReasoningSetting): ReasoningLevel {
+export function reasoningLevel(setting: ReasoningSetting): ReasoningLevel {
   if (typeof setting === 'string') return setting;
   const n = setting.budget_tokens;
   return n <= 0 ? 'none' : n <= REASONING_BUDGETS.low ? 'low' : n <= REASONING_BUDGETS.medium ? 'medium' : 'high';
@@ -72,8 +135,9 @@ function reasoningEffort(model: string, level: ReasoningLevel): string {
  * 0117); a level above it goes as this one. `max` where every level
  * passes: Claude's adaptive generations (the Claude adapter sends its budget
  * generations `high`'s budget), Kimi K3 and DeepSeek. OpenAI's GPT-5.2 and later and
- * grok-4.7 stop at `xhigh`; other OpenAI and Grok ids, Gemini and Ollama at
- * `high`. A gateway stops at `high` whatever the id (gatewayAdapter.ts).
+ * grok-4.7, gemini-4-hydrogen and gemini-4-neon stop at `xhigh`; other
+ * OpenAI, Grok and Gemini ids and Ollama at `high`. A gateway stops at
+ * `high` whatever the id (gatewayAdapter.ts).
  */
 export function effortCeiling(model: string): ReasoningLevel {
   switch (providerForModel(model)) {
@@ -85,6 +149,8 @@ export function effortCeiling(model: string): ReasoningLevel {
       return openAiTakesXhigh(model) ? 'xhigh' : 'high';
     case 'xai':
       return /^grok-4\.7(?!\d)/.test(model) ? 'xhigh' : 'high';
+    case 'gemini':
+      return geminiTakesXhigh(model) ? 'xhigh' : 'high';
     default:
       return 'high';
   }
@@ -119,10 +185,11 @@ export function reasoningConfig(model: string, setting: ReasoningSetting): Recor
   const provider = providerForModel(model);
   if (provider === 'anthropic') out.thinkingConfig = { thinkingBudget: budget };
   if (provider === 'gemini') {
-    // Gemini 3 takes a level; 2.x and older take only a budget. An explicit
-    // budget is sent as one on any Gemini, except 0, which is `none`.
+    // Gemini 3 and later take a level; 2.x and older take only a budget. An
+    // explicit budget is sent as one on any Gemini, except 0, which is
+    // `none`: `MINIMAL` on Gemini 3, `LOW` on Gemini 4 (geminiThinkingLevel).
     const budgetOnly = /^gemini-[12]\./.test(model);
-    out.thinkingConfig = budgetOnly || (typeof setting !== 'string' && budget > 0) ? { thinkingBudget: budget } : { thinkingLevel: GEMINI_THINKING_LEVEL[level] };
+    out.thinkingConfig = budgetOnly || (typeof setting !== 'string' && budget > 0) ? { thinkingBudget: budget } : { thinkingLevel: geminiThinkingLevel(model, level) };
   }
   return out;
 }
