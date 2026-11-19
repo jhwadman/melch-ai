@@ -198,6 +198,12 @@ test('cost: the pricing functions, the prefix row, the shipped seed, and a value
   await storage.pool.query(readFileSync(new URL('../db/migrations/0021_correct_gemini_flash_grok_rates.sql', import.meta.url), 'utf-8'));
   assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-3.8-flash', 1000000, 1000000, 0) AS v`)), 2.8, 'the operator row is kept');
   await storage.pool.query(`UPDATE model_pricing SET input_per_mtok = 0.75, output_per_mtok = 3.75, cache_read_per_mtok = 0.075, verified_at = '2026-10-22', source = 'ai.google.dev/gemini-api/docs/pricing' WHERE model = 'gemini-3.8-flash'`);
+  // 0027: gemini-4-hydrogen at Google's list, cache reads at a twentieth; the 3.8 Flash row stays.
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-4-hydrogen', 1000000, 1000000, 0) AS v`)), 9);
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-4-hydrogen', 1000000, 0, 1000000) AS v`)), 9, 'thinking at the output rate');
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-4-hydrogen', 1000000, 0, 0, 1000000, 0) AS v`)), 0.075, 'every input token a cache hit');
+  await storage.pool.query(readFileSync(new URL('../db/migrations/0027_gemini_4_pricing.sql', import.meta.url), 'utf-8'));
+  assert.equal(Number(await one(`SELECT melchizedek_cost_usd('gemini-4-hydrogen', 1000000, 1000000, 0) AS v`)), 9, 'a re-run changes nothing');
   const anthropic = (await storage.pool.query(`SELECT model FROM model_pricing WHERE source = 'platform.claude.com/docs/en/about-claude/pricing' AND verified_at IS NOT NULL AND cache_read_per_mtok IS NOT NULL AND cache_write_per_mtok IS NOT NULL`)).rows;
   assert.equal(anthropic.length, 11, 'the nine 0015 rows and two new ones, each with both cache rates');
   // An explicit value is kept; unreadable usage leaves the cost null without failing the insert.
