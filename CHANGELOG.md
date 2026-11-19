@@ -4,6 +4,78 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased / 1.17.0
+
+A minor release for Gemini 4: the engine runs `gemini-4-hydrogen`
+correctly, and its own defaults and shipped syndicates move to it from
+`gemini-3.8-flash` (ADR 0160). One additive migration, `0027_gemini_4_pricing`.
+Gemini 3 and older, and every other provider, send what they sent before.
+
+**Apply the schema before upgrading the engine.** `npx melchizedek-db apply`
+runs migration 0027 (one `model_pricing` row, insert-only). The A2A server
+refuses a database below the shipped schema version, and without the row a
+turn on `gemini-4-hydrogen` prices NULL.
+
+**Cost.** `gemini-4-hydrogen` lists at $1.50 in / $0.075 cached / $7.50 out
+per million tokens, twice `gemini-3.8-flash`'s rate through 2026-12-31
+(Google lists 3.8 Flash at the same $1.50 / $7.50 from 2027-01-01). A shipped
+syndicate copied before this release keeps its own `model:` lines.
+
+### Changed
+
+- **Earlier turns go as text on Gemini 4.** For a Gemini model of major
+  version 4 or later, `GeminiAdapter` sends the messages before the current
+  turn as their text and user content only: earlier turns' function calls and
+  tool results are left out. Gemini 4 answers `MALFORMED_RESPONSE` to an
+  earlier turn's call that carries no signature or the placeholder, which is
+  all the Supabase session store keeps. The model sees earlier answers, not
+  the tool results behind them.
+- **The placeholder signature is on by default on Gemini 4.** An unsigned
+  call in the current turn (another provider's, another Gemini model's, a
+  reflection call) gets `skip_thought_signature_validator`; Gemini 4 refuses
+  it unsigned (400) and takes the placeholder. `placeholderSignatures: false`
+  turns it off. Self-correction signs its reflection call with the
+  placeholder on Gemini 3 and later (was Gemini 3 only by id prefix).
+- **Reasoning on Gemini 4.** No `MINIMAL`: `reasoning: none` and
+  `budget_tokens: 0` go as `thinkingLevel: LOW`, marked
+  `llm.reasoning.weakened`. `xhigh` goes as `XHIGH` on `gemini-4-hydrogen`
+  and `gemini-4-neon` (`effortCeiling` is `xhigh` there), and `max` as
+  `XHIGH`, weakened. A positive `budget_tokens` is sent as a budget, as
+  before. `reasoningOf` reads `XHIGH`, and `LOW` beside the effort word
+  `none`, back from a stored config.
+- **The engine's own calls ask Gemini 4 for `low`.** Gemini 4 thinks at
+  `high` when no level is sent, inside the output cap. The compaction summary
+  goes at `low` under an 8,192-token cap (`SUMMARY_MAX_TOKENS_THINKING`), and
+  the wiki agent run and the two vision passes (`inspect_image`,
+  `x_api_search`'s transcription) at `low`. On every other model these calls
+  are unchanged.
+- **Defaults.** `MEMORY_EXTRACTION_MODEL`, `WIKI_AGENT_MODEL`, the vision
+  model of `inspect_image` and `x_api_search` (`X_API_VISION_MODEL` still
+  overrides it), and `scripts/gemini_engine_check.ts` default to
+  `gemini-4-hydrogen`.
+- **Shipped syndicates.** Every `gemini-3.8-flash` agent in
+  `config/agents/examples` and `config/agents/templates` runs on
+  `gemini-4-hydrogen` with an explicit `reasoning:`: `medium` where it had
+  none (the level 3.8 Flash defaulted to), or `low` where its cap was 1,024
+  tokens or less (pipeline's Planner and Checker, weather's Forecaster, whose
+  caps rise to 2,048). An agent at `medium` with a cap under 4,096 now has
+  4,096. `temperature` stays where it was set; Gemini 4 ignores it.
+
+### Added
+
+- `geminiMajorVersion` (`melchizedek-agents/models/geminiState`);
+  `placeholderSignaturesFor` and `textOnlyEarlierTurns`
+  (`models/geminiAdapter`); `geminiTakesXhigh`, `geminiWeakened`,
+  `reasoningLevel`, `thinksHighByDefault`, `internalReasoningConfig` and
+  `internalThinkingConfig` (`models/reasoning`).
+- Migration `0027_gemini_4_pricing`: `gemini-4-hydrogen` at $1.50 / $7.50,
+  cache read $0.075, verified 2026-11-19. The `gemini-3.8-flash` row stays.
+- `scripts/gemini_engine_check.ts` gains thirteen cases (parallel calls,
+  `none`, a budget, a cutover from 3.8 Flash, a session and a paused turn
+  read back through the Supabase trim, the reflection call, a tool error,
+  compaction and its summary call, code execution and search in a two-turn
+  session, memory extraction, vision).
+
 ## 1.16.0 — 2026-11-15
 
 A minor release for observability: a program that runs several turns is
