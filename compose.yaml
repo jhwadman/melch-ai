@@ -29,7 +29,7 @@ services:
   ollama:
     profiles: [local-models]
     # Pinned by digest (latest on 2026-10-06); Dependabot proposes updates.
-    image: ollama/ollama@sha256:1bef639749741b375e9a1eb2c1346fb57ce52f5432de1f74846e44ccc18e1687
+    image: ollama/ollama@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
     ports: ["11434:11434"]
     volumes: [ollama:/root/.ollama]
 
