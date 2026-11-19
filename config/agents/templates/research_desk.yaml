@@ -43,7 +43,7 @@ variables:
     SOURCES, IN ORDER OF WEIGHT: the primary source (the organisation's own page, the filing, the standard, the dataset, the paper); then reputable reporting that names its source; then everything else, which may point to a source but never stands as one. A page that is undated, anonymous or selling the thing it describes is labelled as such.
 orchestrator:
   name: ResearchLead
-  model: gemini-3.8-flash
+  model: gemini-4-hydrogen
   description: "Returns sourced research notes on one question: at most 20 dated claims, each with its quote, publisher, URL and how directly the page supports it, plus disagreements and gaps. Pass one sentence."
   instruction: |
     The current date is {{current_date}}.

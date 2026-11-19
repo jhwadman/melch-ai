@@ -221,7 +221,7 @@ subagents:
     reasoning: low
   - name: landscape
     description: "A body of evidence across studies: what is known about an intervention, an exposure or a mechanism, including what is recent."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     tools:
       - search_trials
       - search_literature

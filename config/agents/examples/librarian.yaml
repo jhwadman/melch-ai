@@ -44,7 +44,8 @@ memory_system: "internal-only"
 
 orchestrator:
   name: "Archivist"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
+  reasoning: medium
   instruction: |
     <prompt_instructions>
       <system_identity>
@@ -109,7 +110,7 @@ orchestrator:
       </safety_boundaries>
     </prompt_instructions>
   sampling:
-    max_output_tokens: 2048
+    max_output_tokens: 4096
 
 subagents:
   - name: "Librarian"

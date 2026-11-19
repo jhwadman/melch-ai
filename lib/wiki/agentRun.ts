@@ -12,7 +12,7 @@
  *   three call sites can't drift.
  *
  *   Model routing goes through lib/models/registry.ts, so the YAML-style
- *   model string ('gemini-3.8-flash', 'claude-*', 'ollama/*'…) picks the
+ *   model string ('gemini-4-hydrogen', 'claude-*', 'ollama/*'…) picks the
  *   provider — wiki operations inherit the framework's full model
  *   optionality. A missing provider key degrades to a clear error string;
  *   nothing here throws for want of credentials.

@@ -27,7 +27,7 @@ import { outputsDir } from '../paths.ts';
 import { credentialValue } from '../models/credentialSource.ts';
 import { internalThinkingConfig } from '../models/reasoning.ts';
 
-const VISION_MODEL = 'gemini-3.8-flash';
+const VISION_MODEL = 'gemini-4-hydrogen';
 
 const INVENTORY_PROTOCOL = `You are a blind visual inventory agent. You know NOTHING about what this image was supposed to be, who requested it, or why. Enumerate ONLY what is actually present:
 

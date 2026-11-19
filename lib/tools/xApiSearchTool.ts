@@ -83,7 +83,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_CONCURRENCY = 4;
 const DEFAULT_IMAGE_MAX = 8;
 const IMAGE_MAX_CEILING = 20;
-const DEFAULT_VISION_MODEL = 'gemini-3.8-flash';
+const DEFAULT_VISION_MODEL = 'gemini-4-hydrogen';
 /** The API's media host. The only host image bytes are ever fetched from. */
 const IMAGE_HOSTS = new Set(['pbs.twimg.com']);
 /** A 429 whose window rolls within this long is waited out once; a longer one fails. */

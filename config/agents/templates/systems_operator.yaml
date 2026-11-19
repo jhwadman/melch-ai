@@ -71,7 +71,7 @@ variables:
   write_operations: "borrow_scroll, annotate_scroll"
 orchestrator:
   name: Operator
-  model: gemini-3.8-flash
+  model: gemini-4-hydrogen
   instruction: |
     The current date is {{current_date}}.
 
@@ -133,7 +133,7 @@ orchestrator:
 subagents:
   - name: Systems
     description: "Calls the company's systems through the operations their MCP server publishes and returns each call's operation, parameters and result verbatim. Pass a READ request, or a WRITE request listing the exact confirmed changes."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     mcp_server_url: "{{systems_mcp_url}}"
     # An OAuth-protected server (ADR 0112): the variables are NAMES, never values.
     # mcp_auth:

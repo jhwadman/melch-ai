@@ -82,7 +82,7 @@ orchestrator:
 subagents:
   - name: Drafter
     description: "Writes or revises one piece of outbound text from a brief. Pass the brief; on a revision, also pass the current draft and the reviewer's list. Returns the text alone, with [NEEDS: …] where the brief lacks a fact."
-    model: gemini-3.8-flash
+    model: gemini-4-hydrogen
     instruction: |
       You write outbound text from a brief. You do not review, approve or publish it.
 

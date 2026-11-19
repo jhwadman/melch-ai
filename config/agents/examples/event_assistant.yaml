@@ -32,7 +32,7 @@
 #
 # Model: ollama/qwen3.5:9b (`ollama pull qwen3.5:9b`), the Ollama adapter's
 # recommendation for tool calling (lib/models/ollamaAdapter.ts). Any tool-capable
-# model works: change the model line, e.g. to gemini-3.8-flash.
+# model works: change the model line, e.g. to gemini-4-hydrogen.
 # ============================================================
 
 syndicate_name: "Event Assistant"

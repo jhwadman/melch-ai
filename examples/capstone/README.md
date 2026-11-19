@@ -303,7 +303,7 @@ the worked example of a diagnosed failure:
 |---|---|
 | `npm run capstone` (mock), `npm run capstone:eval` (mock), `npm test` | None: no model runs. |
 | Steps 2 to 5 on Ollama | None from a provider. A one-time 6.6 GB download, and your machine's compute: one question is two model calls (the tool call, then the answer). |
-| The same with a hosted model (change `model:` in the YAML, e.g. `gemini-3.8-flash`, and put that provider's key in `.env`) | Every question is at least two paid calls, billed to the key in the A2A server's environment. One full evaluation run is at least fourteen. A free tier may rate-limit a run. |
+| The same with a hosted model (change `model:` in the YAML, e.g. `gemini-4-hydrogen`, and put that provider's key in `.env`) | Every question is at least two paid calls, billed to the key in the A2A server's environment. One full evaluation run is at least fourteen. A free tier may rate-limit a run. |
 
 ## Where your own work goes from here
 

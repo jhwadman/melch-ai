@@ -13,7 +13,7 @@ memory_system: "internal-only"      # session-only | long-term need Supabase (me
 orchestrator:
   name: "Lead"                      # a valid JS identifier, unique in the tree
   description: "<what this agent is for, one line>"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
   instruction: |
     <prompt_instructions>
       <system_identity>
