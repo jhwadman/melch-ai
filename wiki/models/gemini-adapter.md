@@ -176,6 +176,7 @@ The cases added for Gemini 4 ([ADR 0160](/decisions/0160-gemini-4-reads-earlier-
 - **codesession** and **searchsession**: `code_execution` or `web_search` in turn 1, a follow-up over its result in turn 2.
 - **memory**: memory extraction (`modelExtractor`) on `--model`.
 - **vision**: `inspect_image`'s vision pass on a generated PNG, on its own model.
+- **callonly**: an earlier turn whose assistant message held only a call and that never answered, so two user contents meet on Gemini 4; on the adapter directly.
 
 The check turns the telemetry sinks and console spans off for its run.
 
@@ -202,6 +203,10 @@ They also cover the SSE stream, genai's `ApiError` status, and the SDK's fetch s
 
 `tests/gemini4.test.ts` asserts Gemini 4's request bodies on the wire: earlier turns as text, the placeholder on an unsigned or another model's current-turn call, a current turn read back through the Supabase trim, the reasoning levels and their round trip through a stored config, and the engine's own calls at `low`; and that Gemini 3's are unchanged.
 
+## Confirmed live on Gemini 4
+
+On gemini-4-hydrogen ([ADR 0160](/decisions/0160-gemini-4-reads-earlier-turns-as-text.md)): `MINIMAL` is refused (400); `LOW` and `XHIGH` are taken; `thinkingBudget` 0, 1,024 and 4,096 are taken. A current-turn call with no signature is refused (400), and the placeholder is taken there, on a call and on a reflection call; an earlier turn's call with the placeholder gets `MALFORMED_RESPONSE`, and earlier turns sent as text pass, two user contents in a row included (the `callonly` case). gemini-3.8-flash refuses `MINIMAL` too (400), so `reasoning: none` fails on it.
+
 ## Confirmed only against documentation
 
 These rest on documentation. [The live check](#the-live-check) behind [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)'s gate G3 exercises the first, fourth, fifth and sixth on Gemini 3; the rest have no live run:
@@ -213,8 +218,7 @@ These rest on documentation. [The live check](#the-live-check) behind [ADR 0045]
 - **Native tools beside function declarations.** `googleSearch`, `urlContext` and `codeExecution` work next to function declarations on Gemini 3 with `includeServerSideToolInvocations`, and the response then holds `toolCall` and `toolResponse` parts. On Vertex AI the same combination works without the flag, which the SDK refuses there.
 - **`outputSchema` beside tools.** It is accepted on Gemini 3. Gemini 2.x is documented to reject JSON mode alongside function calling.
 - **Function-calling modes.** `VALIDATED` mode exists on both the Gemini API and Vertex AI.
-- **Gemini 4, confirmed live on gemini-4-hydrogen (2026-11-19).** `MINIMAL` is refused (400); `LOW` and `XHIGH` are taken; `thinkingBudget` 0, 1,024 and 4,096 are taken. A current-turn call with no signature is refused (400), and the placeholder is taken there, on a call and on a reflection call; an earlier turn's call with the placeholder gets `MALFORMED_RESPONSE`, and earlier turns sent as text pass.
-- **Thinking.** `thinkingLevel` holds on Gemini 3 ids, and `MINIMAL` is accepted. `includeThoughts` returns `thought: true` parts. Whether thinking counts against `maxOutputTokens` is unconfirmed.
+- **Thinking.** `thinkingLevel` holds on Gemini 3 ids, and `MINIMAL` is documented as accepted (gemini-3.8-flash refused it live, below). `includeThoughts` returns `thought: true` parts. Whether thinking counts against `maxOutputTokens` is unconfirmed.
 - **Call ids.** It is unconfirmed which platforms return `functionCall.id`, and whether a `functionResponse.id` echo is required where they do.
 - **Usage.** `candidatesTokenCount` excludes thoughts, and `promptTokenCount` includes cached tokens.
 - **Vertex AI.** Client construction with Application Default Credentials has been run only against a fake.

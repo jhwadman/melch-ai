@@ -2496,7 +2496,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3983
+        "words": 4041
       }
     },
     {
@@ -8436,7 +8436,7 @@
       "label": "scripts/gemini_engine_check.ts",
       "source": "scripts/gemini_engine_check.ts",
       "attrs": {
-        "lines": 621
+        "lines": 639
       }
     },
     {
