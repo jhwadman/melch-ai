@@ -58,7 +58,7 @@ import type { LlmRequest, LlmResponse } from '../../models/genaiMapping.ts';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
 import { setLlmSpanAttribute, traceLlmGeneration } from '../../observability/tracer.ts';
-import { createTurnEvent } from '../events.ts';
+import { createTurnEvent, getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { compactAfterTokens } from '../../models/contextWindow.ts';
@@ -196,7 +196,21 @@ export function eventsToCompact(context: ResolvedContext, scope: CompactionScope
   const active = activeEvents(scope.session.events, scope.isolationScope);
   const raw = active.filter((e) => !isCompacted(e));
   if (raw.length <= keep) return undefined;
-  const start = retainStartIndex(raw, keep);
+  let start = retainStartIndex(raw, keep);
+  // The stored compaction stands for the events up to its endTime, and the
+  // history keeps only those after it (activeEvents): a cut between two events
+  // of the same millisecond (a user message and the model event created right
+  // after it) would hide the kept one, and a call so hidden leaves its answer
+  // without it.
+  // The cut moves back past such ties, and never separates a call from its answer.
+  while (start > 0) {
+    const at = raw[start] as TurnEvent;
+    const before = raw[start - 1] as TurnEvent;
+    const tie = at.timestamp <= before.timestamp;
+    const split = getFunctionResponses(at).length > 0 && getFunctionCalls(before).length > 0;
+    if (!tie && !split) break;
+    start--;
+  }
   if (start === 0) return undefined;
   if (!force) {
     const tokens = promptTokens(active, scope);

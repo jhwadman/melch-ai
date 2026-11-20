@@ -316,6 +316,22 @@ test('under the threshold or within keep_recent_events nothing is summarized', (
   assert.deepEqual(eventsToCompact(resolveContext({ compact_after_tokens: 1000, keep_recent_events: 1 }, 'scripted/chat'), { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
 });
 
+test('the cut never falls between two events of the same millisecond, which the stored compaction could not tell apart', () => {
+  const ev = (id: string, t: number, parts: object[], role = 'model'): TurnEvent =>
+    ({ id, invocationId: 'i', author: role === 'user' ? 'user' : 'Chat', actions: {}, timestamp: t, content: { role, parts } }) as unknown as TurnEvent;
+  // The user message and the model's call share a millisecond: a cut after the message would hide the call.
+  const raw = [
+    ev('u0', 1, [{ text: 'earlier' }], 'user'),
+    ev('a0', 2, [{ text: 'answer' }]),
+    ev('u1', 5, [{ text: 'q' }], 'user'),
+    ev('c1', 5, [{ functionCall: { name: 't', id: '1' } }]),
+    { ...ev('r1', 7, [{ functionResponse: { name: 't', id: '1', response: {} } }], 'user'), usageMetadata: { promptTokenCount: 5000 } } as TurnEvent,
+  ];
+  const session = { events: raw } as unknown as Session;
+  const cut = eventsToCompact(resolveContext({ compact_after_tokens: 1, keep_recent_events: 2 }, 'scripted/chat'), { agentName: 'Chat', session });
+  assert.deepEqual(cut?.map((e) => e.id), ['u0', 'a0'], 'the tied pair stays together after the cut');
+});
+
 /** The fifth turn's scripts, for a session four turns in. */
 const fifthTurn = (): Models => ({
   chat: (_r, n) => answer(`answer ${n + 4}`, { inputTokens: (n + 4) * 400, outputTokens: 5 }),
