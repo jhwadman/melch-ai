@@ -40,6 +40,9 @@
  *   codesession code_execution in turn 1, a follow-up over its result in turn 2
  *   searchsession web_search in turn 1, a tool call and a follow-up in turn 2
  *   memory      memory extraction (modelExtractor) on --model
+ *   followup    turn 2 answerable only from turn 1's tool result, and a
+ *               second call to that tool fails (503): the answer must come
+ *               from the earlier turn's projected record, not a re-fetch
  *   callonly    an earlier turn whose assistant message held only a call and
  *               whose answer was never written: on Gemini 4 two user contents
  *               then meet; straight on the adapter
@@ -76,7 +79,7 @@ import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { loadEnv } from '../lib/loadEnv.ts';
 import { modelExtractor } from '../lib/memory/providers.ts';
 import type { AssistantMessage, Message, ModelAdapter, ToolMessage } from '../lib/models/contract.ts';
-import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import { GeminiAdapter, PROJECTION_MARKER } from '../lib/models/geminiAdapter.ts';
 import { PLACEHOLDER_THOUGHT_SIGNATURE } from '../lib/models/geminiState.ts';
 import { contentsToMessages, messagesToContents } from '../lib/models/genaiMapping.ts';
 import { summarize } from '../lib/runtime/native/compaction.ts';
@@ -99,7 +102,7 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 export const CASES = [
   'grounding', 'code', 'mixed', 'session',
   'parallel', 'none', 'budget', 'cutover', 'trimmed', 'resume', 'reflection', 'toolerror',
-  'compaction', 'codesession', 'searchsession', 'memory', 'vision', 'callonly',
+  'compaction', 'codesession', 'searchsession', 'memory', 'vision', 'callonly', 'followup',
 ] as const;
 export type CaseName = (typeof CASES)[number];
 const DEFAULT_MODEL = 'gemini-4-hydrogen';
@@ -129,6 +132,19 @@ const flaky = defineTool({
   execute: async ({ key }) => {
     if (flakyCalls++ === 0) throw new Error('The store was busy. Try the same call again.');
     return lookupValue(key);
+  },
+});
+
+/** A record store that answers once, then is down: the followup case. */
+const RECORD = 'gemini_check_record';
+let recordCalls = 0;
+const record = defineTool({
+  name: RECORD,
+  description: 'Returns the customer record stored under an id: name, city, plan and account code.',
+  schema: z.object({ id: z.string().describe('The customer id, for example "C-7".') }),
+  execute: async () => {
+    if (recordCalls++ > 0) throw new Error('503 Service Unavailable: the record store is down.');
+    return { id: 'C-7', name: 'Ada Brennan', city: 'Tromsø', plan: 'Harbour', account_code: 'QX-4471' };
   },
 });
 
@@ -172,6 +188,8 @@ function incomplete(runs: TurnRun[]): string | undefined {
       const error = run.result?.error ? ` (${run.result.error.code}: ${scrub(run.result.error.message).slice(0, ERROR_MAX)})` : '';
       return `turn ${i + 1} ${run.result?.status ?? 'did not run'}${error}`;
     }
+    // An earlier turn's record is history, never an answer (ADR 0160).
+    if ((run.result?.text ?? '').includes(PROJECTION_MARKER)) return `turn ${i + 1} wrote a tool record as text`;
   }
   return undefined;
 }
@@ -282,6 +300,20 @@ function specs(model: string): Record<CaseName, CaseSpec> {
         return /IANA|Internet Assigned/i.test(text) && has(text, '14') ? undefined : 'the second turn lost the organisation or the number';
       },
     },
+    followup: {
+      agent: { ...base, tools: [RECORD], reasoning: 'low' },
+      turns: [
+        `Look up customer C-7 with ${RECORD} and tell me their city only.`,
+        'And what is their account code? Answer with the code only.',
+      ],
+      verdict: (runs) => {
+        const stopped = incomplete(runs);
+        if (stopped) return stopped;
+        if (!runs[0].toolCalls.includes(RECORD)) return `${RECORD} was not called in turn 1`;
+        if (runs[1].toolCalls.includes(RECORD)) return `turn 2 called ${RECORD} again (a re-fetch)`;
+        return has(runs[1].result?.text, 'QX-4471') ? undefined : 'turn 2 does not answer QX-4471';
+      },
+    },
     resume: { direct: resumeCase },
     reflection: { direct: reflectionCase },
     memory: { direct: memoryCase },
@@ -341,7 +373,10 @@ async function loop(adapter: ModelAdapter, model: string, messages: Message[], s
     const assistant: AssistantMessage = { role: 'assistant', parts: final.parts };
     messages = [...messages, assistant];
     const toolCalls = final.parts.filter((p) => p.type === 'toolCall');
-    if (!toolCalls.length) return { messages, text: final.parts.map((p) => (p.type === 'text' ? p.text : '')).join(''), calls };
+    if (!toolCalls.length) {
+      const text = final.parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+      return text.includes(PROJECTION_MARKER) ? { messages, text, error: 'the answer wrote a tool record as text', calls } : { messages, text, calls };
+    }
     const results: ToolMessage = {
       role: 'tool',
       parts: toolCalls.map((c) => ({ type: 'toolResult', id: c.id, name: c.name, result: { result: lookupValue(String((c.args as { key?: unknown }).key ?? '')) } })),
@@ -609,12 +644,14 @@ export async function main(argv = process.argv.slice(2), options: { readEnvFile?
   }
   registerTool(TOOL, lookup, { override: true });
   registerTool(FLAKY, flaky, { override: true });
+  registerTool(RECORD, record, { override: true });
   console.log(`Gemini ${args.model} · adapter GeminiAdapter (engine)`);
   const all = specs(args.model);
   let failed = 0;
   for (const name of args.cases) {
     for (const runtime of args.runtimes) {
       flakyCalls = 0;
+      recordCalls = 0;
       const { failure, runs, ms, calls: direct } = await runCase(name, all[name], runtime, args.model);
       if (failure) failed++;
       const calls = direct ?? runs.reduce((n, r) => n + (r.result?.usage.llmCalls ?? 0), 0);
