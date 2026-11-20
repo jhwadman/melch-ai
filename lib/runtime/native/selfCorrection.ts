@@ -84,6 +84,8 @@ const RESERVED_TOOL_CALL = 'RESERVED_TOOL_CALL';
 /** The finish reasons the model plugin retries (its onModelErrors default). */
 const MODEL_ERRORS: readonly string[] = ['MALFORMED_FUNCTION_CALL'];
 const MODEL_PLUGIN = 'reflect_retry_model_plugin';
+/** Gemini 4's own malformed answer, retried as ADK retries MALFORMED_FUNCTION_CALL (reflectionSigning). */
+const GEMINI_4_MODEL_ERRORS: readonly string[] = ['MALFORMED_RESPONSE'];
 
 // ── Where the reflection tool is declared (ADK's rule, ADR 0097) ────────────
 
@@ -128,6 +130,12 @@ export function standsForAdkGemini(adapter: { readonly provider: string }): bool
 export interface ReflectionSigning {
   /** The signature for a reflection call whose replaced response carried none; absent: left unsigned. */
   placeholder?: string;
+  /**
+   * Error codes retried with reflection besides ADK's finish reasons: Gemini
+   * 4's MALFORMED_RESPONSE, an empty answer it gives now and then on a clean
+   * request (ADR 0160).
+   */
+  alsoRetry?: readonly string[];
 }
 
 /**
@@ -140,7 +148,9 @@ export interface ReflectionSigning {
  */
 export function reflectionSigning(adapter: { readonly provider: string }, model: string | undefined): ReflectionSigning | undefined {
   if (adapter.provider !== GEMINI_PROVIDER) return undefined;
-  return geminiMajorVersion(model) >= 3 ? { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE } : {};
+  const major = geminiMajorVersion(model);
+  if (major >= 4) return { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE, alsoRetry: GEMINI_4_MODEL_ERRORS };
+  return major >= 3 ? { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE } : {};
 }
 
 /** The signature the replaced response carried: its first call's, else its first signed part's. */
@@ -264,6 +274,9 @@ export class SelfCorrection {
         }
         if (response.finishReason && MODEL_ERRORS.includes(response.finishReason)) {
           return retry(response.errorCode ?? 'MODEL_ERROR', response.errorMessage ?? 'Model error encountered.', response.finishReason, signature());
+        }
+        if (response.errorCode && signing?.alsoRetry?.includes(response.errorCode)) {
+          return retry(response.errorCode, response.errorMessage ?? 'Model error encountered.', response.errorCode, signature());
         }
         tracker.reset(invocationId, name);
         return { response, replaced: false };
