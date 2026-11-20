@@ -2652,7 +2652,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 9826
+        "words": 9852
       }
     },
     {
@@ -7446,7 +7446,7 @@
       "label": "lib/runtime/native/compaction.ts",
       "source": "lib/runtime/native/compaction.ts",
       "attrs": {
-        "lines": 359
+        "lines": 373
       }
     },
     {

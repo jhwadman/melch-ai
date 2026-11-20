@@ -76,6 +76,14 @@ syndicate copied before this release keeps its own `model:` lines.
   caps rise to 2,048). An agent at `medium` with a cap under 4,096 now has
   4,096. `temperature` stays where it was set; Gemini 4 ignores it.
 
+### Fixed
+
+- **A compaction cut between two events of the same millisecond** hid the
+  later one from the history (the stored compaction covers events up to its
+  `endTime`). When that was a tool call, its answer was left without it and
+  the turn failed with "No function call event found…". The cut now moves
+  back past such ties. Every provider.
+
 ### Added
 
 - `geminiMajorVersion` (`melchizedek-agents/models/geminiState`);
