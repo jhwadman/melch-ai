@@ -33,7 +33,27 @@ function config(context?: unknown, model = 'claude-sonnet-5-5'): SyndicateYamlCo
   } as unknown as SyndicateYamlConfig;
 }
 
+/**
+ * Each event a millisecond after the last, as a live model's latency makes
+ * them: a scripted model writes several in one millisecond, and the cut never
+ * falls between two of the same millisecond (eventsToCompact).
+ */
+async function withTickingClock<T>(fn: () => Promise<T>): Promise<T> {
+  const realNow = Date.now;
+  let clock = realNow();
+  Date.now = () => (clock += 1);
+  try {
+    return await fn();
+  } finally {
+    Date.now = realNow;
+  }
+}
+
 async function chat(cfg: SyndicateYamlConfig, desk: ScriptedModel, turns: string[]) {
+  return withTickingClock(() => chatOn(cfg, desk, turns));
+}
+
+async function chatOn(cfg: SyndicateYamlConfig, desk: ScriptedModel, turns: string[]) {
   const sessionService = new InProcessSessionService();
   const results = [];
   for (const text of turns) {
