@@ -533,7 +533,7 @@
           }
         },
         "mcp_auth": {
-          "description": "The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user's own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
+          "description": "The credential the MCP server takes: an OAuth grant (ADR 0112; with authorization_code, each user's own token on their own connection, and mcp_tools is required), or a bearer_env or header read by name through the credential source (ADR 0163). Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
           "type": "object",
           "properties": {
             "oauth2": {
@@ -611,11 +611,33 @@
               ],
               "additionalProperties": false,
               "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+            },
+            "bearer_env": {
+              "description": "Environment variable (or credential source name) holding a bearer token, sent as `Authorization: Bearer …` on every request to this server only (ADR 0163).",
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$"
+            },
+            "header": {
+              "description": "A credential sent as-is in a header the server names, on every request to this server only (ADR 0163).",
+              "type": "object",
+              "properties": {
+                "env": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$",
+                  "description": "Environment variable (or credential source name) holding the value."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The header the server reads the credential from (e.g. X-Api-Key). Not one the HTTP layer or the MCP transport sets."
+                }
+              },
+              "required": [
+                "env",
+                "name"
+              ],
+              "additionalProperties": false
             }
           },
-          "required": [
-            "oauth2"
-          ],
           "additionalProperties": false
         },
         "mcp_transport": {
@@ -693,7 +715,7 @@
                 "description": "The server's tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent's own tools. require_approval may name these."
               },
               "auth": {
-                "description": "The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.",
+                "description": "The credential this server takes: an OAuth grant (ADR 0112, ADR 0124), or a bearer_env or header read by name through the credential source (ADR 0163). Without it, MCP_BEARER_TOKENS applies.",
                 "type": "object",
                 "properties": {
                   "oauth2": {
@@ -771,11 +793,33 @@
                     ],
                     "additionalProperties": false,
                     "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+                  },
+                  "bearer_env": {
+                    "description": "Environment variable (or credential source name) holding a bearer token, sent as `Authorization: Bearer …` on every request to this server only (ADR 0163).",
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$"
+                  },
+                  "header": {
+                    "description": "A credential sent as-is in a header the server names, on every request to this server only (ADR 0163).",
+                    "type": "object",
+                    "properties": {
+                      "env": {
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$",
+                        "description": "Environment variable (or credential source name) holding the value."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "The header the server reads the credential from (e.g. X-Api-Key). Not one the HTTP layer or the MCP transport sets."
+                      }
+                    },
+                    "required": [
+                      "env",
+                      "name"
+                    ],
+                    "additionalProperties": false
                   }
                 },
-                "required": [
-                  "oauth2"
-                ],
                 "additionalProperties": false
               },
               "transport": {
@@ -1660,7 +1704,7 @@
             }
           },
           "mcp_auth": {
-            "description": "The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user's own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
+            "description": "The credential the MCP server takes: an OAuth grant (ADR 0112; with authorization_code, each user's own token on their own connection, and mcp_tools is required), or a bearer_env or header read by name through the credential source (ADR 0163). Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
             "type": "object",
             "properties": {
               "oauth2": {
@@ -1738,11 +1782,33 @@
                 ],
                 "additionalProperties": false,
                 "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+              },
+              "bearer_env": {
+                "description": "Environment variable (or credential source name) holding a bearer token, sent as `Authorization: Bearer …` on every request to this server only (ADR 0163).",
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]*$"
+              },
+              "header": {
+                "description": "A credential sent as-is in a header the server names, on every request to this server only (ADR 0163).",
+                "type": "object",
+                "properties": {
+                  "env": {
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$",
+                    "description": "Environment variable (or credential source name) holding the value."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The header the server reads the credential from (e.g. X-Api-Key). Not one the HTTP layer or the MCP transport sets."
+                  }
+                },
+                "required": [
+                  "env",
+                  "name"
+                ],
+                "additionalProperties": false
               }
             },
-            "required": [
-              "oauth2"
-            ],
             "additionalProperties": false
           },
           "mcp_transport": {
@@ -1820,7 +1886,7 @@
                   "description": "The server's tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent's own tools. require_approval may name these."
                 },
                 "auth": {
-                  "description": "The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.",
+                  "description": "The credential this server takes: an OAuth grant (ADR 0112, ADR 0124), or a bearer_env or header read by name through the credential source (ADR 0163). Without it, MCP_BEARER_TOKENS applies.",
                   "type": "object",
                   "properties": {
                     "oauth2": {
@@ -1898,11 +1964,33 @@
                       ],
                       "additionalProperties": false,
                       "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+                    },
+                    "bearer_env": {
+                      "description": "Environment variable (or credential source name) holding a bearer token, sent as `Authorization: Bearer …` on every request to this server only (ADR 0163).",
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$"
+                    },
+                    "header": {
+                      "description": "A credential sent as-is in a header the server names, on every request to this server only (ADR 0163).",
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$",
+                          "description": "Environment variable (or credential source name) holding the value."
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "The header the server reads the credential from (e.g. X-Api-Key). Not one the HTTP layer or the MCP transport sets."
+                        }
+                      },
+                      "required": [
+                        "env",
+                        "name"
+                      ],
+                      "additionalProperties": false
                     }
                   },
-                  "required": [
-                    "oauth2"
-                  ],
                   "additionalProperties": false
                 },
                 "transport": {

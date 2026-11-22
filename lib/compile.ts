@@ -46,7 +46,7 @@ import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
 import { reasoningConfig } from './models/reasoning.ts';
 import { instructionFor, toEngineAgent } from './agentDialect.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
-import { createMcpTools, loadStdioMcpTools } from './tools/mcpToolFactory.ts';
+import { createMcpTools, loadStdioMcpTools, mcpStaticCredential } from './tools/mcpToolFactory.ts';
 import type { McpServerConfig, McpTransportKind } from './tools/mcpToolFactory.ts';
 import type { Tool } from './tools/tool.ts';
 import { requireApproval, toolOf } from './tools/tool.ts';
@@ -229,10 +229,13 @@ async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): 
     }
   }
   /** One server's tools, narrowed to the names the YAML allows (a server's list is its own to change). */
-  const offeredBy = async (label: string, url: string, allowedNames: string[] | undefined, oauth2: McpAuthConfig['oauth2'] | undefined, transport: McpTransportKind | undefined) => {
+  const offeredBy = async (label: string, url: string, allowedNames: string[] | undefined, auth: McpAuthConfig | undefined, transport: McpTransportKind | undefined) => {
     opts.log?.(`Loading MCP tools: ${label}`);
+    const oauth2 = auth?.oauth2;
+    // A bearer_env or header credential, read by name at each request (ADR 0163).
+    const credential = mcpStaticCredential(auth);
     // An authorization_code server lists nothing at startup: its tools are the allowed names, each on its user's own connection (ADR 0112).
-    const offered = await createMcpTools(url, { ...(allowedNames ? { tools: allowedNames } : {}), ...(oauth2 ? { oauth2 } : {}), ...(transport ? { transport } : {}) });
+    const offered = await createMcpTools(url, { ...(allowedNames ? { tools: allowedNames } : {}), ...(oauth2 ? { oauth2 } : {}), ...(credential ? { credential } : {}), ...(transport ? { transport } : {}) });
     if (!allowedNames) return offered;
     // A name the server does not offer is reported, and a gate on it fails the compile in gateTools.
     const allowed = new Set(allowedNames);
@@ -245,7 +248,7 @@ async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): 
   };
   if (agent.mcp_server_url) {
     // The single-server form: a name the agent already has keeps the agent's tool.
-    for (const mcpTool of await offeredBy(agent.mcp_server_url, agent.mcp_server_url, agent.mcp_tools, agent.mcp_auth?.oauth2, agent.mcp_transport)) {
+    for (const mcpTool of await offeredBy(agent.mcp_server_url, agent.mcp_server_url, agent.mcp_tools, agent.mcp_auth, agent.mcp_transport)) {
       if (!tools.some((t: any) => t.name === mcpTool.name)) tools.push(mcpTool);
     }
   }
@@ -256,7 +259,7 @@ async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): 
     (agent.mcp_servers ?? []).map((server) =>
       server.command !== undefined
         ? stdioOfferedBy(server, opts)
-        : offeredBy(`${server.name} (${server.url})`, server.url!, server.tools, server.auth?.oauth2, server.transport),
+        : offeredBy(`${server.name} (${server.url})`, server.url!, server.tools, server.auth, server.transport),
     ),
   );
   for (const [i, offered] of servers.entries()) {

@@ -31,6 +31,7 @@ import { OAUTH_SCOPE, PROVIDER_NAME } from './tools/auth.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 import { V2_AGENT_KEYS, conflictMessage, conflictsOf, toEngineAgent } from './agentDialect.ts';
 import { MCP_TRANSPORTS } from './tools/mcpTransports.ts';
+import { credentialHeaderProblem } from './tools/credentialHeader.ts';
 import { MAX_META_KEYS, MAX_META_VALUE_CHARS, META_KEY } from './observability/metadata.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
@@ -314,6 +315,33 @@ const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 /** An `env` key that names a credential: such a value belongs in pass_env, never in the YAML (ADR 0132). */
 export const SECRET_ENV_KEY = /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH)/i;
 
+/**
+ * The credential a remote MCP server takes (ADR 0112, ADR 0163): exactly one
+ * of an OAuth grant, a bearer token by variable name, or a variable's value
+ * in a header the server names. The OpenAPI `auth` shape, for MCP.
+ */
+const mcpAuth = z
+  .strictObject({
+    oauth2: oauth2Auth.optional(),
+    bearer_env: envName
+      .optional()
+      .describe('Environment variable (or credential source name) holding a bearer token, sent as `Authorization: Bearer …` on every request to this server only (ADR 0163).'),
+    header: z
+      .strictObject({
+        env: envName.describe('Environment variable (or credential source name) holding the value.'),
+        name: z
+          .string()
+          .superRefine((name, ctx) => {
+            const problem = credentialHeaderProblem(name);
+            if (problem) ctx.addIssue({ code: 'custom', message: problem });
+          })
+          .describe('The header the server reads the credential from (e.g. X-Api-Key). Not one the HTTP layer or the MCP transport sets.'),
+      })
+      .optional()
+      .describe('A credential sent as-is in a header the server names, on every request to this server only (ADR 0163).'),
+  })
+  .refine((a) => [a.oauth2, a.bearer_env, a.header].filter((x) => x !== undefined).length === 1, 'exactly one of oauth2, bearer_env or header');
+
 /** An `mcp_servers` entry's name: lowercase, bounded, one character class (no backtracking). */
 export const MCP_SERVER_NAME = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -344,10 +372,9 @@ const mcpServerEntry = z
       .array(z.string().min(1))
       .min(1)
       .describe('The server\'s tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent\'s own tools. require_approval may name these.'),
-    auth: z
-      .strictObject({ oauth2: oauth2Auth })
+    auth: mcpAuth
       .optional()
-      .describe('The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.'),
+      .describe('The credential this server takes: an OAuth grant (ADR 0112, ADR 0124), or a bearer_env or header read by name through the credential source (ADR 0163). Without it, MCP_BEARER_TOKENS applies.'),
     transport: mcpTransport.optional(),
   })
   .describe('One MCP server among several (ADR 0124).');
@@ -452,10 +479,9 @@ const agentFields = {
     .min(1)
     .optional()
     .describe('The MCP server\'s tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.'),
-  mcp_auth: z
-    .strictObject({ oauth2: oauth2Auth })
+  mcp_auth: mcpAuth
     .optional()
-    .describe('The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user\'s own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.'),
+    .describe('The credential the MCP server takes: an OAuth grant (ADR 0112; with authorization_code, each user\'s own token on their own connection, and mcp_tools is required), or a bearer_env or header read by name through the credential source (ADR 0163). Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.'),
   mcp_transport: mcpTransport.optional().describe('How mcp_server_url is reached: auto (the default), streamable_http or sse (ADR 0124). Needs mcp_server_url.'),
   mcp_servers: z
     .array(mcpServerEntry)

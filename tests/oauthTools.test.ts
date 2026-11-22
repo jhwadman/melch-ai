@@ -244,8 +244,8 @@ test('the systems_operator template declares an OAuth-protected MCP server, and 
   );
   const cc = loadSyndicate('operator_cc.yaml', { agentsDir: dir }) as SyndicateYamlConfig;
   const systems = cc.subagents!.find((s) => s.name === 'Systems')!;
-  assert.equal(systems.mcp_auth?.oauth2.grant, 'client_credentials');
-  assert.equal(systems.mcp_auth?.oauth2.client_secret_env, 'SYSTEMS_CLIENT_SECRET');
+  assert.equal(systems.mcp_auth?.oauth2?.grant, 'client_credentials');
+  assert.equal(systems.mcp_auth?.oauth2?.client_secret_env, 'SYSTEMS_CLIENT_SECRET');
 
   const result = runDoctor({ agentsDir: dir });
   const byFile = Object.fromEntries(result.syndicates.map((s) => [s.file, s]));

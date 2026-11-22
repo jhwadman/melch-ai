@@ -97,9 +97,16 @@ export interface OAuth2AuthConfig {
   authorization_params?: Record<string, string>;
 }
 
-/** An agent's `mcp_auth:` beside its `mcp_server_url`. */
+/**
+ * An agent's `mcp_auth:` beside its `mcp_server_url`, or an `mcp_servers`
+ * entry's `auth`: exactly one of an OAuth grant (ADR 0112), a bearer token
+ * by variable name, or a variable's value in a header the server names
+ * (ADR 0163; lib/tools/mcpToolFactory.ts).
+ */
 export interface McpAuthConfig {
-  oauth2: OAuth2AuthConfig;
+  oauth2?: OAuth2AuthConfig;
+  bearer_env?: string;
+  header?: { env: string; name: string };
 }
 
 /** Where a declared grant sits: for the doctor, and for the error messages. */

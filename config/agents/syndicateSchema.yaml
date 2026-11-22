@@ -634,6 +634,17 @@ subagents:
     #     client_id_env: "SYSTEMS_CLIENT_ID"
     #     client_secret_env: "SYSTEMS_CLIENT_SECRET"
     #     scopes: ["orders:read"]
+    # Or, for a server that takes a static token, exactly one of
+    # `bearer_env` (sent as Authorization: Bearer) or `header` (the value
+    # as-is in the header the server names), by variable name, never a
+    # value (ADR 0163). It is read through the credential source, then the
+    # environment, at each request; sent only to this server's own origin,
+    # over https (http only to a loopback host), to a host
+    # MELCHIZEDEK_CREDENTIAL_HOSTS binds it to when that is set; and it
+    # follows no redirect off the server. An mcp_servers entry's `auth`
+    # takes the same three forms.
+    # mcp_auth: { bearer_env: "TRACKER_MCP_TOKEN" }
+    # mcp_auth: { header: { env: "TRACKER_MCP_KEY", name: "X-Api-Key" } }
 
     # [optional] Agent Skills for this subagent; same block as on the
     # orchestrator. `scripts: "local"` is allowed here only under

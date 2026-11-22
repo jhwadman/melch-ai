@@ -5,25 +5,25 @@
     "at": "2026-11-22"
   },
   "stats": {
-    "nodes": 1120,
-    "edges": 4475,
+    "nodes": 1123,
+    "edges": 4490,
     "byKind": {
-      "doc": 235,
+      "doc": 236,
       "provider": 8,
       "env": 119,
       "model": 13,
       "tool": 35,
-      "file": 262,
+      "file": 263,
       "syndicate": 37,
       "agent": 99,
       "mcp-server": 5,
       "table": 20,
-      "module": 221,
+      "module": 222,
       "script": 53,
       "external": 13
     },
     "byRelation": {
-      "links_to": 899,
+      "links_to": 903,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1022,
+      "imports": 1026,
       "reads_table": 33,
       "runs": 77,
-      "derives_from": 1355,
+      "derives_from": 1362,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3991,
+      "extracted": 4006,
       "inferred": 484
     },
     "isolated": 5
@@ -2380,6 +2380,18 @@
       }
     },
     {
+      "id": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "kind": "doc",
+      "label": "ADR 0163: A remote MCP server's static credential is named in its YAML entry, by variable",
+      "source": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 171
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2760,7 +2772,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1938
+        "words": 2247
       }
     },
     {
@@ -2844,7 +2856,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3623
+        "words": 3676
       }
     },
     {
@@ -5892,6 +5904,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/mcpStaticCredential.test.ts",
+      "kind": "file",
+      "label": "mcpStaticCredential.test.ts",
+      "source": "tests/mcpStaticCredential.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/mcpStdio.test.ts",
       "kind": "file",
       "label": "mcpStdio.test.ts",
@@ -6736,7 +6755,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 732
+        "lines": 735
       }
     },
     {
@@ -7753,7 +7772,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1474
+        "lines": 1500
       }
     },
     {
@@ -7793,6 +7812,15 @@
       }
     },
     {
+      "id": "module:lib/tools/credentialHeader.ts",
+      "kind": "module",
+      "label": "lib/tools/credentialHeader.ts",
+      "source": "lib/tools/credentialHeader.ts",
+      "attrs": {
+        "lines": 66
+      }
+    },
+    {
       "id": "module:lib/tools/credentialHosts.ts",
       "kind": "module",
       "label": "lib/tools/credentialHosts.ts",
@@ -7816,7 +7844,7 @@
       "label": "lib/tools/credentialUses.ts",
       "source": "lib/tools/credentialUses.ts",
       "attrs": {
-        "lines": 167
+        "lines": 181
       }
     },
     {
@@ -7861,7 +7889,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 663
+        "lines": 805
       }
     },
     {
@@ -7924,7 +7952,7 @@
       "label": "lib/tools/oauthTools.ts",
       "source": "lib/tools/oauthTools.ts",
       "attrs": {
-        "lines": 586
+        "lines": 593
       }
     },
     {
@@ -19625,6 +19653,55 @@
       "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md:27"
     },
     {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "file:tests/mcpStaticCredential.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "module:lib/tools/credentialHeader.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md frontmatter"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md:29"
+    },
+    {
+      "from": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -24771,6 +24848,13 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "file:tests/mcpStaticCredential.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "file:tests/mcpStreamable.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -24793,6 +24877,13 @@
     {
       "from": "/protocols/mcp.md",
       "to": "module:lib/mcp/server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/tools/credentialHeader.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md frontmatter"
@@ -24858,98 +24949,105 @@
       "to": "/agents/event_assistant.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:64"
+      "evidence": "/protocols/mcp.md:68"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:41"
+      "evidence": "/protocols/mcp.md:43"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:45"
+      "evidence": "/protocols/mcp.md:47"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:45"
+      "evidence": "/protocols/mcp.md:47"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:49"
+      "evidence": "/protocols/mcp.md:53"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:54"
+      "evidence": "/protocols/mcp.md:58"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:52"
+      "evidence": "/protocols/mcp.md:56"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:35"
+      "evidence": "/protocols/mcp.md:37"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0132-local-mcp-servers-over-stdio.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0133-credential-source-by-variable-name.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:43"
+      "evidence": "/protocols/mcp.md:45"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:51"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/protocols/mcp-server.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:68"
+      "evidence": "/protocols/mcp.md:72"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:62"
+      "evidence": "/protocols/mcp.md:66"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:33"
+      "evidence": "/protocols/mcp.md:35"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:61"
+      "evidence": "/protocols/mcp.md:65"
     },
     {
       "from": "/tools/ask-user.md",
@@ -25909,6 +26007,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:87"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:96"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -32527,6 +32632,13 @@
     },
     {
       "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/tools/credentialHeader.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/tools/mcpTransports.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -32808,6 +32920,27 @@
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/credentialHeader.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/credentialHosts.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"

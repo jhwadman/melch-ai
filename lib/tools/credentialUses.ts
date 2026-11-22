@@ -2,10 +2,12 @@
  * lib/tools/credentialUses.ts — every static credential variable a syndicate
  * YAML sends somewhere, and where (ADR 0122).
  *
- * A YAML sends a static credential in three places: an OpenAPI entry's
+ * A YAML sends a static credential in four places: an OpenAPI entry's
  * `auth.bearer_env` or `auth.api_key.env` (to the spec's server, or
- * `base_url`), and an `oauth2` block's `client_secret_env` (to its
- * `token_url`; the OpenAPI entry's or the MCP server's `mcp_auth`). The
+ * `base_url`), a remote MCP server's `auth.bearer_env` or
+ * `auth.header.env` (to its URL; `mcp_auth` or an `mcp_servers` entry's
+ * `auth`, ADR 0163), and an `oauth2` block's `client_secret_env` (to its
+ * `token_url`; the OpenAPI entry's or the MCP server's). The
  * operator's credential host allowlist (lib/tools/credentialHosts.ts) is
  * checked against them when a served syndicate loads
  * (`syndicateCredentialHostProblems`), and the doctor and the server binary
@@ -29,8 +31,8 @@ export interface CredentialUse {
   tools: string;
   /** The variable's name. */
   env: string;
-  /** Where the YAML names it. */
-  role: 'bearer_env' | 'api_key' | 'client_secret_env';
+  /** Where the YAML names it: an OpenAPI `bearer_env` or `api_key`, an MCP server's `bearer_env` or `header`, an OAuth `client_secret_env`. */
+  role: 'bearer_env' | 'api_key' | 'header' | 'client_secret_env';
   /**
    * The URLs its value goes to: the token endpoint for a client secret,
    * `base_url` for an OpenAPI entry that sets one. Absent for an OpenAPI
@@ -53,12 +55,18 @@ interface OpenApiEntryLike {
   base_url?: string;
   auth?: { bearer_env?: string; api_key?: { env?: string }; oauth2?: OAuth2Like };
 }
+/** The parts of an MCP server's `auth` read here. */
+interface McpAuthLike {
+  oauth2?: OAuth2Like;
+  bearer_env?: string;
+  header?: { env?: string };
+}
 interface AgentLike {
   name?: string;
   openapi?: OpenApiEntryLike[];
   mcp_server_url?: string;
-  mcp_auth?: { oauth2?: OAuth2Like };
-  mcp_servers?: Array<{ url?: string; auth?: { oauth2?: OAuth2Like } }>;
+  mcp_auth?: McpAuthLike;
+  mcp_servers?: Array<{ url?: string; auth?: McpAuthLike }>;
   yaml_reference?: string;
 }
 /** The parts of a syndicate config read here. */
@@ -83,13 +91,19 @@ export function agentCredentialUses(agent: AgentLike, prefix = ''): CredentialUs
     if (auth.api_key?.env) out.push({ agent: name, tools, env: auth.api_key.env, role: 'api_key', ...servers, openapi: entry });
     if (auth.oauth2?.client_secret_env) out.push({ agent: name, tools, env: auth.oauth2.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(auth.oauth2) });
   }
-  const mcp = agent.mcp_auth?.oauth2;
-  if (mcp?.client_secret_env) out.push({ agent: name, tools: `mcp ${agent.mcp_server_url ?? ''}`, env: mcp.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(mcp) });
-  // Each mcp_servers entry's grant (ADR 0124), as the single server's.
-  for (const server of agent.mcp_servers ?? []) {
-    const o = server?.auth?.oauth2;
-    if (o?.client_secret_env) out.push({ agent: name, tools: `mcp ${server.url ?? ''}`, env: o.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(o) });
-  }
+  // The single server's auth, then each mcp_servers entry's (ADR 0124), alike.
+  const mcp = (url: string | undefined, auth: McpAuthLike | undefined) => {
+    if (!auth) return;
+    const tools = `mcp ${url ?? ''}`;
+    // A static credential goes to the server's own URL (ADR 0163).
+    const server = url ? { destinations: [url] } : { destinations: [] };
+    if (auth.bearer_env) out.push({ agent: name, tools, env: auth.bearer_env, role: 'bearer_env', ...server });
+    if (auth.header?.env) out.push({ agent: name, tools, env: auth.header.env, role: 'header', ...server });
+    const o = auth.oauth2;
+    if (o?.client_secret_env) out.push({ agent: name, tools, env: o.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(o) });
+  };
+  mcp(agent.mcp_server_url, agent.mcp_auth);
+  for (const server of agent.mcp_servers ?? []) mcp(server?.url, server?.auth);
   return out;
 }
 

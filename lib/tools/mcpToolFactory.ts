@@ -21,6 +21,15 @@
  * shared connection, or each user's (authorization_code) on that user's own
  * connection, read through `ctx.accessToken` so a user who has not granted
  * it is asked (ADR 0085).
+ *
+ * A server that takes a static credential names its variable instead
+ * (`auth: { bearer_env }` or `auth: { header: { env, name } }`, ADR 0163),
+ * as an OpenAPI entry does: the value is read by name through the
+ * credential source, then the environment, at each request, after the
+ * variable allowlist; it goes only to the server's own origin, over https
+ * (http only to a loopback host), only to a host the operator's credential
+ * host allowlist binds it to, follows no redirect to another origin, and is
+ * cut out of every message a log line or the model reads.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -34,8 +43,11 @@ import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
 import { ToolCredentialError } from './auth.ts';
+import { credentialEnvValue, readCredentialEnv } from './credentialEnv.ts';
+import { credentialHeaderProblem } from './credentialHeader.ts';
+import { credentialCallProblem, credentialHostProblem } from './credentialHosts.ts';
 import { oauthCallProblem, oauthTokenSource } from './oauthTools.ts';
-import type { OAuth2AuthConfig } from './oauthTools.ts';
+import type { McpAuthConfig, OAuth2AuthConfig } from './oauthTools.ts';
 import { MCP_TRANSPORTS } from './mcpTransports.ts';
 import type { McpTransportKind } from './mcpTransports.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
@@ -382,7 +394,11 @@ export async function loadStdioMcpTools(name: string, spec: StdioMcpSpec): Promi
 }
 
 /** One listed tool as an own Tool on `client`'s connection: the same declaration and result handling for every transport. */
-function listedTool(client: Client, tool: { name: string; description?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } }): Tool {
+function listedTool(
+  client: Client,
+  tool: { name: string; description?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } },
+  redactMessage: (message: string) => string = (message) => message,
+): Tool {
   const declaration = declarationOf(tool);
   return {
     name: tool.name,
@@ -391,7 +407,7 @@ function listedTool(client: Client, tool: { name: string; description?: string; 
       try {
         return resultText(await client.callTool({ name: tool.name, arguments: input }));
       } catch (error: any) {
-        return `[MCP ERROR] Tool ${tool.name} failed: ${error instanceof ToolCredentialError ? error.message : error?.message}`;
+        return `[MCP ERROR] Tool ${tool.name} failed: ${error instanceof ToolCredentialError ? error.message : redactMessage(String(error?.message))}`;
       }
     },
   };
@@ -467,12 +483,131 @@ function bearerFetch(oauth2: OAuth2AuthConfig, token: (destination: string) => P
   };
 }
 
+// ── A static credential by variable name (ADR 0163) ──────────────────────────
+
+/**
+ * A static credential a remote MCP server takes, by variable name: the
+ * value of `env` as `Authorization: Bearer <value>`, or, with `header`, as
+ * that header's value unchanged.
+ */
+export interface McpStaticCredential {
+  /** The variable (or credential source name) holding the value. */
+  env: string;
+  /** The header to send it in; absent: `Authorization: Bearer`. */
+  header?: string;
+}
+
+/** The static credential an `mcp_auth` or an `mcp_servers` entry's `auth` names, or undefined (none, or an OAuth grant). */
+export function mcpStaticCredential(auth: McpAuthConfig | undefined): McpStaticCredential | undefined {
+  if (auth?.bearer_env) return { env: auth.bearer_env };
+  if (auth?.header) return { env: auth.header.env, header: auth.header.name };
+  return undefined;
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+/** Why a static credential may not travel to `url`: https only, http only to a loopback host, no credentials in the URL. */
+function staticTransportProblem(url: URL): string | null {
+  if (url.username || url.password) return `${url.hostname} must not carry credentials in its URL`;
+  if (url.protocol === 'https:') return null;
+  if (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)) return null;
+  return `a credential is sent only over https (http only to a loopback host), not to ${url.protocol}//${url.hostname}`;
+}
+
+/** The most distinct values one server's credential is remembered under, for cutting out of messages. */
+const MAX_REMEMBERED_VALUES = 4;
+
+/** How a server's requests carry its static credential, and how a message loses it. */
+interface StaticCredentialFetch {
+  fetch: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+  /** `message` with every value this credential was sent as cut out. */
+  redact(message: string): string;
+}
+
+/**
+ * The fetch every request to `serverUrl` goes through when the server takes
+ * a static credential. Checked once here (throws, failing the compile,
+ * naming the variable or the host, never a value): the header name, the
+ * variable allowlist (credentialEnvProblem), the transport, the operator's
+ * credential host allowlist, and that the variable is set. Then at each
+ * request: the destination is the server's own origin, the allowlist still
+ * binds the host, and the value is read again through the credential source
+ * (ADR 0133), so a key replaced or removed takes effect on the next request.
+ * A redirect to another origin is refused, never followed.
+ */
+function staticCredentialFetch(serverUrl: string, credential: McpStaticCredential, where: string): StaticCredentialFetch {
+  const { env, header } = credential;
+  if (header !== undefined) {
+    const problem = credentialHeaderProblem(header);
+    if (problem) throw new Error(`${where}: auth.header.name: ${problem}`);
+  }
+  let server: URL;
+  try {
+    server = new URL(serverUrl);
+  } catch {
+    throw new Error(`Invalid MCP server URL: ${serverUrl}`);
+  }
+  const transport = staticTransportProblem(server);
+  if (transport) throw new Error(`${where}: ${transport}`);
+  const unbound = credentialHostProblem(env, serverUrl);
+  if (unbound) throw new Error(`${where}: ${unbound}`);
+  const sent: string[] = [];
+  const remember = (value: string) => {
+    if (sent.includes(value)) return;
+    sent.push(value);
+    if (sent.length > MAX_REMEMBERED_VALUES) sent.shift();
+  };
+  // The allowlist, then the source, then the environment; throws naming the variable when it is unset.
+  remember(readCredentialEnv(env, where));
+  const redact = (message: string): string => sent.reduce((text, value) => text.split(value).join('[redacted]'), message);
+  const policy: RedirectPolicy = {
+    async hopProblem(url, crossOrigin) {
+      if (crossOrigin) return `refusing a redirect to ${url.host}: a credential follows no redirect off its server`;
+      return MCP_REDIRECTS.hopProblem(url, false);
+    },
+  };
+  return {
+    redact,
+    async fetch(input, init) {
+      const raw = input instanceof Request ? input.url : String(input);
+      let destination: URL;
+      try {
+        destination = new URL(raw);
+      } catch {
+        throw new Error(`${where}: refusing a request to a destination that is not a URL`);
+      }
+      // Only to the server the entry names: the SDK reaches the SSE message endpoint the server announces, which must be its own origin too.
+      if (destination.origin !== server.origin) throw new Error(`${where}: refusing to send the credential to ${destination.host}, which is not the server's own origin`);
+      const refused = credentialCallProblem(env, destination.href);
+      if (refused) throw new Error(`${where}: ${refused}`);
+      const value = credentialEnvValue(env);
+      if (!value) throw new Error(`${where}: ${env} is not set (auth reads it from the credential source or the environment)`);
+      remember(value);
+      if (/[\r\n\0]/.test(value)) throw new Error(`${where}: ${env} holds a value that cannot be sent in a header`);
+      const headers = new Headers(init?.headers);
+      try {
+        headers.set(header ?? 'Authorization', header ? value : `Bearer ${value}`);
+      } catch {
+        // A runtime's own message can quote the value: name the variable only.
+        throw new Error(`${where}: ${env} holds a value that cannot be sent in a header`);
+      }
+      try {
+        return await fetchWithRedirectPolicy(input, { ...init, headers }, policy, (i, o) => fetch(i, o));
+      } catch (error) {
+        throw new Error(redact(error instanceof Error ? error.message : String(error)));
+      }
+    },
+  };
+}
+
 /** How an agent reaches its MCP server: which tools it may use, and the OAuth grant the server takes. */
 export interface McpToolOptions {
   /** `mcp_tools` (or an `mcp_servers` entry's `tools`): the names this agent may use. Required with an authorization_code grant. */
   tools?: string[];
-  /** `mcp_auth.oauth2` (ADR 0112). Without it, MCP_BEARER_TOKENS applies. */
+  /** `mcp_auth.oauth2` (ADR 0112). Without it or `credential`, MCP_BEARER_TOKENS applies. */
   oauth2?: OAuth2AuthConfig;
+  /** `mcp_auth`'s `bearer_env` or `header` (ADR 0163): a static credential by variable name. Not with `oauth2`. */
+  credential?: McpStaticCredential;
   /** `mcp_transport` (or an entry's `transport`): default `auto` (ADR 0124). */
   transport?: McpTransportKind;
 }
@@ -496,7 +631,8 @@ export interface McpServerConfig {
   cwd?: string;
   /** The server's tools this agent may use, by name. Required: names across servers are refused on collision at load. */
   tools: string[];
-  auth?: { oauth2: OAuth2AuthConfig };
+  /** The credential the server takes: an OAuth grant, or `bearer_env` / `header` by variable name (ADR 0163). Without it, MCP_BEARER_TOKENS applies. */
+  auth?: McpAuthConfig;
   transport?: McpTransportKind;
 }
 
@@ -527,14 +663,19 @@ const userPools = new Set<Map<string, unknown>>();
 export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions = {}): Promise<Tool[]> {
   const oauth2 = options.oauth2;
   const kind = options.transport ?? 'auto';
+  if (oauth2 && options.credential) throw new Error(`mcp ${mcpServerUrl}: auth is one of oauth2, bearer_env or header, not two`);
   if (oauth2?.grant === 'authorization_code') return userGrantMcpTools(mcpServerUrl, oauth2, options.tools, kind);
   const tokenSource = oauth2 ? oauthTokenSource(oauth2, `mcp ${mcpServerUrl}`, mcpServerUrl, { allowPrivate: process.env.ALLOW_PRIVATE_MCP === 'true' }) : undefined;
+  // A static credential's configuration errors fail the compile here, before the connect (ADR 0163).
+  const staticAuth = options.credential ? staticCredentialFetch(mcpServerUrl, options.credential, `mcp ${mcpServerUrl}`) : undefined;
   let conn: McpConnection | undefined;
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
     conn = tokenSource
       ? await connectMcp(url, kind, bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)), {}, { oauth: true })
-      : await connectMcp(url, kind, mcpFetch, mcpAuthHeaders(url));
+      : staticAuth
+        ? await connectMcp(url, kind, staticAuth.fetch)
+        : await connectMcp(url, kind, mcpFetch, mcpAuthHeaders(url));
     const client = conn.client;
 
     // Fetch available tools from the MCP server
@@ -542,10 +683,11 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
 
     // MCP servers describe tools in standard lowercase JSON Schema, which is
     // the contract's dialect; mcpToolParameters derives the parameters.
-    return toolsResponse.tools.map((tool) => listedTool(client, tool));
+    return toolsResponse.tools.map((tool) => listedTool(client, tool, staticAuth?.redact));
   } catch (error) {
-    // A token that cannot be had is reported by kind; the rest as before.
-    console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error instanceof ToolCredentialError ? error.message : error);
+    // A token that cannot be had is reported by kind; a static credential's value is cut out of the message; the rest as before.
+    const reported = error instanceof ToolCredentialError ? error.message : staticAuth ? staticAuth.redact(error instanceof Error ? error.message : String(error)) : error;
+    console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, reported);
     // A failed connect closed its own transport (connectMcp); a failed
     // listing closes this one, or its stream keeps reconnecting for the
     // process's life.
