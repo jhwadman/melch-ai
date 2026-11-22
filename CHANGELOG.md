@@ -4,7 +4,72 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased / 1.17.0
+## 1.18.0 — 2026-11-22
+
+A minor release for tools an application defines without code: a credential
+a YAML names is read through the credential source, so a key held in an
+application's keychain reaches an OpenAPI entry, an OAuth client and a
+remote MCP server by name (ADR 0161, ADR 0163); the OpenAPI parser and the
+address guard are stated entries (ADR 0162); and the registry lists its
+tools with their descriptions (ADR 0164). No migration.
+
+### Breaking — read before upgrading
+
+These are type-level; a YAML that loaded on 1.17 loads unchanged.
+
+- **`McpAuthConfig.oauth2` is optional.** An `mcp_auth` or an `mcp_servers`
+  entry's `auth` may now hold `bearer_env` or `header` instead, so a typed
+  consumer that reads `.oauth2.<field>` needs `?.`.
+- **`OpenApiOperation.readOnly` is a required field.** Code that builds an
+  `OpenApiOperation` by hand sets it (true for a GET).
+- **`CredentialUse.role` gains `'header'`.** An exhaustive switch over it
+  needs the new case.
+
+### Added
+
+- **A remote MCP server's static credential by variable name.** `mcp_auth`
+  and an `mcp_servers` entry's `auth` take exactly one of `oauth2`,
+  `bearer_env: NAME` or `header: { env: NAME, name }` (ADR 0163). The value
+  is read through the credential source, then the environment, at each
+  request. It goes only to the server's own origin, over https or to a
+  loopback host over http, and only to a host `MELCHIZEDEK_CREDENTIAL_HOSTS`
+  binds when that is set. It follows no redirect to another origin and never
+  appears in a log line or a tool error. A header the HTTP layer or the
+  transport sets (`Host`, `Content-Length`, `Mcp-Session-Id`, …) is refused
+  at load. `MCP_BEARER_TOKENS` applies, unchanged, to a server with no
+  `auth`. New export `mcpStaticCredential` (`tools/mcpToolFactory`).
+- **The OpenAPI parser and the SSRF host check are stated entries.**
+  `melchizedek-agents/openapi` exports `parseOpenApiSpec` and
+  `isReadOperation`, and `melchizedek-agents/net` exports `checkHost`,
+  `blockedHostReason` and `setHostResolver`; the main entry re-exports the
+  parser, the check and the types `OpenApiOperation`, `OpenApiParameter`,
+  `OpenApiParameterLocation` and `OpenApiParseOptions` (ADR 0162). An
+  `OpenApiOperation` carries `summary` (the spec's own) and `readOnly` (a
+  GET: what an entry without `operations` exposes). `parseOpenApiSpec`
+  holds text handed to it to `MAX_SPEC_BYTES`.
+- **`registeredTools()`** (the main entry and `melchizedek-agents/tools`)
+  lists every tool a YAML can name, sorted as `registeredToolNames()`, as
+  `{ name, description, kind, condition? }`. The kind is `function`,
+  `provider`, `instruction`, `toolset`, or `conditional` with what must hold
+  (`run_code`: `MELCHIZEDEK_CODE_SANDBOX=on`) (ADR 0164). Types
+  `RegisteredTool` and `RegisteredToolKind`.
+
+### Changed
+
+- **Tool credentials read through the credential source.** An OpenAPI
+  entry's `bearer_env` or `api_key.env`, and an `oauth2` block's
+  `client_id_env` and `client_secret_env`, are read by name through
+  `setCredentialSource`, then `process.env`, after the same
+  `credentialEnvProblem` check (ADR 0161). Before, they read `process.env`
+  only, so a key an application held in its keychain failed the compile
+  with "not set". An OpenAPI key is checked at compile and read again before
+  each call, so a key replaced or removed takes effect on the next call; a
+  call whose variable is no longer set answers an error naming it and sends
+  nothing, where 1.17 sent the value read at compile. The doctor counts a
+  variable the source holds as set. New helper `credentialEnvValue`
+  (`tools/credentialEnv`).
+
+## 1.17.0 — 2026-11-20
 
 A minor release for Gemini 4: the engine runs `gemini-4-hydrogen`
 correctly, and its own defaults and shipped syndicates move to it from
