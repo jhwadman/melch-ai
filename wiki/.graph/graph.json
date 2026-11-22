@@ -5,10 +5,10 @@
     "at": "2026-11-22"
   },
   "stats": {
-    "nodes": 1123,
-    "edges": 4491,
+    "nodes": 1124,
+    "edges": 4495,
     "byKind": {
-      "doc": 236,
+      "doc": 237,
       "provider": 8,
       "env": 119,
       "model": 13,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 903,
+      "links_to": 905,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -36,7 +36,7 @@
       "imports": 1027,
       "reads_table": 33,
       "runs": 77,
-      "derives_from": 1362,
+      "derives_from": 1364,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 4007,
+      "extracted": 4011,
       "inferred": 484
     },
     "isolated": 5
@@ -2392,6 +2392,18 @@
       }
     },
     {
+      "id": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "kind": "doc",
+      "label": "ADR 0164: Registered tools are described by their shape, with one known condition",
+      "source": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 120
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2856,7 +2868,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3827
+        "words": 3829
       }
     },
     {
@@ -19702,6 +19714,27 @@
       "evidence": "/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md:29"
     },
     {
+      "from": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "to": "file:tests/toolContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0164-registered-tools-are-described-by-their-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0164-registered-tools-are-described-by-their-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0164-registered-tools-are-described-by-their-shape.md:25"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -26014,6 +26047,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:96"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0164-registered-tools-are-described-by-their-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:118"
     },
     {
       "from": "/tools/tool-contracts.md",

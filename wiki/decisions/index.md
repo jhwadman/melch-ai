@@ -43,6 +43,7 @@ Everything the records leave open, checked against the code on 2026-10-18. Remov
 - Skill scripts run unsandboxed, as the server's user ([0086](/decisions/0086-skill-scripts-get-a-minimal-environment.md)); a SKILL.md's front-matter ends at the next `---`, not a `---` line ([0083](/decisions/0083-skills-harness-on-the-own-tool-base.md))
 - Credential key rotation: no re-encryption job, no second key ([0072](/decisions/0072-tool-credentials-sealed-per-user.md))
 - A client-credentials grant reads its client secret again only when its tools compile again ([0161](/decisions/0161-tool-credentials-read-through-the-credential-source.md))
+- `registeredTools()` lists neither the providers that run a marker nor the keys a function tool reads ([0164](/decisions/0164-registered-tools-are-described-by-their-shape.md))
 - An OpenAPI `api_key.name` is not held to the MCP header-name rule ([0163](/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md))
 
 **Storage and deployment**
@@ -213,4 +214,5 @@ Everything the records leave open, checked against the code on 2026-10-18. Remov
 - [ADR 0161: Tool credentials a YAML names are read through the credential source](/decisions/0161-tool-credentials-read-through-the-credential-source.md) — An OpenAPI bearer_env or api_key.env, and an oauth2 block's client_id_env and client_secret_env, are read by name through setCredentialSource before process.env, after the same allowlist check.
 - [ADR 0162: The OpenAPI parser and the host check are stated entries of the package](/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md) — parseOpenApiSpec and isReadOperation are exported as melchizedek-agents/openapi, checkHost and blockedHostReason as melchizedek-agents/net, and both from the main entry; an operation carries its summary and readOnly.
 - [ADR 0163: A remote MCP server's static credential is named in its YAML entry, by variable](/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md) — mcp_auth and an mcp_servers entry's auth take bearer_env or header { env, name } beside oauth2, read through the credential source at each request, bound by the credential host allowlist, sent only to the server's own origin.
+- [ADR 0164: Registered tools are described by their shape, with one known condition](/decisions/0164-registered-tools-are-described-by-their-shape.md) — registeredTools() gives each registered tool's name, description and kind (function, conditional, provider, instruction, toolset), read from the tool itself; run_code alone carries a condition.
 <!-- /wiki:generated -->
