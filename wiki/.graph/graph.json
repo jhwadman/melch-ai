@@ -7826,7 +7826,7 @@
       "label": "lib/tools/credentialHosts.ts",
       "source": "lib/tools/credentialHosts.ts",
       "attrs": {
-        "lines": 167
+        "lines": 169
       }
     },
     {
@@ -7889,7 +7889,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 805
+        "lines": 809
       }
     },
     {

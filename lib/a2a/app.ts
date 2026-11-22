@@ -367,8 +367,8 @@ export interface A2AAppOptions {
   oauthHosts?: Record<string, string[]>;
   /**
    * The credential host allowlist (ADR 0122): each static credential
-   * variable a YAML may send (`bearer_env`, `api_key.env`,
-   * `client_secret_env`) and the hosts its value may go to, e.g.
+   * variable a YAML may send (`bearer_env`, `api_key.env`, an MCP
+   * server's `header.env`, `client_secret_env`) and the hosts its value may go to, e.g.
    * `{ TRACKER_TOKEN: ['api.tracker.example.com'] }`. Wins over
    * MELCHIZEDEK_CREDENTIAL_HOSTS; it is set for this process. With neither,
    * a credential goes to the host the YAML names, as before. With one, it is

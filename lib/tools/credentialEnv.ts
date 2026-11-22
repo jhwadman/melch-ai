@@ -5,7 +5,7 @@
  * WHY this file exists:
  *   A syndicate YAML (possibly registry-stored) names both a variable and
  *   the host its value is sent to: an OpenAPI `auth` (bearer_env, api_key,
- *   oauth2), an MCP server's `mcp_auth.oauth2`. So a YAML may never name one
+ *   oauth2), an MCP server's `auth` (bearer_env, header, oauth2; ADR 0163). So a YAML may never name one
  *   of the framework's own secrets: the database URL, a provider key or an
  *   A2A secret cannot be sent to an API or a token endpoint.
  *   OPENAPI_CREDENTIAL_ENVS, when the operator sets it, is the exact list of

@@ -594,7 +594,11 @@ function staticCredentialFetch(serverUrl: string, credential: McpStaticCredentia
       try {
         return await fetchWithRedirectPolicy(input, { ...init, headers }, policy, (i, o) => fetch(i, o));
       } catch (error) {
-        throw new Error(redact(error instanceof Error ? error.message : String(error)));
+        // The error as it was (an AbortError stays one), unless its message quoted the value.
+        if (!(error instanceof Error)) throw error;
+        const clean = redact(error.message);
+        if (clean === error.message) throw error;
+        throw new Error(clean);
       }
     },
   };

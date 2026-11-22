@@ -42,6 +42,8 @@ Everything the records leave open, checked against the code on 2026-10-18. Remov
 - MCP: tool-name namespacing per server; registering at a YAML-named endpoint ([0124](/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md))
 - Skill scripts run unsandboxed, as the server's user ([0086](/decisions/0086-skill-scripts-get-a-minimal-environment.md)); a SKILL.md's front-matter ends at the next `---`, not a `---` line ([0083](/decisions/0083-skills-harness-on-the-own-tool-base.md))
 - Credential key rotation: no re-encryption job, no second key ([0072](/decisions/0072-tool-credentials-sealed-per-user.md))
+- A client-credentials grant reads its client secret again only when its tools compile again ([0161](/decisions/0161-tool-credentials-read-through-the-credential-source.md))
+- An OpenAPI `api_key.name` is not held to the MCP header-name rule ([0163](/decisions/0163-a-remote-mcp-servers-static-credential-by-variable-name.md))
 
 **Storage and deployment**
 - Remove the deprecated supabase-js storage ([0021](/decisions/0021-postgres-first-storage.md))

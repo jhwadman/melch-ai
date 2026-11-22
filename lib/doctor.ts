@@ -127,7 +127,7 @@ export interface DoctorOAuth {
 export interface DoctorCredentials {
   /** Whether MELCHIZEDEK_CREDENTIAL_HOSTS is set. */
   set: boolean;
-  /** Every variable the syndicates send (bearer_env, api_key.env, client_secret_env), sorted. */
+  /** Every variable the syndicates send (an OpenAPI bearer_env or api_key.env, an MCP server's bearer_env or header.env, client_secret_env), sorted. */
   envs: string[];
   /** With no allowlist: the variables sent wherever the YAML says, named. Not a --check failure. */
   warning?: string;

@@ -28,6 +28,7 @@ import type { Server as HttpServer } from 'node:http';
 
 import express from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
@@ -46,6 +47,8 @@ const KEY = `fake-mcp-key-${randomBytes(8).toString('hex')}`; // gitleaks:allow 
 
 /** What the servers saw: each request's path and the credential it carried. */
 const seen: Array<{ origin: 'a' | 'b'; path: string; authorization?: string; key?: string }> = [];
+
+const sse = new Map<string, SSEServerTransport>();
 
 let a: HttpServer;
 let b: HttpServer;
@@ -84,6 +87,22 @@ function app(origin: 'a' | 'b') {
     x.get(path, (_req, res) => void res.status(405).set('Allow', 'POST').end());
     x.delete(path, (_req, res) => void res.status(405).end());
   }
+  // A legacy HTTP+SSE server behind the named header: the stream and every message POST need it.
+  x.get('/ksse', async (req, res) => {
+    if (req.headers['x-api-key'] !== KEY) return void res.status(401).end();
+    const transport = new SSEServerTransport('/kmessages', res);
+    sse.set(transport.sessionId, transport);
+    const server = new Server({ name: 'legacy', version: '1.0.0' }, { capabilities: { tools: {} } });
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [{ name: 'legacy_lookup', description: 'lookup on legacy', inputSchema: { type: 'object' as const, properties: {} } }] }));
+    server.setRequestHandler(CallToolRequestSchema, async () => ({ content: [{ type: 'text' as const, text: 'legacy ran' }] }));
+    await server.connect(transport);
+  });
+  x.post('/kmessages', async (req, res) => {
+    if (req.headers['x-api-key'] !== KEY) return void res.status(401).end();
+    const t = sse.get(String(req.query.sessionId));
+    if (!t) return void res.status(404).end();
+    await t.handlePostMessage(req, res, req.body);
+  });
   // A redirect to the other origin: a credential never follows it.
   x.post('/away/mcp', (_req, res) => void res.redirect(307, `${baseB}/bearer/mcp`));
   return x;
@@ -158,6 +177,22 @@ test('header: the value goes as-is in the header the entry names; the environmen
   } finally {
     setCredentialSource(undefined);
     delete process.env.TRACKER_MCP_KEY;
+  }
+});
+
+test('over the legacy SSE transport: the stream and every message carry the header; the connection closes cleanly', async () => {
+  const restore = withSource({ TRACKER_MCP_KEY: KEY });
+  try {
+    seen.length = 0;
+    const tools = await createMcpTools(`${baseA}/ksse`, { credential: { env: 'TRACKER_MCP_KEY', header: 'X-Api-Key' }, transport: 'sse' });
+    assert.deepEqual(tools.map((t) => t.name), ['legacy_lookup']);
+    assert.equal(await tools[0]!.execute({}, {} as never), 'legacy ran');
+    const paths = new Set(seen.map((s) => s.path));
+    assert.ok(paths.has('/ksse') && paths.has('/kmessages'), 'the stream and the messages were both reached');
+    assert.ok(seen.every((s) => s.key === KEY), 'every request carried the header');
+    await closeMcpConnections();
+  } finally {
+    restore();
   }
 });
 

@@ -25,9 +25,11 @@
  *   - The check runs when a syndicate is loaded to be served, when its tools
  *     are compiled, and again before each call sends the value.
  *
- * WHAT IT COVERS: `bearer_env`, `api_key.env` and `client_secret_env` (both
- *   grants: the client-credentials token request, the consent step's code
- *   exchange and its refresh). Not `client_id_env`: a client id is not a
+ * WHAT IT COVERS: an OpenAPI entry's `bearer_env` and `api_key.env`, a
+ *   remote MCP server's `bearer_env` and `header.env` (ADR 0163, to the
+ *   server's URL), and `client_secret_env` (both grants: the
+ *   client-credentials token request, the consent step's code exchange and
+ *   its refresh). Not `client_id_env`: a client id is not a
  *   secret. Not MCP_BEARER_TOKENS: it maps each token to its host already,
  *   and the operator writes both.
  *
