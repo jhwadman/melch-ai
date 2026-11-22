@@ -5,10 +5,10 @@
     "at": "2026-11-22"
   },
   "stats": {
-    "nodes": 1119,
-    "edges": 4464,
+    "nodes": 1120,
+    "edges": 4475,
     "byKind": {
-      "doc": 234,
+      "doc": 235,
       "provider": 8,
       "env": 119,
       "model": 13,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 897,
+      "links_to": 899,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1020,
+      "imports": 1022,
       "reads_table": 33,
       "runs": 77,
-      "derives_from": 1348,
+      "derives_from": 1355,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3980,
+      "extracted": 3991,
       "inferred": 484
     },
     "isolated": 5
@@ -2368,6 +2368,18 @@
       }
     },
     {
+      "id": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "kind": "doc",
+      "label": "ADR 0162: The OpenAPI parser and the host check are stated entries of the package",
+      "source": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 120
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2784,7 +2796,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 953
+        "words": 1118
       }
     },
     {
@@ -6805,7 +6817,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 182
+        "lines": 188
       }
     },
     {
@@ -7930,7 +7942,7 @@
       "label": "lib/tools/openapi/parse.ts",
       "source": "lib/tools/openapi/parse.ts",
       "attrs": {
-        "lines": 614
+        "lines": 649
       }
     },
     {
@@ -19571,6 +19583,48 @@
       "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md:29"
     },
     {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "file:tests/packageSurface.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "module:lib/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md frontmatter"
+    },
+    {
+      "from": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "to": "/tools/openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -25088,7 +25142,21 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "file:tests/packageSurface.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/models/credentialSource.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "module:lib/net/addressGuard.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md frontmatter"
@@ -25140,91 +25208,98 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:46"
+      "evidence": "/tools/openapi-tools.md:48"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:48"
+      "evidence": "/tools/openapi-tools.md:50"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:48"
+      "evidence": "/tools/openapi-tools.md:50"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:54"
+      "evidence": "/tools/openapi-tools.md:56"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:50"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:27"
+      "evidence": "/tools/openapi-tools.md:29"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:29"
+      "evidence": "/tools/openapi-tools.md:31"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:52"
+      "evidence": "/tools/openapi-tools.md:54"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:52"
+      "evidence": "/tools/openapi-tools.md:54"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:50"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0133-credential-source-by-variable-name.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:50"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:50"
+      "evidence": "/tools/openapi-tools.md:52"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:58"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:50"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/run-code.md",
@@ -28497,6 +28572,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/observability/metadata.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28603,6 +28685,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/tools/openapi/parse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"

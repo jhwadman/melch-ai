@@ -76,7 +76,7 @@ import { MAX_RESULT_CHARS as TOOL_RESULT_CHARS, capResult } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
 import { callOperation, hostProblem } from './openapi/call.ts';
 import type { OpenApiCredential } from './openapi/call.ts';
-import { MAX_SPEC_BYTES, operationNamed, parseOpenApiSpec } from './openapi/parse.ts';
+import { MAX_SPEC_BYTES, isReadOperation, operationNamed, parseOpenApiSpec } from './openapi/parse.ts';
 import type { OpenApiOperation } from './openapi/parse.ts';
 import { ToolCredentialError } from './auth.ts';
 import { credentialEnvValue, readCredentialEnv } from './credentialEnv.ts';
@@ -257,7 +257,7 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
     }
     picked = all.filter((o) => entry.operations!.some((op) => operationNamed(op, o, entry.prefix)));
   } else {
-    picked = all.filter((o) => o.method === 'get');
+    picked = all.filter(isReadOperation);
   }
   const chosen = entry.base_url ? picked.map((o) => ({ ...o, baseUrl: entry.base_url! })) : picked;
 

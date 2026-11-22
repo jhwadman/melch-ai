@@ -34,7 +34,7 @@ import { APPROVAL_TEXTS, createToolContext, toolOf } from '../lib/tools/tool.ts'
 import { compileNativeGraph } from '../lib/compileNative.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import { readFileSync as readText } from 'node:fs';
-import { MAX_SPEC_BYTES, adkSnake, operationNamed, parseOpenApiDocument, parseOpenApiSpec } from '../lib/tools/openapi/parse.ts';
+import { MAX_SPEC_BYTES, adkSnake, isReadOperation, operationNamed, parseOpenApiDocument, parseOpenApiSpec } from '../lib/tools/openapi/parse.ts';
 import type { OpenApiOperation } from '../lib/tools/openapi/parse.ts';
 import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
 import type { ToolDeclaration } from '../lib/models/contract.ts';
@@ -137,6 +137,23 @@ const run = (tool: any, args: Record<string, unknown>, ctx = context()) => toolO
 test('toSnake names an operationId the way ADK names the tool', () => {
   assert.equal(toSnake('listPets'), 'list_pets');
   assert.equal(toSnake('getHTTPStatus'), 'get_httpstatus');
+});
+
+test('the parser says which operations are reads, and keeps the summary apart from the description', () => {
+  const ops = parseOpenApiSpec(spec('https://api.pets.example.com'), 'yaml', { source: 'pets.yaml' });
+  assert.deepEqual(
+    ops.map((o) => [o.name, o.method, o.readOnly, isReadOperation(o), o.summary ?? null]),
+    [
+      ['list_pets', 'get', true, true, 'List the pets'],
+      ['create_pet', 'post', false, false, 'Add a pet'],
+      ['get_pet', 'get', true, true, 'One pet'],
+      ['delete_pet', 'delete', false, false, null],
+      ['get_big', 'get', true, true, ops.find((o) => o.name === 'get_big')?.summary ?? null],
+    ],
+  );
+  assert.equal(isReadOperation({ method: 'GET' }), true);
+  // Text handed in directly is bounded as a spec file is.
+  assert.throws(() => parseOpenApiSpec(' '.repeat(MAX_SPEC_BYTES + 1), 'yaml', { source: 'huge.yaml' }), /openapi huge\.yaml: the spec is larger than/);
 });
 
 test('without operations, only GET operations become tools; named operations expose writes', async () => {

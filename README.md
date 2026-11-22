@@ -139,6 +139,8 @@ registerTool('myCustomTool', defineTool({ /* ... */ }));
 registerGuard(myGuardInstance);
 ```
 
+An API's spec can be read before an agent is given it: `parseOpenApiSpec` from `melchizedek-agents/openapi` lists its operations as the tools they become, each marked `readOnly` for a GET, and `checkHost` from `melchizedek-agents/net` is the engine's SSRF check for a spec URL's host (ADR 0162).
+
 ### The Model Adapters Alone
 
 `melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. The peers (redis, the cloud SDKs) are optional.

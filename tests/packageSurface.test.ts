@@ -261,6 +261,77 @@ test('the build loads from CommonJS: require() of the main entry and ./model (no
   assert.deepEqual(lastJson(r.stdout), { runSyndicateTurn: 'function', resolveAdapter: 'function' });
 });
 
+// ── Stated entries, imported by the package's name ───────────────────────────
+
+/**
+ * Runs `script` (an ES module) in a consumer directory whose
+ * node_modules/melchizedek-agents is this package.json over the build, so
+ * every import resolves through the exports map exactly as an installed
+ * package's would. Prints the script's stdout.
+ */
+function asConsumer(script: string): ReturnType<typeof spawnSync> {
+  const consumer = fs.mkdtempSync(path.join(ROOT, '.pkgconsumer-'));
+  try {
+    const pkg = path.join(consumer, 'node_modules', 'melchizedek-agents');
+    fs.mkdirSync(pkg, { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(pkg, 'package.json'));
+    fs.symlinkSync(out, path.join(pkg, 'dist'), 'dir');
+    // Its own package.json, or the repo's would be the nearest and `melchizedek-agents` would self-resolve to the repo's dist/.
+    fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'consumer', private: true, type: 'module' }));
+    fs.writeFileSync(path.join(consumer, 'check.mjs'), script);
+    return spawnSync(process.execPath, ['--disable-warning=ExperimentalWarning', 'check.mjs'], { cwd: consumer, encoding: 'utf8', timeout: 120_000 });
+  } finally {
+    fs.rmSync(consumer, { recursive: true, force: true });
+  }
+}
+
+test('./openapi and ./net are stated entries (not the ./tools/* pattern), and the main entry carries the same functions (ADR 0162)', () => {
+  assert.equal(PKG.exports['./openapi'], './dist/lib/tools/openapi/parse.js');
+  assert.equal(PKG.exports['./net'], './dist/lib/net/addressGuard.js');
+  const script = `
+import { parseOpenApiSpec, isReadOperation } from 'melchizedek-agents/openapi';
+import { checkHost, blockedHostReason } from 'melchizedek-agents/net';
+import * as main from 'melchizedek-agents';
+const spec = [
+  'openapi: 3.0.0',
+  'info: { title: Pets, version: "1" }',
+  'servers: [{ url: "https://api.pets.example.com/v1" }]',
+  'paths:',
+  '  /pets:',
+  '    get: { operationId: listPets, summary: List the pets, parameters: [{ name: limit, in: query, schema: { type: integer } }], responses: { "200": { description: ok } } }',
+  '    post: { operationId: createPet, description: Adds one pet., responses: { "201": { description: ok } } }',
+].join('\\n');
+const ops = parseOpenApiSpec(spec, 'yaml', { source: 'pets.yaml', prefix: 'zoo' }).map((o) => ({
+  name: o.name, method: o.method, path: o.path, baseUrl: o.baseUrl, summary: o.summary ?? null, description: o.description,
+  readOnly: o.readOnly, read: isReadOperation(o), parameters: o.parameters.map((p) => [p.name, p.location, p.required]),
+}));
+let swagger = '';
+try { parseOpenApiSpec('swagger: "2.0"\\ninfo: { title: x, version: "1" }\\npaths: {}', 'yaml', { source: 'old.yaml' }); } catch (e) { swagger = e.message; }
+console.log(JSON.stringify({
+  ops,
+  swagger,
+  loopback: await checkHost('127.0.0.1'),
+  local: blockedHostReason('localhost'),
+  publicName: await checkHost('api.pets.example.com', async () => [{ address: '93.184.216.34' }]),
+  privateName: await checkHost('api.pets.example.com', async () => [{ address: '10.0.0.5' }]),
+  sameFunctions: main.parseOpenApiSpec === parseOpenApiSpec && main.checkHost === checkHost && main.isReadOperation === isReadOperation,
+}));
+`;
+  const r = asConsumer(script);
+  assert.equal(r.status, 0, String(r.stderr).slice(-2000));
+  const got = lastJson<Record<string, unknown>>(String(r.stdout));
+  assert.deepEqual(got.ops, [
+    { name: 'zoo_list_pets', method: 'get', path: '/pets', baseUrl: 'https://api.pets.example.com/v1', summary: 'List the pets', description: 'List the pets', readOnly: true, read: true, parameters: [['limit', 'query', false]] },
+    { name: 'zoo_create_pet', method: 'post', path: '/pets', baseUrl: 'https://api.pets.example.com/v1', summary: null, description: 'Adds one pet.', readOnly: false, read: false, parameters: [] },
+  ]);
+  assert.match(String(got.swagger), /openapi old\.yaml: .*Swagger/i);
+  assert.equal(got.loopback, 'loopback IPv4');
+  assert.equal(got.local, 'local hostname');
+  assert.equal(got.publicName, null);
+  assert.equal(got.privateName, 'resolves to a private IPv4 address');
+  assert.equal(got.sameFunctions, true);
+});
+
 // ── What `files` ships ───────────────────────────────────────────────────────
 
 /** Whether the package.json `files` list ships `rel` (a path from the repo root). */

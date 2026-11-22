@@ -99,6 +99,14 @@ export interface OpenApiOperation {
   baseUrl: string;
   /** The operation's description, else its summary: the tool's prompt. */
   description: string;
+  /** The operation's own one-line `summary`, when the spec gives one. */
+  summary?: string;
+  /**
+   * The method is GET (isReadOperation): the operations an `openapi:` entry
+   * without `operations` exposes. Anything else writes, and is exposed only
+   * by naming it.
+   */
+  readOnly: boolean;
   parameters: OpenApiParameter[];
   /** What the model receives for this tool. */
   declaration: ToolDeclaration;
@@ -590,6 +598,7 @@ export function parseOpenApiDocument(document: unknown, options: ParseOptions = 
       const schemeName = firstSchemeName(operation.security) ?? globalScheme;
       const authScheme = schemeName && Object.hasOwn(schemes, schemeName) && isObj(schemes[schemeName]) ? (schemes[schemeName] as Obj) : undefined;
 
+      const summary = typeof operation.summary === 'string' && operation.summary.trim() ? operation.summary : undefined;
       operations.push({
         name,
         operationId,
@@ -597,6 +606,8 @@ export function parseOpenApiDocument(document: unknown, options: ParseOptions = 
         path,
         baseUrl,
         description,
+        ...(summary !== undefined ? { summary } : {}),
+        readOnly: isReadOperation({ method }),
         parameters,
         declaration: { name, description, parameters: declaredParameters(parameters, source) },
         operation,
@@ -607,7 +618,31 @@ export function parseOpenApiDocument(document: unknown, options: ParseOptions = 
   return operations;
 }
 
-/** Every operation of a spec's text (`json` or `yaml`). */
+/**
+ * True for an operation an `openapi:` entry exposes without naming it: a
+ * GET. Every other method writes, and becomes a tool only when the entry's
+ * `operations` names it (ADR 0032).
+ */
+export function isReadOperation(op: Pick<OpenApiOperation, 'method'>): boolean {
+  return op.method.toLowerCase() === 'get';
+}
+
+/**
+ * Every operation of a spec's text (`json` or `yaml`), as the tools they
+ * become: each one's tool name (with `options.prefix`), method, path,
+ * server, description and summary, its arguments, its declaration, and
+ * whether it is a read (`readOnly`). The text is bounded as the compile
+ * bounds a spec file (MAX_SPEC_BYTES, and the alias, value and depth
+ * bounds), and a spec past a bound, or one that is not OpenAPI 3.x, throws
+ * with a readable message naming `options.source`. No network, no
+ * environment: a spec fetched from a URL is the caller's to fetch, behind
+ * the address guard (checkHost, lib/net/addressGuard.ts).
+ *
+ * A supported entry of the package (ADR 0162): `melchizedek-agents/openapi`,
+ * or the main entry.
+ */
 export function parseOpenApiSpec(text: string, format: 'json' | 'yaml', options: ParseOptions = {}): OpenApiOperation[] {
+  // Characters, never more than the bytes they came from: a file the compile read within MAX_SPEC_BYTES always passes.
+  if (text.length > MAX_SPEC_BYTES) fail(options.source, `the spec is larger than ${MAX_SPEC_BYTES} characters`);
   return parseOpenApiDocument(readSpecText(text, format, options.source), options);
 }

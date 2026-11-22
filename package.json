@@ -43,6 +43,8 @@
     "./model": "./dist/lib/model.js",
     "./models/*": "./dist/lib/models/*.js",
     "./tools": "./dist/lib/toolRegistry.js",
+    "./openapi": "./dist/lib/tools/openapi/parse.js",
+    "./net": "./dist/lib/net/addressGuard.js",
     "./tools/*": "./dist/lib/tools/*.js",
     "./memory": "./dist/lib/memory/supabaseMemoryService.js",
     "./session/*": "./dist/lib/session/*.js",

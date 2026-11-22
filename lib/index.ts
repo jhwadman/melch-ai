@@ -112,6 +112,12 @@ export { resolveTools, registerTool, registeredToolNames } from './toolRegistry.
 export { registerGuard, resolveGuards } from './guards/index.ts';
 export type { Guard, GuardResult } from './guards/index.ts';
 export { defineTool } from './tools/toolContract.ts';
+// A spec's operations as the tools they become, and the SSRF host check, for a
+// consumer that shows an API before adding it (ADR 0162; also
+// melchizedek-agents/openapi and melchizedek-agents/net).
+export { isReadOperation, parseOpenApiSpec } from './tools/openapi/parse.ts';
+export type { OpenApiOperation, OpenApiParameter, OpenApiParameterLocation, ParseOptions as OpenApiParseOptions } from './tools/openapi/parse.ts';
+export { blockedHostReason, checkHost } from './net/addressGuard.ts';
 export type { Tool, ToolContext } from './tools/tool.ts';
 
 // ── Memory ──────────────────────────────────────────────────────────────────

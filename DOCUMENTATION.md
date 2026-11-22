@@ -292,6 +292,17 @@ operations the agent needs, and write each `summary` for the model). Worked
 example: `config/agents/examples/weather.yaml`, two keyless Open-Meteo specs
 in `examples/specs/`.
 
+A program that shows an API before an agent uses it reads the spec with the
+engine's own parser: `parseOpenApiSpec(text, 'yaml' | 'json', { source,
+prefix })` from `melchizedek-agents/openapi` (or the main entry) returns
+each operation as the tool it becomes (`name`, `method`, `path`, `baseUrl`,
+`summary`, `description`, `parameters`, and `readOnly`, true for a GET:
+what an entry without `operations` exposes, `isReadOperation`). It reads no
+network: before fetching a spec from a URL, run the engine's SSRF check,
+`checkHost(hostname)` from `melchizedek-agents/net` (or the main entry),
+which answers null or the reason the host is refused
+([ADR 0162](./wiki/decisions/0162-the-openapi-parser-and-the-host-check-are-stated-entries.md)).
+
 > **Schema dialects, handled for you.** The factory emits Gemini-style
 > UPPERCASE schema types (`'OBJECT'`, `'STRING'`, …), the `@google/genai`
 > dialect; every non-Gemini adapter normalizes them back to
