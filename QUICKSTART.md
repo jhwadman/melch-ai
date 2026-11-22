@@ -15,7 +15,7 @@ are the two most common paths spelled out.
 
 ## 1. Prerequisites
 
-- **Node.js 22+** (the CLI uses `--experimental-strip-types` to run
+- **Node.js 22.6+** (the CLI uses `--experimental-strip-types` to run
   TypeScript directly — no build step).
 - **A Google AI Studio API key** — free at
   [aistudio.google.com](https://aistudio.google.com). This powers all
@@ -260,7 +260,7 @@ console.log(result.text);
 | Symptom | Cause / fix |
 |---|---|
 | `Gemini API Key is not configured` | `.env` missing or key not set — step 2. |
-| `[400] Tool call context circulation is not enabled` | The agent's `model:` is too old for agent transfer. Use `gemini-3.8-flash` or newer (all shipped configs already do). |
+| `[400] Tool call context circulation is not enabled` | The agent's `model:` is too old for agent transfer. Use `gemini-4-hydrogen` or any Gemini 3 or later model (all shipped configs already do). |
 | `Model not found` for `claude-*` / `gpt-*` / `grok-*` / `kimi-*` / `deepseek-*` / `jev-*` | The matching provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MOONSHOT_API_KEY` / `DEEPSEEK_API_KEY` / `TYPESAFE_API_KEY`) is not set in `.env`, so the provider wasn't registered — `npm run doctor` names the variable. Or set `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` once for every cloud provider (web search then runs as the gateway's own). |
 | `TYPESAFE_SCHEMA_REQUIRED` / `TYPESAFE_SCHEMA_UNSUPPORTED` | A `jev-*` agent has no `output.schema`, or one of its properties is not a decision Jev can make. Give every property a decision shape: a boolean, a string with `enum` or a `oneOf` of described constants, or an integer whose `oneOf` describes the levels 0..n-1; the error names the property. `examples/classifier.yaml` is the pattern. |
 | `GATEWAY_HTTP_ERROR … 404/400` | The gateway rejected the mapped model id. Fix the name once in `.env`: `MODEL_GATEWAY_MODEL_MAP=<your id>=<the gateway's id>`. `GATEWAY_KEY_MISSING` means `MODEL_GATEWAY` is set without `MODEL_GATEWAY_API_KEY`. |

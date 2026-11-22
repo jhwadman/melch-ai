@@ -54,7 +54,7 @@ variables:
 
 orchestrator:
   name: "Arbiter"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
   instruction: |
     <prompt_instructions>
       <house_voice>
@@ -204,7 +204,7 @@ orchestrator:
 subagents:
   - name: "XResearcher"
     description: "Live X (Twitter) fact-gathering through the X API, pictures included: what is being claimed and by whom, how different camps frame the topic, what is disputed, and what the photos attached to posts say. Pass it the user's question verbatim plus the [System Context] date line. MANDATORY first call for every substantive question. Returns a plain-text report in four sections, CLAIMS, SPECTRUM, REACTION and GAPS, and no analysis."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
     tools:
       - "x_api_search"
       - "web_extract"
@@ -271,7 +271,7 @@ subagents:
 
   - name: "WebResearcher"
     description: "Web search + source reading: verifies specific claims and establishes the documented record from wire services, primary sources, and diverse outlets. Pass it the user's question verbatim, the [System Context] date line, and the claims XResearcher surfaced. MANDATORY second call for every substantive question. Returns a plain-text report in four sections, ESTABLISHED, CLAIM CHECK, CONTEXT and SOURCES, and no analysis."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
     tools:
       - "web_search"
       - "web_extract"

@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/support_triage.yaml
 ---
@@ -28,6 +28,6 @@ Memory is `session-only`. The classifier sees a digest of recent turns (`lib/ses
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
 | answer | `gemini-3.5-flash-lite` | `wiki_search`, `wiki_read`, `wiki_links` | — |
-| account | `gemini-3.8-flash` | — | `mcp_server_url` |
+| account | `gemini-4-hydrogen` | — | `mcp_server_url` |
 | handoff | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

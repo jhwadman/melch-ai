@@ -359,6 +359,10 @@ test('the harness.yaml example runs with a scripted model, storing what ADK stor
     // The recording was made on 2026-10-08; pin {{current_date}} so the comparison does not move with the clock.
     bindings: { skills_dir: FIXTURES, current_date: 'October 8, 2026' },
   });
+  // The recording was made with the orchestrator on gemini-3.8-flash and is keyed by that id; the
+  // file now names gemini-4-hydrogen. What a model is sent (system, tools, messages) does not depend on the id.
+  assert.equal(config.orchestrator.model, 'gemini-4-hydrogen');
+  config.orchestrator.model = 'gemini-3.8-flash';
   const { native } = await assertParity('harness-example', config, {
     'gemini-3.8-flash': (req, n) =>
       n === 1

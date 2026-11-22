@@ -30,7 +30,8 @@ memory_system: "session-only"
 
 orchestrator:
   name: "ImageDesigner"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
+  reasoning: medium
   tools:
     - "generate_image"
     - "inspect_image"
@@ -103,7 +104,8 @@ orchestrator:
 subagents:
   - name: "SpecAuditor"
     description: "Compares an approved image spec (JSON payload) against a blind visual inventory (text). Pass both verbatim in one message. Returns structured conformance JSON. Never pass it the image itself; it works from text only."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     sampling:
       max_output_tokens: 4096
     output:

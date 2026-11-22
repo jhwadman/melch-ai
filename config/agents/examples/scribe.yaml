@@ -92,7 +92,7 @@ variables:
 orchestrator:
   name: "Scribe"
   description: "Writes one reader-facing document from a brief, audits it through the Auditor, and returns the document alone."
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
   instruction: |
     <prompt_instructions>
       <system_identity>
@@ -163,7 +163,7 @@ orchestrator:
     </prompt_instructions>
   sampling:
     temperature: 0.6
-    # gemini-3.8-flash thinks by default and thinking tokens count against
+    # gemini-4-hydrogen thinks by default and thinking tokens count against
     # this ceiling; a long skill file plus two audit rounds needs the room.
     max_output_tokens: 24576
   reasoning: medium
@@ -171,7 +171,8 @@ orchestrator:
 subagents:
   - name: "Auditor"
     description: "Checks one draft against its brief and returns JSON: ok, and a list of violations, each with the rule broken, the offending quote, and the fix. Pass it the complete brief, then a line reading exactly '=== DRAFT ===', then the complete draft."
-    model: "gemini-3.8-flash"
+    model: "gemini-4-hydrogen"
+    reasoning: medium
     sampling:
       temperature: 0.1
       max_output_tokens: 8192

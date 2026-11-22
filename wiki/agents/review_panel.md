@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/review_panel.yaml
 ---
@@ -23,11 +23,11 @@ Memory is `internal-only`: each review stands alone. Serve it with `npm run star
 
 <!-- wiki:generated section="composition" source="config/agents/templates/review_panel.yaml" -->
 - memory: `internal-only` · max_steps: 16
-- orchestrator: **Chair** (`gemini-3.8-flash`)
+- orchestrator: **Chair** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Correctness | `gemini-3.8-flash` | — | — |
-| Risk | `gemini-3.8-flash` | — | — |
+| Correctness | `gemini-4-hydrogen` | — | — |
+| Risk | `gemini-4-hydrogen` | — | — |
 | Operability | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

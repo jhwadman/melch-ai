@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/research_desk.yaml
 ---
@@ -23,7 +23,7 @@ The ResearchLead splits the question into at most three angles and sends each to
 
 <!-- wiki:generated section="composition" source="config/agents/templates/research_desk.yaml" -->
 - memory: `internal-only` · max_steps: 24
-- orchestrator: **ResearchLead** (`gemini-3.8-flash`)
+- orchestrator: **ResearchLead** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

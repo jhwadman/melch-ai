@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-11-07
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/research.yaml
 ---
@@ -31,5 +31,5 @@ Research reports evidence and does not give advice. It declines to direct treatm
 |---|---|---|---|
 | define | `gemini-3.5-flash-lite` | — | — |
 | lookup | `gemini-3.5-flash-lite` | `resolve_identifier`, `search_trials`, `search_literature` | — |
-| landscape | `gemini-3.8-flash` | `search_trials`, `search_literature`, `search_preprints`, `resolve_identifier`, `web_extract`, `cited_by` | — |
+| landscape | `gemini-4-hydrogen` | `search_trials`, `search_literature`, `search_preprints`, `resolve_identifier`, `web_extract`, `cited_by` | — |
 <!-- /wiki:generated -->

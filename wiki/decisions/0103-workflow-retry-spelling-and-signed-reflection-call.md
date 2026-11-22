@@ -28,6 +28,7 @@ sources:
 **Decided (2026-10-08):** Refuse `retry` and `timeout` on a `map:` entry (each item runs under its agent's own), let a node's `retry` spell `exceptions` and `jitter`, and on native sign the reflection call stored in a Gemini model's place with the replaced response's signature, or Gemini's placeholder on Gemini 3.
 
 **Instead of:** applying the map entry's modifiers, refusing exceptions and jitter on ADK, replacing ADK's plugin on the ADK runtime, signing every provider's reflection call, a placeholder on every Gemini model
+**Superseded by:** [ADR 0160](/decisions/0160-gemini-4-reads-earlier-turns-as-text.md) (the placeholder signs the reflection call on Gemini 3 and later)
 **Open:** a live Gemini 3 run confirming the placeholder and the carried signature on a reflection call
 
 How it works: [Workflow scheduler: controls](/overview/workflow-scheduler.md)

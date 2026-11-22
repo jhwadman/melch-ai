@@ -56,7 +56,8 @@ variables:
 
 orchestrator:
   name: "Harness"
-  model: "gemini-3.8-flash"
+  model: "gemini-4-hydrogen"
+  reasoning: medium
   skills:
     dir: "{{skills_dir}}"
     scripts: "none"            # "local" runs a skill's scripts/ here, each after your approval

@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/style_council.yaml
 ---
@@ -25,11 +25,11 @@ Run this syndicate to observe how prompt instructions shape output style, to req
 Run: `npm run syndicate:style`
 
 - memory: `session-only`
-- orchestrator: **Router** (`gemini-3.8-flash`)
+- orchestrator: **Router** (`gemini-4-hydrogen`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Analyst | `gemini-3.8-flash` | — | — |
-| Peer | `gemini-3.8-flash` | — | — |
-| Mentor | `gemini-3.8-flash` | — | — |
+| Analyst | `gemini-4-hydrogen` | — | — |
+| Peer | `gemini-4-hydrogen` | — | — |
+| Mentor | `gemini-4-hydrogen` | — | — |
 <!-- /wiki:generated -->

@@ -19,7 +19,10 @@ Skills in `.claude/skills/` define the lifecycle of a change:
 3. **`secrets-hygiene`** — BEFORE any task touching `.env` or a key.
 4. **`sync-wiki`** — AFTER the change works. The wiki IS the record; there is
    no separate design log. Rebuild the derived layers.
-5. **`security-final-check`** — LAST, before commit. Report an explicit PASS.
+5. **`commit-review`** — the diff against its contracts and CI's gates; PASS or blockers.
+6. **`security-final-check`** — LAST, before commit. Report an explicit PASS.
+
+Work spanning sessions, phases or a release follows **`phase-implementation`** (plans in `plans/`, the owner's three gates).
 
 **`owasp-security`** is the standard's framing behind the gate — background
 reading for a change that opens a new surface.
@@ -39,15 +42,12 @@ reading for a change that opens a new surface.
 - The `exports` map in `package.json` and the `lib/index.ts` barrel are a
   versioned public API: a change to either needs a version bump and a
   `CHANGELOG.md` entry in the same change (`package-surface`).
-- The wiki carries two layers: `npm run wiki:build` derives the entity graph
-  into `wiki/.graph/graph.json` (never edited by hand); judgments asserted from
-  prose go through `wiki_relate` into `wiki/.graph/relations.json`, which the
-  build never touches.
-- A choice between real alternatives gets an ADR in `wiki/decisions/`, in the
-  same change: the choice, what was rejected, what it supersedes and what is
-  still open, in a few lines (`sync-wiki` has the shape). How the thing works
-  goes in the subsystem doc the ADR links to, never in the ADR. A later choice
-  is a new record; the earlier one only gains its `Superseded by:` line (and
-  `status: deprecated` when replaced entirely), and an `Open:` item is removed
-  when it closes.
-- `npm publish` and pushing to `main` are human acts.
+- `wiki/.graph/graph.json` is derived by `npm run wiki:build` and never
+  edited by hand; asserted judgments go through `wiki_relate` into
+  `wiki/.graph/relations.json`, which the build never touches (`sync-wiki`
+  has the rest).
+- A choice between real alternatives gets an ADR in `wiki/decisions/` in the
+  same change; how the thing works goes in the subsystem doc, never in the
+  ADR. `sync-wiki` has the shape and the supersede/`Open:` rules.
+- Approving a staged release (`npm stage approve`, ADR 0127), any hand
+  `npm publish`, and pushing to `main` are human acts.

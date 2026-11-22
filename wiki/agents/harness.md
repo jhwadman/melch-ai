@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-11-19
 sources:
   - resource: config/agents/examples/harness.yaml
 ---
@@ -21,7 +21,7 @@ The Harness is a generic agent that works from a directory of Agent Skills the w
 Run: `npm run syndicate:harness`
 
 - memory: `internal-only`
-- orchestrator: **Harness** (`gemini-3.8-flash`) · skills: `{{skills_dir}}`
+- orchestrator: **Harness** (`gemini-4-hydrogen`) · skills: `{{skills_dir}}`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

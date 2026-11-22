@@ -22,4 +22,6 @@ sources:
 
 **Instead of:** a part of its own, event `customMetadata`, an in-process cache keyed by tool call id, replaying every turn's blocks, scoping Claude's state to the provider alone, all blocks at the start of the message
 
+**Superseded by:** [ADR 0160](/decisions/0160-gemini-4-reads-earlier-turns-as-text.md) (on Gemini 4 earlier turns' calls and results go as text records)
+
 How it works: [Provider routing](/models/provider-routing.md)

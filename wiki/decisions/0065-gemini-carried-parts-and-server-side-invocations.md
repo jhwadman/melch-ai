@@ -24,7 +24,7 @@ sources:
 
 **Instead of:** projecting the parts as visible text, a contract part type for code execution, always sending the flag, sending the placeholder by default
 
-**Superseded by:** [ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md) (carried code execution parts are stored as Gemini sent them)
+**Superseded by:** [ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md) (carried code execution parts are stored as Gemini sent them); [ADR 0160](/decisions/0160-gemini-4-reads-earlier-turns-as-text.md) (the placeholder is on by default on Gemini 4)
 
 **Open:** turn on the placeholder signature once a live run confirms it
 

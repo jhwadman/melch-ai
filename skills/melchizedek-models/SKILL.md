@@ -19,7 +19,7 @@ The runtime reads the prefix of each `model:` string to select the provider:
 The engine maintains no allowlist. You can specify any model id that the provider currently serves. You can add a newly released model with a one-line YAML change in your syndicate file. For syndicate authoring rules, see `melchizedek-author`.
 
 The deployment verifies these ids:
-- `gemini-3.8-flash` (production)
+- `gemini-4-hydrogen` (production)
 - `gemini-3.5-flash-lite` (subagents, cost)
 - `claude-sonnet-4-6`
 - `claude-opus-4-6`
@@ -30,7 +30,7 @@ The deployment verifies these ids:
 - `kimi-k3`
 - `ollama/qwen3:8b`
 
-The framework sets a server-side tool flag that triggers a 400 error about tool call context circulation on `gemini-2.5-flash`. Use `gemini-3.8-flash` or newer instead.
+The framework sets a server-side tool flag that triggers a 400 error about tool call context circulation on `gemini-2.5-flash`. Use `gemini-4-hydrogen` (any Gemini 3 or later model works) instead.
 
 Subagents inherit the orchestrator's `model:` setting when they set none.
 

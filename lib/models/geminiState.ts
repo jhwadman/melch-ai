@@ -55,3 +55,17 @@ export function isCarriedWirePart(part: unknown): boolean {
  * mapping leaves it off, and so does the Gemini adapter.
  */
 export const MINTED_CALL_ID_PREFIX = 'genai-noid-';
+
+/**
+ * A Gemini id's major version (a Vertex AI resource name's last segment), or
+ * 0 when it is not a `gemini-<n>` id: `gemini-4-hydrogen` is 4,
+ * `gemini-3.8-flash` 3. Read without a pattern. The adapter, the reasoning
+ * mapping, self-correction and the capability matrix branch on it.
+ */
+export function geminiMajorVersion(model: string | undefined): number {
+  if (!model) return 0;
+  const name = model.slice(model.lastIndexOf('/') + 1);
+  if (!name.startsWith('gemini-')) return 0;
+  const major = Number.parseInt(name.slice('gemini-'.length), 10);
+  return Number.isFinite(major) ? major : 0;
+}

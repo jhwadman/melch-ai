@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-09-27
+  at: 2026-11-19
 sources:
   - resource: config/agents/templates/draft_review.yaml
 ---
@@ -27,6 +27,6 @@ Memory is `internal-only`: each piece of writing is one sitting. Copy it, put yo
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Drafter | `gemini-3.8-flash` | — | — |
+| Drafter | `gemini-4-hydrogen` | — | — |
 | Reviewer | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

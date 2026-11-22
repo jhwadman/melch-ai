@@ -12,7 +12,7 @@
  *   three call sites can't drift.
  *
  *   Model routing goes through lib/models/registry.ts, so the YAML-style
- *   model string ('gemini-3.8-flash', 'claude-*', 'ollama/*'…) picks the
+ *   model string ('gemini-4-hydrogen', 'claude-*', 'ollama/*'…) picks the
  *   provider — wiki operations inherit the framework's full model
  *   optionality. A missing provider key degrades to a clear error string;
  *   nothing here throws for want of credentials.
@@ -24,6 +24,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { ModelAdapter } from '../models/contract.ts';
+import { internalReasoningConfig } from '../models/reasoning.ts';
 import {
   providerForModel,
   providerKeyPresent,
@@ -70,11 +71,16 @@ export function modelAvailable(model: string): { ok: boolean; reason?: string } 
 const APP_NAME = 'melchizedek-wiki';
 const USER_ID = 'wiki';
 
-/** The generateContentConfig every wiki run sends. */
+/**
+ * The generateContentConfig every wiki run sends. A model that thinks high
+ * by default (Gemini 4) is asked for `low`, so its thinking leaves the
+ * 4,096-token cap to the answer; every other model gets no level.
+ */
 function configOf(run: WikiAgentRun): Record<string, unknown> {
   return {
     temperature: run.temperature ?? 0.3,
     maxOutputTokens: run.maxOutputTokens ?? 4096,
+    ...internalReasoningConfig(run.model, 'low'),
   };
 }
 
