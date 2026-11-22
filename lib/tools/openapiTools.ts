@@ -23,14 +23,17 @@
  *     operation can be listed under `require_approval` like a registry tool,
  *     gated by the same gate (ADR 0028), so a POST or a DELETE can wait for
  *     a person.
- *   - SECRETS FROM THE ENVIRONMENT. `auth` names an environment variable,
- *     never a value; a variable that is not set fails the compile, so an
- *     agent never runs half-authenticated. A YAML (possibly registry-stored)
+ *   - SECRETS BY NAME. `auth` names an environment variable, never a
+ *     value. The value is read through the credential source (an embedding
+ *     application's keychain, ADR 0133), then the environment: once at
+ *     compile, where a variable that is not set fails the compile, so an
+ *     agent never runs half-authenticated, and again before each call, so a
+ *     key the person replaces or removes takes effect on the next call. A YAML (possibly registry-stored)
  *     chooses both the variable and the host, so it may never name one of
  *     the framework's own secrets (credentialEnvProblem): the database URL,
  *     a provider key or an A2A secret cannot be sent to an API.
  *     OPENAPI_CREDENTIAL_ENVS, when the operator sets it, is the exact list
- *     of variables an `auth` may name. A credential is held by the tool,
+ *     of variables an `auth` may name. A credential stays inside the tool,
  *     never written to session state, and its value never appears in an
  *     error the model reads. An `auth: { oauth2 }` sends an OAuth token
  *     instead, fetched per call: the run's user's own (authorization_code,
@@ -76,7 +79,7 @@ import type { OpenApiCredential } from './openapi/call.ts';
 import { MAX_SPEC_BYTES, operationNamed, parseOpenApiSpec } from './openapi/parse.ts';
 import type { OpenApiOperation } from './openapi/parse.ts';
 import { ToolCredentialError } from './auth.ts';
-import { readCredentialEnv } from './credentialEnv.ts';
+import { credentialEnvValue, readCredentialEnv } from './credentialEnv.ts';
 import { credentialCallProblem, credentialHostProblem } from './credentialHosts.ts';
 import { oauthTokenSource, tokenTransportProblem } from './oauthTools.ts';
 import type { OAuth2AuthConfig, OAuthTokenSource } from './oauthTools.ts';
@@ -116,18 +119,33 @@ export const MAX_RESULT_CHARS = TOOL_RESULT_CHARS;
  */
 export const OPENAPI_TOOL = Symbol.for('melchizedek.openapiTool');
 
+/** A static credential: the variable it is read from, and how its value is sent. */
+interface HeldCredential {
+  env: string;
+  /** The credential with `value` in it. */
+  with(value: string): OpenApiCredential;
+}
+
 /**
- * The credential an `auth` names, read from the environment once, at
- * compile. Throws (failing the compile) on a variable the allowlist refuses
- * or one that is not set; the message names the variable, never its value.
- * An `oauth2` block is not read here: its token is fetched per call
- * (oauthTokenSource, lib/tools/oauthTools.ts).
+ * The static credential an `auth` names, checked at compile: the allowlist
+ * (credentialEnvProblem) and a value, read through the credential source
+ * and then the environment. Throws (failing the compile) on a variable the
+ * allowlist refuses or one that is not set; the message names the variable,
+ * never its value. The value itself is read again at each call. An `oauth2`
+ * block is not read here: its token is fetched per call (oauthTokenSource,
+ * lib/tools/oauthTools.ts).
  */
-function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): { credential: OpenApiCredential; env: string } | undefined {
+function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): HeldCredential | undefined {
   if (!auth) return undefined;
-  const read = (env: string): string => readCredentialEnv(env, `openapi ${spec}`);
-  if (auth.bearer_env) return { credential: { kind: 'bearer', token: read(auth.bearer_env) }, env: auth.bearer_env };
-  if (auth.api_key) return { credential: { kind: 'api_key', in: auth.api_key.in, name: auth.api_key.name, value: read(auth.api_key.env) }, env: auth.api_key.env };
+  const check = (env: string): string => {
+    readCredentialEnv(env, `openapi ${spec}`);
+    return env;
+  };
+  if (auth.bearer_env) return { env: check(auth.bearer_env), with: (token) => ({ kind: 'bearer', token }) };
+  if (auth.api_key) {
+    const key = auth.api_key;
+    return { env: check(key.env), with: (value) => ({ kind: 'api_key', in: key.in, name: key.name, value }) };
+  }
   return undefined;
 }
 
@@ -177,8 +195,7 @@ function readSpec(specPath: string, source: string): string {
  * provider and what to do, never a value (and, for a user who has not
  * granted it, the run's consent step has already asked).
  */
-function operationTool(op: OpenApiOperation, held: { credential: OpenApiCredential; env: string } | undefined, oauth?: OAuthTokenSource): Tool {
-  const credential = held?.credential;
+function operationTool(op: OpenApiOperation, held: HeldCredential | undefined, oauth?: OAuthTokenSource): Tool {
   const tool: Tool = {
     name: op.name,
     declaration: () => op.declaration,
@@ -195,7 +212,13 @@ function operationTool(op: OpenApiOperation, held: { credential: OpenApiCredenti
         }
         return { error: `${op.name} was not called: the operator's credential host allowlist does not let this API's credential be sent to ${host}` };
       }
-      let sent = credential;
+      let sent: OpenApiCredential | undefined;
+      if (held) {
+        // Read at the moment of use (ADR 0133): the source first, then the environment.
+        const value = credentialEnvValue(held.env);
+        if (!value) return { error: `${op.name} was not called: ${held.env} is not set (auth reads it from the credential source or the environment)` };
+        sent = held.with(value);
+      }
       if (oauth) {
         try {
           sent = { kind: 'bearer', token: await oauth(ctx, op.baseUrl) };

@@ -12,8 +12,13 @@
  *   variables any of these may name.
  *
  * A value is read here and handed to the code that sends it; an error names
- * the variable, never its value.
+ * the variable, never its value. Every read goes through the credential
+ * source (lib/models/credentialSource.ts, ADR 0133): an embedding
+ * application's keychain is asked by the variable's name first, then the
+ * environment, exactly as for a provider key or an MCP `pass_env`.
  */
+
+import { credentialValue } from '../models/credentialSource.ts';
 
 /** Prefixes and names of variables the framework itself reads: never an API credential. */
 const FRAMEWORK_ENV_PREFIXES = [
@@ -40,14 +45,25 @@ export function credentialEnvProblem(name: string, env: NodeJS.ProcessEnv = proc
 }
 
 /**
- * The credential in `name`, trimmed. Throws when the allowlist refuses the
- * variable or it is not set; `where` prefixes the message, which names the
- * variable and never its value.
+ * The credential in `name`, trimmed, or undefined when it is not set: the
+ * credential source's value first, then `env`'s. Undefined too when the
+ * allowlist refuses the variable, so no read skips the rule.
+ */
+export function credentialEnvValue(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (credentialEnvProblem(name, env)) return undefined;
+  return credentialValue(name, env)?.trim() || undefined;
+}
+
+/**
+ * The credential in `name`, trimmed: the credential source's value first,
+ * then `env`'s. Throws when the allowlist refuses the variable or it is not
+ * set; `where` prefixes the message, which names the variable and never its
+ * value.
  */
 export function readCredentialEnv(name: string, where: string, env: NodeJS.ProcessEnv = process.env): string {
   const refused = credentialEnvProblem(name, env);
   if (refused) throw new Error(`${where}: ${refused}`);
-  const value = env[name]?.trim();
+  const value = credentialEnvValue(name, env);
   if (!value) throw new Error(`${where}: ${name} is not set (auth reads it from the environment)`);
   return value;
 }

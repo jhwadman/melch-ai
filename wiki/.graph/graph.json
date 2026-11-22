@@ -2,13 +2,13 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-11-15"
+    "at": "2026-11-22"
   },
   "stats": {
-    "nodes": 1118,
-    "edges": 4451,
+    "nodes": 1119,
+    "edges": 4464,
     "byKind": {
-      "doc": 233,
+      "doc": 234,
       "provider": 8,
       "env": 119,
       "model": 13,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 892,
+      "links_to": 897,
       "requires_env": 183,
       "routes_to": 13,
       "defined_in": 84,
@@ -33,10 +33,10 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1018,
+      "imports": 1020,
       "reads_table": 33,
       "runs": 77,
-      "derives_from": 1342,
+      "derives_from": 1348,
       "constrains": 255,
       "supersedes": 22,
       "depends_on": 148,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3967,
+      "extracted": 3980,
       "inferred": 484
     },
     "isolated": 5
@@ -2356,6 +2356,18 @@
       }
     },
     {
+      "id": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "kind": "doc",
+      "label": "ADR 0161: Tool credentials a YAML names are read through the credential source",
+      "source": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 123
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2772,7 +2784,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 889
+        "words": 953
       }
     },
     {
@@ -2820,7 +2832,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3595
+        "words": 3623
       }
     },
     {
@@ -6748,7 +6760,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 1140
+        "lines": 1142
       }
     },
     {
@@ -7765,7 +7777,7 @@
       "label": "lib/tools/credentialEnv.ts",
       "source": "lib/tools/credentialEnv.ts",
       "attrs": {
-        "lines": 54
+        "lines": 70
       }
     },
     {
@@ -7927,7 +7939,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 296
+        "lines": 319
       }
     },
     {
@@ -19510,6 +19522,55 @@
       "evidence": "/decisions/0159-a-run-is-a-trace-of-steps-a-turn-joins-it-by-key.md:35"
     },
     {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md frontmatter"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md frontmatter"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md frontmatter"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md frontmatter"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md frontmatter"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "/tools/openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md:29"
+    },
+    {
+      "from": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0161-tool-credentials-read-through-the-credential-source.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -25027,6 +25088,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/tools/credentialEnv.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -25072,77 +25140,91 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:45"
+      "evidence": "/tools/openapi-tools.md:46"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:47"
+      "evidence": "/tools/openapi-tools.md:48"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:47"
+      "evidence": "/tools/openapi-tools.md:48"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:53"
+      "evidence": "/tools/openapi-tools.md:54"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:49"
+      "evidence": "/tools/openapi-tools.md:50"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:26"
+      "evidence": "/tools/openapi-tools.md:27"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:28"
+      "evidence": "/tools/openapi-tools.md:29"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:51"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:51"
+      "evidence": "/tools/openapi-tools.md:52"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:49"
+      "evidence": "/tools/openapi-tools.md:50"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0133-credential-source-by-variable-name.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:50"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:50"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:49"
+      "evidence": "/tools/openapi-tools.md:50"
     },
     {
       "from": "/tools/run-code.md",
@@ -25745,6 +25827,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:58"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0161-tool-credentials-read-through-the-credential-source.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:87"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -28136,6 +28225,13 @@
     {
       "from": "module:lib/doctor.ts",
       "to": "module:lib/models/capabilities.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "module:lib/models/credentialSource.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
@@ -32451,6 +32547,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialEnv.ts",
+      "to": "module:lib/models/credentialSource.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialEnv.ts"
     },
     {
       "from": "module:lib/tools/credentialEnv.ts",

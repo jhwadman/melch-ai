@@ -37,6 +37,7 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { ToolCredentialError } from '../lib/tools/auth.ts';
+import { setCredentialSource } from '../lib/models/credentialSource.ts';
 import { aesGcmCipher } from '../lib/tools/credentialCipher.ts';
 import { credentialStore, memoryCredentialRows } from '../lib/tools/credentialStore.ts';
 import { closeMcpConnections, createMcpTools } from '../lib/tools/mcpToolFactory.ts';
@@ -312,6 +313,30 @@ test('where a token may go: https, or http to a loopback host; the token endpoin
   assert.throws(() => oauthTokenSource({ ...clientCreds(), client_secret_env: 'A2A_SERVER_SECRET' }, 'mcp x', 'https://m.example.com/sse', { allowPrivate: true }), /framework's own settings/);
   assert.throws(() => oauthTokenSource({ ...clientCreds(), client_secret_env: 'TRACKER_UNSET_SECRET' }, 'mcp x', 'https://m.example.com/sse', { allowPrivate: true }), /TRACKER_UNSET_SECRET is not set/);
   assert.equal(credentialEnvProblem('TRACKER_TEST_CLIENT_SECRET', {}), null, 'still exported from openapiTools');
+});
+
+test('an oauth2 block\'s client_id_env and client_secret_env read through the credential source first, then the environment (ADR 0133)', async () => {
+  const SOURCE_SECRET_ENV = 'TRACKER_SOURCE_ONLY_SECRET';
+  const SOURCE_ID_ENV = 'TRACKER_SOURCE_ONLY_ID';
+  assert.equal(process.env[SOURCE_SECRET_ENV], undefined);
+  const asked: string[] = [];
+  setCredentialSource((name) => {
+    asked.push(name);
+    return name === SOURCE_SECRET_ENV ? 'source-secret' : name === SOURCE_ID_ENV ? 'source-id' : undefined;
+  });
+  try {
+    const clients = oauthClientsFor([{ subagents: [{ name: 'Ops', mcp_server_url: `${base}/sse`, mcp_auth: { oauth2: { ...authCode(), client_id: undefined, client_id_env: SOURCE_ID_ENV, client_secret_env: SOURCE_SECRET_ENV } } }] }]);
+    assert.equal(clients.tracker?.clientId, 'source-id');
+    assert.equal(clients.tracker?.clientSecret, 'source-secret');
+    assert.doesNotThrow(() => oauthTokenSource({ ...clientCreds(), client_secret_env: SOURCE_SECRET_ENV }, 'mcp x', 'https://m.example.com/sse', { allowPrivate: true }));
+    // The allowlist comes first: a framework variable is refused without asking the source.
+    asked.length = 0;
+    assert.throws(() => oauthTokenSource({ ...clientCreds(), client_secret_env: 'A2A_SERVER_SECRET' }, 'mcp x', 'https://m.example.com/sse', { allowPrivate: true }), /framework's own settings/);
+    assert.ok(!asked.includes('A2A_SERVER_SECRET'));
+  } finally {
+    setCredentialSource(undefined);
+  }
+  assert.throws(() => oauthTokenSource({ ...clientCreds(), client_secret_env: SOURCE_SECRET_ENV }, 'mcp x', 'https://m.example.com/sse', { allowPrivate: true }), new RegExp(`${SOURCE_SECRET_ENV} is not set`));
 });
 
 test('client_credentials MCP: the tools are listed and called with the server\'s own token on every request', async () => {

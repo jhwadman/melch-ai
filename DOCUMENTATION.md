@@ -156,7 +156,7 @@ Field reference:
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `mcp_transport` | subagent | How `mcp_server_url` is reached: `auto` (default: Streamable HTTP, falling back to the legacy SSE transport on the spec's signal), `streamable_http` or `sse` ([ADR 0124](./wiki/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md)). |
 | `mcp_servers` | any agent | Several MCP servers: a list of `{ name, url, tools, auth?, transport? }`, or for a local server `{ name, command, args?, env?, pass_env?, cwd?, tools }` started over stdio when `MELCHIZEDEK_STDIO_MCP` lists the command (ADR 0132). `tools` is required on each; a tool name on two servers, or shared with the agent's own tools, is refused at load. `require_approval` may name any server's tool. Not with `mcp_server_url` (ADR 0124). |
-| `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
+| `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (by variable name, through the credential source, then the environment), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
 | `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `output.schema`) become the node's output. Workflow nodes only. |
@@ -263,7 +263,13 @@ from the token endpoint ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-
 consent step's clients from the same YAML, and `npm run doctor` lists every
 tool that needs a grant. The hosts a grant's token goes to must be ones the
 operator binds to its provider (`MELCHIZEDEK_OAUTH_HOSTS`, [ADR 0114](./wiki/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md));
-with no allowlist, `authorization_code` is refused. An unset variable fails the compile, and so does one of the framework's own settings
+with no allowlist, `authorization_code` is refused. Every variable an `auth`
+names is read through the credential source an embedding application sets
+(`setCredentialSource`, by the variable's name), then the environment
+([ADR 0133](./wiki/decisions/0133-credential-source-by-variable-name.md),
+[ADR 0161](./wiki/decisions/0161-tool-credentials-read-through-the-credential-source.md)):
+a `bearer_env` or `api_key` value at compile and again before each call, an
+`oauth2` block's client id and secret at compile. An unset variable fails the compile, and so does one of the framework's own settings
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`

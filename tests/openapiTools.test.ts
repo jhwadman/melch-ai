@@ -28,6 +28,8 @@ import { MAX_RESULT_CHARS, buildOpenApiOwnTools, buildOpenApiTools, credentialEn
 import { buildRequest, callOperation } from '../lib/tools/openapi/call.ts';
 import type { OpenApiCredential } from '../lib/tools/openapi/call.ts';
 import { setHostResolver } from '../lib/net/addressGuard.ts';
+import { setCredentialSource } from '../lib/models/credentialSource.ts';
+import { setCredentialHosts } from '../lib/tools/credentialHosts.ts';
 import { APPROVAL_TEXTS, createToolContext, toolOf } from '../lib/tools/tool.ts';
 import { compileNativeGraph } from '../lib/compileNative.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
@@ -171,6 +173,68 @@ test('auth comes from the environment; an unset variable fails the build', async
     delete process.env.PETS_KEY;
   }
   await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', auth: { bearer_env: 'PETS_TOKEN' } }, dir), /PETS_TOKEN is not set/);
+});
+
+test('a static credential is read through the credential source first, then the environment, at compile and at each call (ADR 0133)', async () => {
+  const held: Record<string, string> = { PETS_TOKEN: 'src-tok', PETS_KEY: 'src-key' };
+  const asked: string[] = [];
+  setCredentialSource((name) => {
+    asked.push(name);
+    return held[name];
+  });
+  try {
+    // Nothing in the environment: the source alone holds both.
+    assert.equal(process.env.PETS_TOKEN, undefined);
+    const [bearer] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { bearer_env: 'PETS_TOKEN' } }, dir);
+    const [keyed] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { api_key: { env: 'PETS_KEY', in: 'header', name: 'X-Api-Key' } } }, dir);
+    seen.length = 0;
+    await run(bearer, {});
+    await run(keyed, {});
+    assert.equal(seen[0]!.auth, 'Bearer src-tok');
+    assert.equal(seen[1]!.key, 'src-key');
+    // A key the person replaces is the one the next call sends; one they remove stops the next call, naming the variable only.
+    held.PETS_TOKEN = 'src-tok-2';
+    await run(bearer, {});
+    assert.equal(seen[2]!.auth, 'Bearer src-tok-2');
+    delete held.PETS_TOKEN;
+    const before = seen.length;
+    const refused = (await run(bearer, {})) as { error: string };
+    assert.equal(seen.length, before, 'nothing is sent');
+    assert.match(refused.error, /list_pets was not called: PETS_TOKEN is not set/);
+    assert.doesNotMatch(refused.error, /src-tok/);
+    // Unset in both: the compile fails with the same sentence as before.
+    await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', auth: { bearer_env: 'PETS_TOKEN' } }, dir), /openapi pets\.yaml: PETS_TOKEN is not set \(auth reads it from the environment\)/);
+    // The allowlist is checked before the source is asked: a framework variable is refused even when the source holds it.
+    held.SUPABASE_SERVICE_ROLE_KEY = 'src-framework';
+    asked.length = 0;
+    await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { bearer_env: 'SUPABASE_SERVICE_ROLE_KEY' } }, dir), /framework's own settings/);
+    assert.ok(!asked.includes('SUPABASE_SERVICE_ROLE_KEY'), 'the source is never asked for a refused variable');
+  } finally {
+    setCredentialSource(undefined);
+  }
+  // The environment still answers when the source holds nothing.
+  process.env.PETS_TOKEN = 'env-tok';
+  setCredentialSource(() => undefined);
+  try {
+    const [bearer] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { bearer_env: 'PETS_TOKEN' } }, dir);
+    seen.length = 0;
+    await run(bearer, {});
+    assert.equal(seen[0]!.auth, 'Bearer env-tok');
+  } finally {
+    setCredentialSource(undefined);
+    delete process.env.PETS_TOKEN;
+  }
+});
+
+test('the credential host allowlist binds a credential the source holds exactly as one in the environment (ADR 0122)', async () => {
+  setCredentialSource((name) => (name === 'PETS_TOKEN' ? 'src-tok' : undefined));
+  setCredentialHosts({ PETS_TOKEN: ['api.elsewhere.example.com'] });
+  try {
+    await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { bearer_env: 'PETS_TOKEN' } }, dir), /PETS_TOKEN may be sent only to api\.elsewhere\.example\.com/);
+  } finally {
+    setCredentialHosts(undefined);
+    setCredentialSource(undefined);
+  }
 });
 
 test('auth may never name one of the framework\'s own settings (the database, a provider key, an A2A secret)', async () => {

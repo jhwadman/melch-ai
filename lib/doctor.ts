@@ -49,6 +49,7 @@ import type { ProviderId } from './models/providerMap.ts';
 import { embedderPlan } from './memory/providers.ts';
 import type { EmbedderPlan } from './memory/providers.ts';
 import { describeRuntime } from './runtime/runtimeFlag.ts';
+import { credentialValue } from './models/credentialSource.ts';
 import { CHATGPT_SIGNIN_ENV, CHATGPT_SIGNIN_FILE_ENV, chatGptSignInRoutesOpenAi, chatGptSignInStatus } from './chatgpt/state.ts';
 import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
 import { grantHostProblems, OAUTH_REDIRECT_URI_ENV, oauthEnvProblems } from './a2a/oauthSetup.ts';
@@ -488,7 +489,8 @@ function grantsOf(agent: Parameters<typeof agentOAuthGrants>[0], prefix: string)
     provider: use.oauth2.provider,
     grant: use.oauth2.grant,
     scopes: [...(use.oauth2.scopes ?? [])],
-    missingEnv: oauthEnvNames(use.oauth2).filter((name) => !process.env[name]?.trim()),
+    // Through the credential source (ADR 0133), as the compile reads them.
+    missingEnv: oauthEnvNames(use.oauth2).filter((name) => !credentialValue(name)?.trim()),
     hostProblems: grantHostProblems(use),
   }));
 }
