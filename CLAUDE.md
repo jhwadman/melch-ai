@@ -19,7 +19,10 @@ Skills in `.claude/skills/` define the lifecycle of a change:
 3. **`secrets-hygiene`** — BEFORE any task touching `.env` or a key.
 4. **`sync-wiki`** — AFTER the change works. The wiki IS the record; there is
    no separate design log. Rebuild the derived layers.
-5. **`security-final-check`** — LAST, before commit. Report an explicit PASS.
+5. **`commit-review`** — the diff against its contracts and CI's gates; PASS or blockers.
+6. **`security-final-check`** — LAST, before commit. Report an explicit PASS.
+
+Work spanning sessions, phases or a release follows **`phase-implementation`** (plans in `plans/`, the owner's three gates).
 
 **`owasp-security`** is the standard's framing behind the gate — background
 reading for a change that opens a new surface.
