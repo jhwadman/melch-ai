@@ -32,6 +32,7 @@ import { TASK_TOOL_CONTRACTS } from './tools/taskTools.ts';
 import { askUserTool } from './runtime/questions.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
 import { runCodeTool } from './tools/runCodeTool.ts';
+import { CODE_SANDBOX_ENV } from './sandbox/sandbox.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
 // can never drift from the definitions. The agentic composites
@@ -206,4 +207,73 @@ export function registerTool(
 /** Names a YAML can declare under `tools:` right now. */
 export function registeredToolNames(): string[] {
   return Object.keys(TOOL_MAP).sort();
+}
+
+/** What a registered tool is, as the registry can tell it from the tool itself. */
+export type RegisteredToolKind =
+  /** A function the model calls and this engine runs (an own Tool, a defineTool contract). */
+  | 'function'
+  /** A function tool that does nothing until the operator meets `condition` (run_code: the code sandbox switch). */
+  | 'conditional'
+  /** A server-side tool the model's provider runs (a NativeToolMarker: web_search, url_context, …), dropped on a provider without it. */
+  | 'provider'
+  /** Text added to each request's instruction, never called (an InstructionTool: preload_memory). */
+  | 'instruction'
+  /** A set of tools listed afresh before each request (a Toolset). */
+  | 'toolset';
+
+/** One tool a YAML can declare under `tools:`, described from what the registry holds. */
+export interface RegisteredTool {
+  name: string;
+  /**
+   * What the tool says it does: a function tool's declared description (the
+   * text the model reads), a provider tool's description for a reader; ''
+   * for an instruction tool or a toolset, which carry none.
+   */
+  description: string;
+  kind: RegisteredToolKind;
+  /** For `conditional`: what must hold, as the operator sets it (e.g. `MELCHIZEDEK_CODE_SANDBOX=on`). */
+  condition?: string;
+}
+
+/**
+ * The tools that need an operator's switch to work, by identity: the
+ * registry's own run_code (lib/tools/runCodeTool.ts, ADR 0137). A tool a
+ * consumer registers under the same name is not this one, and carries no
+ * condition.
+ */
+const TOOL_CONDITIONS = new Map<unknown, string>([[runCodeTool, `${CODE_SANDBOX_ENV}=on`]]);
+
+/** A Tool's declared description; '' when its declaration has none or throws. */
+function declaredDescription(tool: { declaration(): { description?: unknown } }): string {
+  try {
+    const description = tool.declaration().description;
+    return typeof description === 'string' ? description : '';
+  } catch {
+    return '';
+  }
+}
+
+/** One registered tool, described. */
+function describeRegistered(name: string, tool: unknown): RegisteredTool {
+  if (isNativeToolMarker(tool)) return { name, description: tool.description, kind: 'provider' };
+  if (isTool(tool)) {
+    const condition = TOOL_CONDITIONS.get(tool);
+    return { name, description: declaredDescription(tool), kind: condition ? 'conditional' : 'function', ...(condition ? { condition } : {}) };
+  }
+  if (isInstructionTool(tool)) return { name, description: '', kind: 'instruction' };
+  return { name, description: '', kind: 'toolset' };
+}
+
+/**
+ * Every tool a YAML can declare under `tools:` right now, the built-ins and
+ * any a consumer registered, sorted by name (the order registeredToolNames
+ * gives): each one's name, its description and its kind (RegisteredToolKind).
+ * Read from the tools themselves; it calls nothing but a function tool's
+ * `declaration()`, and changes nothing. Credentials a tool reads when it
+ * runs (a provider key for generate_image, X_BEARER_TOKEN for x_api_search)
+ * are not conditions here: the tool says so in its own answer.
+ */
+export function registeredTools(): RegisteredTool[] {
+  return registeredToolNames().map((name) => describeRegistered(name, TOOL_MAP[name]));
 }

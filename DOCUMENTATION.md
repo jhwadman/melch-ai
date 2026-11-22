@@ -1854,7 +1854,12 @@ closest starter-pack file from `config/agents/examples/` or start from
 description, zod schema, execute), register the name in
 `lib/toolRegistry.ts` (or call `registerTool` from your own code),
 reference it from YAML. The native loop runs the contract as it is; see
-`wiki/tools/tool-contracts.md`. The two image tools are the worked
+`wiki/tools/tool-contracts.md`. `registeredTools()` (from the main entry or
+`melchizedek-agents/tools`) lists every tool a YAML can name now, sorted, as
+`{ name, description, kind, condition? }`: `function`, `provider` (run by
+the model's provider: `web_search`, `url_context`, …), `instruction`,
+`toolset`, or `conditional` with what must hold (`run_code`:
+`MELCHIZEDEK_CODE_SANDBOX=on`). The two image tools are the worked
 examples — including why binary data forces function tools over
 subagents, and how a tool signature can enforce an epistemic rule (the
 blind inventory).

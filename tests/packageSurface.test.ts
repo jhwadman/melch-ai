@@ -332,6 +332,26 @@ console.log(JSON.stringify({
   assert.equal(got.sameFunctions, true);
 });
 
+test('registeredTools is reachable from the main entry and melchizedek-agents/tools, imported by the package\'s name', () => {
+  assert.equal(PKG.exports['./tools'], './dist/lib/toolRegistry.js');
+  const script = `
+import { registeredTools } from 'melchizedek-agents/tools';
+import * as main from 'melchizedek-agents';
+const all = registeredTools();
+const pick = (n) => { const t = all.find((x) => x.name === n); return t && { kind: t.kind, condition: t.condition ?? null, described: t.description.length > 0 }; };
+console.log(JSON.stringify({ same: main.registeredTools === registeredTools, names: all.map((t) => t.name).join(',') === main.registeredToolNames().join(','), web_search: pick('web_search'), web_extract: pick('web_extract'), run_code: pick('run_code') }));
+`;
+  const r = asConsumer(script);
+  assert.equal(r.status, 0, String(r.stderr).slice(-2000));
+  assert.deepEqual(lastJson(String(r.stdout)), {
+    same: true,
+    names: true,
+    web_search: { kind: 'provider', condition: null, described: true },
+    web_extract: { kind: 'function', condition: null, described: true },
+    run_code: { kind: 'conditional', condition: 'MELCHIZEDEK_CODE_SANDBOX=on', described: true },
+  });
+});
+
 // ── What `files` ships ───────────────────────────────────────────────────────
 
 /** Whether the package.json `files` list ships `rel` (a path from the repo root). */

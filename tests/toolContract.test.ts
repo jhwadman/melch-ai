@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
-import { RESERVED_TOOL_NAMES, registerTool, registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
+import { RESERVED_TOOL_NAMES, registerTool, registeredToolNames, registeredTools, resolveTools } from '../lib/toolRegistry.ts';
 import { MAX_MCP_RESULT_CHARS } from '../lib/tools/mcpToolFactory.ts';
 import { MAX_RESULT_CHARS as OPENAPI_RESULT_CHARS } from '../lib/tools/openapiTools.ts';
 import {
@@ -308,6 +308,34 @@ test('a record keeps its value schema in the Gemini dialect and the contract', (
 
 // ── The registry ─────────────────────────────────────────────────────────────
 
+test('registeredTools: every registered tool, sorted, with its description and kind as the registry holds it', () => {
+  const env = { ...process.env };
+  const all = registeredTools();
+  assert.deepEqual(all.map((t) => t.name), registeredToolNames(), 'the same names, in the same order');
+  const by = Object.fromEntries(all.map((t) => [t.name, t]));
+  // Provider-run markers: their description for a reader.
+  for (const name of ['web_search', 'url_context', 'x_search', 'collections_search', 'google_search']) {
+    assert.equal(by[name]?.kind, 'provider', name);
+    assert.ok(by[name]!.description.length > 0, `${name} has a description`);
+  }
+  assert.match(by.web_search!.description, /native search/);
+  // Function tools: the description the model reads, word for word.
+  for (const name of ['web_extract', 'ask_user', 'load_memory', 'wiki_read', 'generate_image']) {
+    assert.equal(by[name]?.kind, 'function', name);
+    const [tool] = resolveTools([name]);
+    assert.equal(by[name]!.description, toolOf(tool)!.declaration().description, name);
+    assert.equal(by[name]!.condition, undefined);
+  }
+  // run_code works only under the sandbox switch, and says which.
+  assert.deepEqual(by.run_code && { kind: by.run_code.kind, condition: by.run_code.condition }, { kind: 'conditional', condition: 'MELCHIZEDEK_CODE_SANDBOX=on' });
+  assert.match(by.run_code!.description, /^Run JavaScript/);
+  // An instruction tool has no description of its own.
+  assert.deepEqual(by.preload_memory, { name: 'preload_memory', description: '', kind: 'instruction' });
+  // No side effects: the same answer twice, and the environment untouched.
+  assert.deepEqual(registeredTools(), all);
+  assert.deepEqual(process.env, env);
+});
+
 test('every registry tool that declares a function is an own Tool', async () => {
   const own: string[] = [];
   for (const name of registeredToolNames()) {
@@ -457,4 +485,17 @@ test('the scan sees runtime imports and skips type-only ones (control)', () => {
   assert.equal(mapping.filter((s) => s === '@google/genai').length, 1, 'the value import is seen, the type-only one skipped');
   assert.ok(fs.readFileSync(path.resolve(ROOT, 'lib/tools/toolContract.ts'), 'utf8').includes("from '../models/contract.ts'"));
   assert.ok(!runtimeSpecifiers(path.resolve(ROOT, 'lib/tools/toolContract.ts')).includes('../models/contract.ts'));
+});
+
+// Last in the file: it registers tools of every shape, and the registry is process-wide.
+test('registeredTools: a consumer\'s tool by its shape, never by its name; a declaration that throws gives no description', () => {
+  registerTool('probe_listed_function', defineTool({ name: 'probe_listed_function', description: 'Looks a thing up.', schema: z.object({}), execute: async () => 'ok' }));
+  registerTool('probe_listed_instruction', { name: 'probe_listed_instruction', instruction: async () => 'note' });
+  registerTool('probe_listed_toolset', { name: 'probe_listed_toolset', getTools: async () => [] });
+  registerTool('probe_listed_broken', { name: 'probe_listed_broken', declaration: () => { throw new Error('no'); }, execute: async () => 'x' });
+  const by = Object.fromEntries(registeredTools().map((t) => [t.name, t]));
+  assert.deepEqual(by.probe_listed_function, { name: 'probe_listed_function', description: 'Looks a thing up.', kind: 'function' });
+  assert.deepEqual(by.probe_listed_instruction, { name: 'probe_listed_instruction', description: '', kind: 'instruction' });
+  assert.deepEqual(by.probe_listed_toolset, { name: 'probe_listed_toolset', description: '', kind: 'toolset' });
+  assert.deepEqual(by.probe_listed_broken, { name: 'probe_listed_broken', description: '', kind: 'function' });
 });

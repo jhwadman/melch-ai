@@ -108,7 +108,8 @@ export { RemoteA2AAgent, remoteAgentTool } from './a2a/remoteAgent.ts';
 export type { RemoteAnswer } from './a2a/remoteAgent.ts';
 
 // ── Extend it ───────────────────────────────────────────────────────────────
-export { resolveTools, registerTool, registeredToolNames } from './toolRegistry.ts';
+export { resolveTools, registerTool, registeredToolNames, registeredTools } from './toolRegistry.ts';
+export type { RegisteredTool, RegisteredToolKind } from './toolRegistry.ts';
 export { registerGuard, resolveGuards } from './guards/index.ts';
 export type { Guard, GuardResult } from './guards/index.ts';
 export { defineTool } from './tools/toolContract.ts';

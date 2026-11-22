@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 1123,
-    "edges": 4490,
+    "edges": 4491,
     "byKind": {
       "doc": 236,
       "provider": 8,
@@ -33,7 +33,7 @@
       "uses_tool": 59,
       "connects_mcp": 6,
       "delegates_to": 1,
-      "imports": 1026,
+      "imports": 1027,
       "reads_table": 33,
       "runs": 77,
       "derives_from": 1362,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 4006,
+      "extracted": 4007,
       "inferred": 484
     },
     "isolated": 5
@@ -2856,7 +2856,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3676
+        "words": 3827
       }
     },
     {
@@ -6836,7 +6836,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 188
+        "lines": 189
       }
     },
     {
@@ -7781,7 +7781,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 210
+        "lines": 280
       }
     },
     {
@@ -26020,7 +26020,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:126"
+      "evidence": "/tools/tool-contracts.md:128"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -26076,7 +26076,7 @@
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:118"
+      "evidence": "/tools/tool-contracts.md:120"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -26097,21 +26097,21 @@
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:118"
+      "evidence": "/tools/tool-contracts.md:120"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:118"
+      "evidence": "/tools/tool-contracts.md:120"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:118"
+      "evidence": "/tools/tool-contracts.md:120"
     },
     {
       "from": "/tools/web-tools.md",
@@ -32661,6 +32661,13 @@
     {
       "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/sandbox/sandbox.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
